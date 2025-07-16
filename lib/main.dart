@@ -1,26 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:ai_therapy_teteocan/screens/login_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Text(
-            'Teteocan AI Therapy',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+      title: 'Aurora AI Therapy App',
+      theme: ThemeData(primarySwatch: Colors.teal, fontFamily: 'Roboto'),
+      home: LoginScreen(),
     );
   }
 }
