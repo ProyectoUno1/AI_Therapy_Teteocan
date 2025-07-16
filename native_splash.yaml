@@ -1,0 +1,17 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: true
+
+  color: "#82c4c3"
+  image: assets/images/Splash-logo.png
+
+  android_gravity: center
+  ios_content_mode: center
+  web_image_mode: center
+
+  android_12:
+    color: "#82c4c3"
+    image: assets/images/aurora_icon_android12.png
+    icon_background_color: "#82c4c3"
+    image_dark: assets/images/aurora_icon_android12.png
