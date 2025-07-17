@@ -124,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: Colors.black87,
+        fontFamily: 'Poppins',
       ),
     );
   }
@@ -167,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: TextField(
             controller: _passwordController,
             obscureText: _obscurePassword,
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
             decoration: InputDecoration(
               hintText: 'Contraseña',
               hintStyle: TextStyle(color: Colors.white70),
@@ -209,6 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(
                       color: Color(0xFF4DB6AC),
                       decoration: TextDecoration.underline,
+                      fontFamily: 'Poppins',
                     ),
                   ),
                 ],
@@ -237,7 +239,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             child: Text(
               'Iniciar Sesión',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Poppins',
+              ),
             ),
           ),
         ),
