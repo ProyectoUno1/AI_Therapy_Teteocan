@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Aurora AI Therapy App',
-      theme: ThemeData(primarySwatch: Colors.teal, fontFamily: 'Roboto'),
+      theme: ThemeData(primarySwatch: Colors.teal, fontFamily: 'Poppins'),
       home: LoginScreen(),
     );
   }
