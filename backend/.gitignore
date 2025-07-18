@@ -3,3 +3,9 @@ node_modules/
 .env
 dist/
 logs/
+notes.txt
+/config/firebase/firebase_secret_key.json
+
+# Firebase Emulators
+firebase.json
+.firebaserc
