@@ -44,5 +44,26 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Google Secrets
+# Firebase Configuration & Secrets
 android/app/google-services.json
+backend/config/firebase/*.json
+backend/.env
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+firebase-debug.log
+
+# Node.js
+backend/node_modules/
+backend/package-lock.json
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
