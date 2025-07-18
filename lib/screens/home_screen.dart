@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-// Importa firebase_auth para obtener el nombre del usuario
-// import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart' as auth_provider;
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -19,15 +19,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Método para cargar el nombre del usuario autenticado
   void _loadUserName() {
-    // Descomenta y adapta esta sección cuando tengas Firebase Auth configurado
-    /*
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      setState(() {
-        _userName = user.displayName ?? user.email?.split('@')[0] ?? 'Usuario';
-      });
-    }
-    */
+    // Obtener el usuario del AuthProvider
+    final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
+    setState(() {
+      _userName = authProvider.userName;
+    });
   }
 
   @override
@@ -62,6 +58,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text('Ver notificaciones')));
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              // Cerrar sesión
+              final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
+              await authProvider.signOut();
+              // La navegación se maneja automáticamente por el AuthWrapper
             },
           ),
           SizedBox(width: 10), // Espacio adicional
