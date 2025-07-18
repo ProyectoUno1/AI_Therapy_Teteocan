@@ -128,6 +128,15 @@ class AuthService {
   // Iniciar sesión con Google
   Future<AuthResult> signInWithGoogle() async {
     try {
+      // Verificar si estamos en modo emulador
+      if (_baseUrl.contains('10.0.2.2')) {
+        // Para modo emulador, simular Google Sign-In
+        return AuthResult(
+          success: false,
+          message: 'Google Sign-In no está disponible en modo emulador. Use autenticación por email para pruebas.'
+        );
+      }
+      
       // Cerrar sesión anterior de Google si existe
       await _googleSignIn.signOut();
       
@@ -181,6 +190,8 @@ class AuthService {
         }
       } else if (e.toString().contains('network')) {
         errorMessage += 'Error de conexión a internet.';
+      } else if (e.toString().contains('unknown')) {
+        errorMessage += 'Error de configuración. Verifique la configuración de Google Sign-In.';
       } else {
         errorMessage += e.toString();
       }
