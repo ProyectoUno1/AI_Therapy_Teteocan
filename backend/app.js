@@ -38,7 +38,9 @@ app.use((error, req, res, next) => {
 });
 
 const helloRoutes = require('./routes/hello');
+const usersRoutes = require('./routes/users');
 app.use('/api', helloRoutes);
+app.use('/api/users', usersRoutes);
 
 // Exporta la aplicacion para que pueda ser utilizada en otros archivos
 module.exports = app;

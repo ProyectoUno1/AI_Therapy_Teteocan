@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-// Importa la pantalla de registro para la navegación
+import 'package:provider/provider.dart';
 import 'package:ai_therapy_teteocan/screens/register_screen.dart';
-// Importa Firebase Auth y Google Sign-In (descomenta y añade a pubspec.yaml si aún no lo has hecho)
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:google_sign_in/google_sign_in.dart';
+import '../providers/auth_provider.dart' as auth_provider;
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -357,87 +355,47 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Aquí iría la lógica de inicio de sesión con Firebase Authentication
-    // Ejemplo (descomenta y adapta cuando tengas Firebase configurado):
-    /*
-    try {
-      _showSnackBar('Iniciando sesión...', Color(0xFF4DB6AC));
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      // Si el inicio de sesión es exitoso, puedes navegar a la pantalla principal
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+    // Usar AuthProvider para el login
+    final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
+    
+    bool success = await authProvider.signInWithEmailAndPassword(email, password);
+    
+    if (success) {
       _showSnackBar('Inicio de sesión exitoso!', Colors.green);
-    } on FirebaseAuthException catch (e) {
-      String message;
-      if (e.code == 'user-not-found') {
-        message = 'No se encontró un usuario con ese email.';
-      } else if (e.code == 'wrong-password') {
-        message = 'Contraseña incorrecta.';
-      } else {
-        message = 'Error al iniciar sesión: ${e.message}';
-      }
-      _showSnackBar(message, Colors.red);
-    } catch (e) {
-      _showSnackBar('Ocurrió un error inesperado: $e', Colors.red);
+      // La navegación se maneja automáticamente por el AuthWrapper
+    } else {
+      _showSnackBar(
+        authProvider.errorMessage ?? 'Error al iniciar sesión',
+        Colors.red,
+      );
     }
-    */
-
-    // Simulación de inicio de sesión si Firebase no está configurado
-    _showSnackBar(
-      'Lógica de inicio de sesión (Email/Contraseña) aquí.',
-      Color(0xFF4DB6AC),
-    );
-    print('Email: $email, Contraseña: $password');
   }
 
   // Lógica de inicio de sesión con Google
   void _handleGoogleSignIn() async {
-    // Aquí iría la lógica de autenticación con Google SignIn de Firebase
-    // Necesitarás añadir 'google_sign_in' a tu pubspec.yaml y configurarlo.
-    /*
-    try {
-      _showSnackBar('Iniciando sesión con Google...', Color(0xFF4DB6AC));
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        // El usuario canceló el inicio de sesión
-        _showSnackBar('Inicio de sesión con Google cancelado.', Colors.orange);
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
-
-      // Si el inicio de sesión es exitoso, puedes navegar a la pantalla principal
-      // Y también enviar el UID de Firebase y otros datos al backend si es necesario
-      // await _sendUserDataToBackend(userCredential.user!.uid, userCredential.user!.displayName, userCredential.user!.email);
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+    // Usar AuthProvider para el login con Google
+    final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
+    
+    bool success = await authProvider.signInWithGoogle();
+    
+    if (success) {
       _showSnackBar('Inicio de sesión con Google exitoso!', Colors.green);
-    } on FirebaseAuthException catch (e) {
-      _showSnackBar('Error al iniciar sesión con Google: ${e.message}', Colors.red);
-    } catch (e) {
-      _showSnackBar('Ocurrió un error inesperado con Google: $e', Colors.red);
+      // La navegación se maneja automáticamente por el AuthWrapper
+    } else {
+      _showSnackBar(
+        authProvider.errorMessage ?? 'Error al iniciar sesión con Google',
+        Colors.red,
+      );
     }
-    */
-
-    // Simulación de inicio de sesión con Google si Firebase no está configurado
-    _showSnackBar(
-      'Lógica de inicio de sesión con Google aquí.',
-      Color(0xFF4DB6AC),
-    );
   }
 
   // Método auxiliar para mostrar SnackBar
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    }
   }
 
   @override
