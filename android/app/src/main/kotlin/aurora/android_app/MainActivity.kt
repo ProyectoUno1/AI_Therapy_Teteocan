@@ -1,4 +1,4 @@
-package com.example.ai_therapy_teteocan
+package aurora.android_app
 
 import io.flutter.embedding.android.FlutterActivity
 
