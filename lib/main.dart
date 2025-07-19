@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart' as auth_provider;
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+
 import 'splash_screen.dart';
 
 void main() async {
@@ -57,29 +56,4 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<auth_provider.AuthProvider>(
-      builder: (context, authProvider, child) {
-        // Mostrar pantalla de carga si está procesando
-        if (authProvider.isLoading) {
-          return Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4DB6AC)),
-              ),
-            ),
-          );
-        }
-        
-        // Mostrar Home si está autenticado, Login si no
-        if (authProvider.isAuthenticated) {
-          return HomeScreen();
-        } else {
-          return LoginScreen();
-        }
-      },
-    );
-  }
-}
+
