@@ -25,6 +25,7 @@ dependencies:
   # Gestión de estado y almacenamiento local
   provider: ^6.1.2
   shared_preferences: ^2.3.3
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +37,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/
     - assets/images/
     - assets/fonts/
 
