@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'providers/auth_provider.dart' as auth_provider;
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ Future<void> _connectToFirebaseEmulator() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -49,7 +51,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.teal,
           fontFamily: 'Poppins',
         ),
-        home: AuthWrapper(),
+        home: SplashScreen(),
       ),
     );
   }
