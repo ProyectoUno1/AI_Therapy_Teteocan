@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:ai_therapy_teteocan/screens/register_screen.dart';
-import '../providers/auth_provider.dart' as auth_provider;
+import 'package:ai_therapy_teteocan/screens/auth/role_selection_screen.dart';
+// Importa las nuevas Home Screens específicas por rol
+import 'package:ai_therapy_teteocan/screens/patient/patient_home_screen.dart';
+import 'package:ai_therapy_teteocan/screens/psychologist/psychologist_home_screen.dart';
+// Importa Firebase Auth (descomenta cuando tengas Firebase configurado)
+// import 'package:firebase_auth/firebase_auth.dart';
+// Importa para jsonDecode y http si vas a usar el backend para _getUserRole
+// import 'dart:convert';
+// import 'package:http/http.dart' as http;
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -15,6 +21,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Instancia de FirebaseAuth (descomenta cuando tengas Firebase configurado)
   // final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Colores de tu paleta
+  final Color primaryColor = Color(0xFF3B716F);
+  final Color accentColor = Color(0xFF5CA0AC);
+  final Color lightAccentColor = Color(0xFF82C4C3);
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +56,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     SizedBox(height: 40),
 
-                    // Formulario de login (ahora incluye botón de Google)
+                    // Formulario de login
                     _buildLoginForm(),
 
                     SizedBox(height: 30),
 
-                    // Enlace para crear cuenta (navega a RegisterScreen)
+                    // Enlace para crear cuenta (redirige a Selección de rol)
                     _buildCreateAccountLink(),
 
                     SizedBox(height: 60),
@@ -79,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: 250,
             height: 250,
             decoration: BoxDecoration(
-              color: Color(0xFF5CA0AC),
+              color: accentColor,
               borderRadius: BorderRadius.only(bottomLeft: Radius.circular(125)),
             ),
           ),
@@ -93,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: 320,
             height: 320,
             decoration: BoxDecoration(
-              color: const Color(0xFF3B716F),
+              color: primaryColor,
               borderRadius: BorderRadius.only(topRight: Radius.circular(160)),
             ),
           ),
@@ -108,7 +119,9 @@ class _LoginScreenState extends State<LoginScreen> {
       height: 150,
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/LogoAurora.png'),
+          image: AssetImage(
+            'assets/images/LogoAurora.png',
+          ), // Asegúrate de tener esta imagen
           fit: BoxFit.scaleDown,
         ),
       ),
@@ -134,16 +147,19 @@ class _LoginScreenState extends State<LoginScreen> {
         Container(
           height: 48,
           decoration: BoxDecoration(
-            color: Color(0xFF80CBC4),
+            color: lightAccentColor,
             borderRadius: BorderRadius.circular(8),
           ),
           child: TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
             decoration: InputDecoration(
               hintText: 'Email',
-              hintStyle: TextStyle(color: Colors.white70),
+              hintStyle: TextStyle(
+                color: Colors.white70,
+                fontFamily: 'Poppins',
+              ),
               prefixIcon: Icon(Icons.mail_outline, color: Colors.white),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
@@ -160,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Container(
           height: 48,
           decoration: BoxDecoration(
-            color: Color(0xFF80CBC4),
+            color: lightAccentColor,
             borderRadius: BorderRadius.circular(8),
           ),
           child: TextField(
@@ -169,7 +185,10 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
             decoration: InputDecoration(
               hintText: 'Contraseña',
-              hintStyle: TextStyle(color: Colors.white70),
+              hintStyle: TextStyle(
+                color: Colors.white70,
+                fontFamily: 'Poppins',
+              ),
               prefixIcon: Icon(Icons.lock_outline, color: Colors.white),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -200,13 +219,17 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.only(left: 4.0),
             child: RichText(
               text: TextSpan(
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black54,
+                  fontFamily: 'Poppins',
+                ),
                 children: [
                   TextSpan(text: '¿Olvidaste tu contraseña? '),
                   TextSpan(
                     text: 'Recuperar contraseña',
                     style: TextStyle(
-                      color: Color(0xFF4DB6AC),
+                      color: accentColor,
                       decoration: TextDecoration.underline,
                       fontFamily: 'Poppins',
                     ),
@@ -219,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         SizedBox(height: 32),
 
-        // Botón de iniciar sesión (Email/Contraseña)
+        // Botón de iniciar sesión
         SizedBox(
           width: double.infinity,
           height: 48,
@@ -228,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _handleLogin();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF4DB6AC),
+              backgroundColor: accentColor,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -245,53 +268,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-
-        SizedBox(height: 20),
-
-        // Separador "o"
-        Row(
-          children: [
-            Expanded(child: Divider(color: Colors.black26)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
-              child: Text('o', style: TextStyle(color: Colors.black54)),
-            ),
-            Expanded(child: Divider(color: Colors.black26)),
-          ],
-        ),
-
-        SizedBox(height: 20),
-
-        // Botón para iniciar sesión con Google
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              _handleGoogleSignIn();
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Color(0xFF4DB6AC),
-              side: BorderSide(color: Color(0xFF4DB6AC)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: Image.network(
-              'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/2048px-Google_%22G%22_logo.svg.png', // Logo de Google
-              height: 24.0,
-              width: 24.0,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.g_mobiledata,
-                color: Color(0xFF4DB6AC),
-              ), // Fallback icon
-            ),
-            label: Text(
-              'Iniciar Sesión con Google',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -299,22 +275,45 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildCreateAccountLink() {
     return GestureDetector(
       onTap: () {
-        // Navegar a la pantalla de registro
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => RegisterScreen()),
+        // Navegar a la pantalla de selección de rol con animación
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                RoleSelectionScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(1.0, 0.0); // Viene desde la derecha
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+
+                  var tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+          ),
         );
       },
       child: RichText(
         text: TextSpan(
-          style: TextStyle(fontSize: 14, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+            fontFamily: 'Poppins',
+          ),
           children: [
             TextSpan(text: '¿No tienes una cuenta? '),
             TextSpan(
               text: 'Crear Cuenta',
               style: TextStyle(
-                color: Color(0xFF4DB6AC),
+                color: accentColor,
                 fontWeight: FontWeight.w500,
+                fontFamily: 'Poppins',
               ),
             ),
           ],
@@ -326,7 +325,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildBottomLogo() {
     return Text(
       'AURORA',
-      style: TextStyle(fontSize: 10, color: Colors.black26, letterSpacing: 2.0),
+      style: TextStyle(
+        fontSize: 10,
+        color: Colors.black26,
+        letterSpacing: 2.0,
+        fontFamily: 'Poppins',
+      ),
     );
   }
 
@@ -355,47 +359,114 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Usar AuthProvider para el login
-    final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
-    
-    bool success = await authProvider.signInWithEmailAndPassword(email, password);
-    
-    if (success) {
-      _showSnackBar('Inicio de sesión exitoso!', Colors.green);
-      // La navegación se maneja automáticamente por el AuthWrapper
-    } else {
-      _showSnackBar(
-        authProvider.errorMessage ?? 'Error al iniciar sesión',
-        Colors.red,
+    // Aquí iría la lógica de inicio de sesión con Firebase Authentication
+    // y la consulta del rol del usuario.
+    /*
+    try {
+      _showSnackBar('Iniciando sesión...', accentColor);
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+
+      // Una vez autenticado, obtener el UID de Firebase
+      String firebaseUid = userCredential.user!.uid;
+
+      // TODO: Consultar tu base de datos (PostgreSQL) o Firebase Firestore/Realtime Database
+      // para determinar el rol del usuario (paciente o psicólogo).
+      // Esta función _getUserRole debe ser implementada en tu AuthProvider o un servicio.
+      String userRole = await _getUserRole(firebaseUid); // Implementa esta función
+
+      if (userRole == 'paciente') {
+        _showSnackBar('Bienvenido, paciente!', Colors.green);
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PatientHomeScreen()));
+      } else if (userRole == 'psicologo') {
+        _showSnackBar('Bienvenido, psicólogo!', Colors.green);
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PsychologistHomeScreen()));
+      } else {
+        _showSnackBar('Rol de usuario no reconocido. Contacta a soporte.', Colors.orange);
+        await _auth.signOut(); // Cerrar sesión si el rol no es válido
+      }
+
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'user-not-found') {
+        message = 'No se encontró un usuario con ese email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Contraseña incorrecta.';
+      } else {
+        message = 'Error al iniciar sesión: ${e.message}';
+      }
+      _showSnackBar(message, Colors.red);
+    } catch (e) {
+      _showSnackBar('Ocurrió un error inesperado: $e', Colors.red);
     }
+    */
+
+    // Simulación de inicio de sesión si Firebase no está configurado
+    _showSnackBar('Simulando inicio de sesión...', accentColor);
+    print('Email: $email, Contraseña: $password');
+    // Después de una simulación exitosa, puedes redirigir para probar el flujo
+    // Puedes cambiar esto para simular un rol específico durante el desarrollo
+    // Por ejemplo, para probar PatientHomeScreen:
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => PatientHomeScreen()),
+    );
+    // Para probar PsychologistHomeScreen:
+    // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PsychologistHomeScreen()));
   }
 
-  // Lógica de inicio de sesión con Google
-  void _handleGoogleSignIn() async {
-    // Usar AuthProvider para el login con Google
-    final authProvider = Provider.of<auth_provider.AuthProvider>(context, listen: false);
-    
-    bool success = await authProvider.signInWithGoogle();
-    
-    if (success) {
-      _showSnackBar('Inicio de sesión con Google exitoso!', Colors.green);
-      // La navegación se maneja automáticamente por el AuthWrapper
-    } else {
-      _showSnackBar(
-        authProvider.errorMessage ?? 'Error al iniciar sesión con Google',
-        Colors.red,
-      );
+  // TODO: Esta es una función placeholder. DEBES implementarla en tu AuthProvider o un servicio
+  // que consulte tu backend (Node.js/PostgreSQL) o Firestore para obtener el rol del usuario.
+  // Recibe el Firebase UID del usuario autenticado.
+  /*
+  Future<String> _getUserRole(String firebaseUid) async {
+    // Ejemplo de cómo podrías obtener el rol desde Firestore:
+    // import 'package:cloud_firestore/cloud_firestore.dart';
+    // DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(firebaseUid).get();
+    // if (userDoc.exists) {
+    //   return userDoc.get('role'); // Asume que tienes un campo 'role' en tu documento de usuario
+    // }
+    // return 'unknown'; // Si el documento no existe o no tiene rol
+
+    // Ejemplo de cómo podrías obtener el rol desde tu backend Node.js:
+    // import 'dart:convert';
+    // import 'package:http/http.dart' as http;
+    // final response = await http.get(
+    //   Uri.parse('http://YOUR_NODEJS_BACKEND_IP_OR_DOMAIN:PORT/api/user-role/$firebaseUid'),
+    //   headers: {'Content-Type': 'application/json'},
+    // );
+    // if (response.statusCode == 200) {
+    //   final data = json.decode(response.body);
+    //   return data['role'];
+    // } else {
+    //   print('Error al obtener rol del backend: ${response.body}');
+    //   return 'unknown';
+    // }
+
+    // --- SIMULACIÓN PARA PRUEBAS SIN BACKEND (eliminar en producción) ---
+    // Puedes cambiar esto para simular un rol específico durante el desarrollo
+    await Future.delayed(Duration(seconds: 1)); // Simula una llamada a la red
+    if (firebaseUid.startsWith('patient')) { // Ejemplo: si el UID empieza con 'patient'
+      return 'paciente';
+    } else if (firebaseUid.startsWith('psychologist')) { // Ejemplo: si el UID empieza con 'psychologist'
+      return 'psicologo';
     }
+    return 'paciente'; // Por defecto para pruebas si no coincide
+    // --- FIN SIMULACIÓN ---
   }
+  */
 
   // Método auxiliar para mostrar SnackBar
   void _showSnackBar(String message, Color color) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
