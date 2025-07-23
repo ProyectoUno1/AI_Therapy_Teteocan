@@ -12,20 +12,15 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  
-  
   # Firebase para autenticación
   firebase_core: ^3.7.1
   firebase_auth: ^5.3.2
   google_sign_in: ^6.2.2
-  
-  # HTTP requests para comunicación con backend
-  http: ^1.2.2
-  
-  # Gestión de estado y almacenamiento local
-  provider: ^6.1.2
-  shared_preferences: ^2.3.3
-  lottie: ^3.3.1
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  lottie: ^3.1.0 
+
+
 
 dev_dependencies:
   flutter_test:
