@@ -29,6 +29,7 @@ import 'package:ai_therapy_teteocan/splash_screen.dart'; // Tu SplashScreen
 // Asegúrate de que firebase_options.dart esté generado correctamente
 import 'firebase_options.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -376,7 +377,7 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       home:
-          PatientHomeScreen(), // Usa AuthWrapper para manejar la navegación inicial
+          LoginScreen(), // Usa AuthWrapper para manejar la navegación inicial
     );
   }
 }
@@ -420,3 +421,4 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 }
+

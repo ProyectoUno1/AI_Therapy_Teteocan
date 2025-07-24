@@ -1,29 +1,33 @@
-// lib/presentation/shared/progress_bar_widget.dart
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 
 class ProgressBarWidget extends StatelessWidget {
   final String stepText;
-  final int currentStep; // 1 o 2
-  final int totalSteps; // Generalmente 2
+  final int currentStep; // Ejemplo: 1, 2, 3
+  final int totalSteps; // Ejemplo: 3
 
   const ProgressBarWidget({
-    super.key,
+    Key? key,
     required this.stepText,
     required this.currentStep,
-    this.totalSteps = 2,
-  });
+    required this.totalSteps,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     double progress = currentStep / totalSteps;
 
+    // Para evitar que flex sea 0, usamos un mínimo de 1
+    int flexFilled = (progress * 100).clamp(1, 100).toInt();
+    int flexEmpty = 100 - flexFilled;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Expanded(
-              flex: (progress * 100).toInt(),
+              flex: flexFilled,
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
@@ -33,7 +37,7 @@ class ProgressBarWidget extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: ((1 - progress) * 100).toInt(),
+              flex: flexEmpty,
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
@@ -45,15 +49,12 @@ class ProgressBarWidget extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            stepText,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black54,
-              fontFamily: 'Poppins',
-            ),
+        Text(
+          stepText,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+            fontFamily: 'Poppins',
           ),
         ),
       ],
