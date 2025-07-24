@@ -29,6 +29,12 @@
 		<key>UIMainStoryboardFile</key>
 		<string>Main</string>
 		<key>UISupportedInterfaceOrientations</key>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string	string>Para subir tu foto de perfil desde la galería.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Para tomar fotos para tu perfil con la cámara.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Permite el acceso al micrófono si la función de cámara lo requiere.</string>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
 			<string>UIInterfaceOrientationLandscapeLeft</string>
