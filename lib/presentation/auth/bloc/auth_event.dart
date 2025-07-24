@@ -35,6 +35,7 @@ class AuthRegisterPatientRequested extends AuthEvent {
   final String email;
   final String phoneNumber;
   final String password;
+  
 
   const AuthRegisterPatientRequested({
     required this.username,

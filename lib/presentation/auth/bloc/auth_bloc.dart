@@ -106,6 +106,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
         username: event.username,
         phoneNumber: event.phoneNumber,
+        
+        
       );
       // Similar al login, el listener de AuthUserChanged manejará el estado final.
     } on AppException catch (e) {
