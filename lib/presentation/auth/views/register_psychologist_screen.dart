@@ -1,17 +1,18 @@
-import 'dart:ui'; // Para ImageFilter
-import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';
+import 'dart:ui'; // Para aplicar desenfoque con ImageFilter (efecto blur)
+import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart'; // Barra de progreso personalizada
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/core/utils/input_validators.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart'; // Gestión de estados con BLoC
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart'; // Colores y constantes generales
+import 'package:ai_therapy_teteocan/core/utils/input_validators.dart'; // Colores y constantes generales
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // BLoC para autenticación
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
 
-// Firebase y Google Sign-In
+// Firebase y autenticación con Google
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
 
 class RegisterPsychologistScreen extends StatefulWidget {
   @override
@@ -21,12 +22,15 @@ class RegisterPsychologistScreen extends StatefulWidget {
 
 class _RegisterPsychologistScreenState
     extends State<RegisterPsychologistScreen> {
+
+  // Claves para validar cada paso del formulario
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
   final _formKeyStep3 = GlobalKey<FormState>();
 
   int currentStep = 1;
 
+  // Controladores de campos
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -39,16 +43,18 @@ class _RegisterPsychologistScreenState
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  DateTime? _birthDate;
-
-  final TextEditingController _birthDateController = TextEditingController();
+  
 
   UserCredential? _userCredential;
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Función para mostrar selector de fecha
+  // Muestra el selector de fecha de nacimiento
+  DateTime? _birthDate;
+
+  final TextEditingController _birthDateController = TextEditingController();
+ 
   Future<void> _selectBirthDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -63,6 +69,7 @@ class _RegisterPsychologistScreenState
     }
   }
 
+  // Valida que se haya elegido una fecha
   String? validateBirthDate(String? value) {
     if (_birthDate == null) {
       return 'Por favor selecciona tu fecha de nacimiento';
@@ -70,7 +77,7 @@ class _RegisterPsychologistScreenState
     return null;
   }
 
-  //validar contraseña
+  // Verifica que la contraseña coincida
 
   String? validateConfirmPassword(String? confirmPassword) {
   if (confirmPassword == null || confirmPassword.isEmpty) {
@@ -82,6 +89,7 @@ class _RegisterPsychologistScreenState
   return null; // válido
 }
 
+  // Inicia sesión con Google y llena el campo email si tiene éxito
   Future<void> _signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -119,7 +127,7 @@ class _RegisterPsychologistScreenState
       );
     }
   }
-
+  // Cierra sesión de Google
   void _signOutGoogle() async {
     await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
@@ -129,6 +137,7 @@ class _RegisterPsychologistScreenState
     });
   }
 
+// Crea un divisor visual "O"
   Widget _buildORDivider() {
     return Row(
       children: [
@@ -153,11 +162,11 @@ class _RegisterPsychologistScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // blanco base
+      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Manchas grandes tipo login
+          // Fondo decorativo con círculos difuminados
           Align(
             alignment: Alignment.bottomLeft,
             child: Transform.translate(
@@ -178,6 +187,7 @@ class _RegisterPsychologistScreenState
               ),
             ),
           ),
+
           Align(
             alignment: Alignment.topRight,
             child: Transform.translate(
@@ -208,6 +218,7 @@ class _RegisterPsychologistScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Botón atrás y navegación por pasos
                   AppBar(
                     backgroundColor: Colors.transparent,
                     elevation: 0,
@@ -254,7 +265,7 @@ class _RegisterPsychologistScreenState
                           ProgressBarWidget(
                             stepText: 'Paso $currentStep de 3',
                             currentStep: currentStep,
-                            totalSteps: 3, // Agrega esto también
+                            totalSteps: 3, 
                           ),
 
                           const SizedBox(height: 40),
@@ -280,7 +291,7 @@ class _RegisterPsychologistScreenState
                     },
                   ),
 
-                  // Formulario por step
+                  // Contenedor con blur y contenido dinámico según el paso
                   ClipRRect(
                     borderRadius: BorderRadius.circular(40),
                     child: BackdropFilter(
@@ -309,10 +320,10 @@ class _RegisterPsychologistScreenState
       ),
     );
   }
-
+ //Primer paso de formulario
   Widget _buildStep1() {
     return Form(
-      key: _formKeyStep1,
+      key: _formKeyStep1, // Llave para validar este formulario
       child: Column(
         children: [
           CustomTextField(
@@ -320,7 +331,7 @@ class _RegisterPsychologistScreenState
             hintText: 'Email',
             icon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
-            validator: InputValidators.validateEmail,
+            validator: InputValidators.validateEmail, // Validación email
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -338,7 +349,7 @@ class _RegisterPsychologistScreenState
                 _obscurePassword = !_obscurePassword;
               });
             },
-            validator: InputValidators.validatePassword,
+            validator: InputValidators.validatePassword, // Validación contraseña
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -355,7 +366,7 @@ class _RegisterPsychologistScreenState
                 _obscureConfirmPassword = !_obscureConfirmPassword;
               });
             },
-            validator: validateConfirmPassword,
+            validator: validateConfirmPassword, // Valida que coincida con password
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -368,7 +379,7 @@ class _RegisterPsychologistScreenState
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: () { // Si formulario válido, avanzar al siguiente paso
                 if (_formKeyStep1.currentState?.validate() ?? false) {
                   setState(() {
                     currentStep = 2;
@@ -409,10 +420,10 @@ class _RegisterPsychologistScreenState
 
           const SizedBox(height: 24),
 
-          _buildORDivider(),
+          _buildORDivider(), // Línea divisoria con texto "O"
 
           const SizedBox(height: 24),
-
+   // Botón para iniciar sesión con Google
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -449,7 +460,7 @@ class _RegisterPsychologistScreenState
 
   Widget _buildStep2() {
     return Form(
-      key: _formKeyStep2,
+      key: _formKeyStep2, // Llave para validar segundo formulario
       child: Column(
         children: [
           CustomTextField(
@@ -513,32 +524,35 @@ class _RegisterPsychologistScreenState
 
   Widget _buildStep3() {
     return Form(
-      key: _formKeyStep3,
+      key: _formKeyStep3, // Llave para validar último formulario
       child: Column(
         children: [
           CustomTextField(
             controller: _usernameController,
             hintText: 'Username',
             icon: Icons.person_outline,
-            validator: InputValidators.validateUsername,
+            validator: InputValidators.validateUsername, // Validar username
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
             placeholderColor: Colors.white,
           ),
           const SizedBox(height: 32),
+
           CustomTextField(
             controller: _phoneController,
             hintText: 'Número de teléfono',
             icon: Icons.phone,
             keyboardType: TextInputType.phone,
-            validator: InputValidators.validatePhoneNumber,
+            validator: InputValidators.validatePhoneNumber, // Validar teléfono
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
             placeholderColor: Colors.grey.shade600,
           ),
           const SizedBox(height: 32),
+
+          // Selector fecha de nacimiento con picker
           GestureDetector(
             onTap: () async {
               final now = DateTime.now();
@@ -586,7 +600,7 @@ class _RegisterPsychologistScreenState
                 placeholderColor: Colors.grey.shade600,
                 readOnly: true,
                 onTap: () async {
-                  // Repetimos para que también funcione si tocan el TextField
+                  // Igual que el GestureDetector para mostrar el date picker
                   final now = DateTime.now();
                   final firstDate = DateTime(now.year - 120);
                   final lastDate = now;
@@ -610,6 +624,7 @@ class _RegisterPsychologistScreenState
           ),
           const SizedBox(height: 40),
 
+  // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.error) {
@@ -627,7 +642,6 @@ class _RegisterPsychologistScreenState
                     backgroundColor: Colors.green,
                   ),
                 );
-                // Navegar o limpiar formulario si quieres
               }
             },
             builder: (context, state) {
@@ -638,6 +652,7 @@ class _RegisterPsychologistScreenState
                   onPressed: state.status == AuthStatus.loading
                       ? null
                       : () {
+                        // Dispara evento Bloc para registrar psicólogo
                           if (_formKeyStep3.currentState?.validate() ?? false) {
                             context.read<AuthBloc>().add(
                               AuthRegisterPsychologistRequested(
@@ -651,6 +666,7 @@ class _RegisterPsychologistScreenState
                             );
                           }
                         },
+                        // Estilo del botón Crear cuenta
                   style: ElevatedButton.styleFrom(
                     elevation: 4,
                     backgroundColor: null,
@@ -659,6 +675,7 @@ class _RegisterPsychologistScreenState
                     ),
                     padding: EdgeInsets.all(0),
                   ),
+                  // Contenedor para el botón
                   child: Ink(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
@@ -669,6 +686,7 @@ class _RegisterPsychologistScreenState
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Center(
+                      // Si está cargando muestra spinner, si no el texto "Crear cuenta"
                       child: state.status == AuthStatus.loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
@@ -690,7 +708,7 @@ class _RegisterPsychologistScreenState
       ),
     );
   }
-
+  //libera los controladores al cerrar el widget
   @override
   void dispose() {
     _usernameController.dispose();

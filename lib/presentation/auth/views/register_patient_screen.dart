@@ -1,15 +1,15 @@
-import 'dart:ui'; // Para ImageFilter blur
-import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';
+import 'dart:ui'; // Para aplicar desenfoque con ImageFilter (efecto blur)
+import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';// Barra de progreso personalizada
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/core/utils/input_validators.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';// Gestión de estados con BLoC
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';// Colores y constantes generales
+import 'package:ai_therapy_teteocan/core/utils/input_validators.dart';// Colores y constantes generales
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';// BLoC para autenticación
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';// Campo de texto personalizado
 
-// Firebase y Google Sign-In
+// Firebase y autenticación con Google
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -22,10 +22,11 @@ class RegisterPatientScreen extends StatefulWidget {
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   int currentStep = 1;
-
+ // Claves para validar cada paso del formulario
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
 
+  // Controladores de campos
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -36,15 +37,16 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  DateTime? _birthDate;
-  final TextEditingController _birthDateController = TextEditingController();
-
   UserCredential? _userCredential;
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Función para mostrar selector de fecha
+
+ // Muestra el selector de fecha de nacimiento
+  DateTime? _birthDate;
+  final TextEditingController _birthDateController = TextEditingController();
+
   Future<void> _selectBirthDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -59,6 +61,8 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     }
   }
 
+  
+  // Valida que se haya elegido una fecha
   String? validateBirthDate(String? value) {
     if (_birthDate == null) {
       return 'Por favor selecciona tu fecha de nacimiento';
@@ -66,7 +70,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     return null;
   }
 
-  //validar password
+  // Verifica que la contraseña coincida
   String? validateConfirmPassword(String? confirmPassword) {
     if (confirmPassword == null || confirmPassword.isEmpty) {
       return 'Por favor confirma tu contraseña';
@@ -77,6 +81,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     return null; // válido
   }
 
+  // Inicia sesión con Google y llena el campo email si tiene éxito
   Future<void> _signInWithGoogle() async {
     try {
       final googleUser = await _googleSignIn.signIn();
@@ -96,7 +101,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
         _userCredential = userCredential;
         _emailController.text = userCredential.user?.email ?? '';
         if (currentStep == 1) {
-          currentStep = 2;
+          currentStep = 2;// Avanzar al paso 2 si google inicia sesión
         }
       });
 
@@ -113,7 +118,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       );
     }
   }
-
+  // Cierra sesión de Google
   void _signOutGoogle() async {
     await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
@@ -122,7 +127,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       _emailController.clear();
     });
   }
-
+  // Crea un divisor visual "O"
   Widget _buildORDivider() {
     return Row(
       children: [
@@ -147,11 +152,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // blanco base
+      backgroundColor: Colors.white, 
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Manchas circulares decorativas
+          // Fondo decorativo con círculos difuminados
           Align(
             alignment: Alignment.bottomLeft,
             child: Transform.translate(
@@ -199,6 +204,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                   // Botón atrás y navegación por pasos
                   AppBar(
                     backgroundColor: Colors.transparent,
                     elevation: 0,
@@ -264,7 +270,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     },
                   ),
 
-                  // Formulario dentro de contenedor con blur + fondo con opacidad y bordes redondeados
+                  // Contenedor con blur y contenido dinámico según el paso
                   ClipRRect(
                     borderRadius: BorderRadius.circular(40),
                     child: BackdropFilter(
@@ -289,10 +295,10 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       ),
     );
   }
-
+  //Primer paso de formulario
   Widget _buildStep1() {
     return Form(
-      key: _formKeyStep1,
+      key: _formKeyStep1,// Llave para validar este formulario
       child: Column(
         children: [
           CustomTextField(
@@ -300,7 +306,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             hintText: 'Email',
             icon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
-            validator: InputValidators.validateEmail,
+            validator: InputValidators.validateEmail,// Validación email
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -315,7 +321,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             obscureText: _obscurePassword,
             toggleVisibility: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
-            validator: InputValidators.validatePassword,
+            validator: InputValidators.validatePassword,// Validación contraseña
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -333,7 +339,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                 _obscureConfirmPassword = !_obscureConfirmPassword;
               });
             },
-            validator: validateConfirmPassword,
+            validator: validateConfirmPassword,// Valida que coincida con password
             filled: true,
             fillColor: Colors.white,
             borderRadius: 16,
@@ -346,7 +352,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: () {// Si formulario válido, avanzar al siguiente paso
                 if (_formKeyStep1.currentState?.validate() ?? false) {
                   setState(() => currentStep = 2);
                 }
@@ -383,8 +389,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _buildORDivider(),
+
+          _buildORDivider(),// Línea divisoria con texto "O"
+
           const SizedBox(height: 24),
+           // Botón para iniciar sesión con Google
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -421,7 +430,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
 
   Widget _buildStep2() {
     return Form(
-      key: _formKeyStep2,
+      key: _formKeyStep2,// Llave para validar segundo formulario
       child: Column(
         children: [
           CustomTextField(
@@ -496,7 +505,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                 placeholderColor: Colors.grey.shade600,
                 readOnly: true,
                 onTap: () async {
-                  // Repetimos para que también funcione si tocan el TextField
+                  // Igual que el GestureDetector para mostrar el date picker
                   final now = DateTime.now();
                   final firstDate = DateTime(now.year - 120);
                   final lastDate = now;
@@ -519,6 +528,8 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             ),
           ),
           const SizedBox(height: 40),
+
+          // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.error) {
@@ -546,6 +557,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   onPressed: state.status == AuthStatus.loading
                       ? null
                       : () {
+                        // Dispara evento Bloc para registrar psicólogo
                           if (_formKeyStep2.currentState?.validate() ?? false) {
                             context.read<AuthBloc>().add(
                               AuthRegisterPatientRequested(
@@ -557,6 +569,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                             );
                           }
                         },
+                        // Estilo del botón Crear cuenta
                   style: ElevatedButton.styleFrom(
                     elevation: 4,
                     backgroundColor: null,
@@ -565,6 +578,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     ),
                     padding: EdgeInsets.zero,
                   ),
+                  // Contenedor para el botón
                   child: Ink(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
@@ -575,6 +589,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Center(
+                          // Si está cargando muestra spinner, si no el texto "Crear cuenta"
                       child: state.status == AuthStatus.loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
@@ -596,7 +611,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       ),
     );
   }
-
+//libera los controladores al cerrar el widget
   @override
   void dispose() {
     _emailController.dispose();
