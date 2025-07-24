@@ -5,6 +5,11 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // Para redirigir al cerrar sesión
+import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart'; // NUEVO WIDGET REUTILIZABLE
+
+// Importaciones para las sub-pantallas
+import 'package:image_picker/image_picker.dart'; // Importa image_picker
+import 'dart:io'; // Para File
 
 class ProfileScreenPatient extends StatefulWidget {
   @override
@@ -12,9 +17,6 @@ class ProfileScreenPatient extends StatefulWidget {
 }
 
 class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
-  // El nombre de usuario ahora se obtiene del AuthBloc
-  // String _userName = 'Paciente'; // Ya no es necesario como estado local
-
   // Colores de tu paleta
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
@@ -22,79 +24,217 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
 
   @override
   Widget build(BuildContext context) {
-    // Eliminado el AppBar de aquí, ya que PatientHomeScreen ya tiene uno.
+    // El AppBar se maneja en PatientHomeScreen, este widget es solo el cuerpo
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0), // Padding general
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sección de Configuración del Perfil
-          _buildExpansionCard(
-            title: 'CONFIGURACIÓN DEL PERFIL',
-            children: [
-              _buildProfileOption(context, 'Información personal', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PersonalInfoScreenPatient(),
-                  ),
-                );
-              }),
-              _buildProfileOption(context, 'Notificaciones', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NotificationsScreenPatient(),
-                  ),
-                );
-              }),
-              _buildProfileOption(context, 'Apariencia', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppearanceScreenPatient(),
-                  ),
-                );
-              }),
-              _buildProfileOption(context, 'Idioma', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LanguageScreenPatient(),
-                  ),
-                );
-              }),
-            ],
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 20), // Espacio superior
+          // Sección de información de perfil (Foto, Nombre, Email)
+          // Adaptado del diseño de FlutterFlow
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              String userName = 'Usuario';
+              String userEmail = 'email@ejemplo.com';
+              // Aquí podrías obtener la URL de la foto de perfil si la tienes en tu UserEntity
+              // String? profileImageUrl = (authState.user as PatientEntity?)?.profilePictureUrl;
 
-          // Sección de Suscripción
-          _buildExpansionCard(
-            title: 'SUSCRIPCIÓN',
-            children: [_buildSubscriptionCard()],
+              if (authState.user != null) {
+                userName = authState.user!.username;
+                userEmail = authState.user!.email;
+              }
+              return Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28, // Tamaño similar al diseño de FlutterFlow
+                    backgroundColor:
+                        lightAccentColor, // Color de fondo para la foto
+                    child: const Icon(
+                      Icons.person,
+                      size: 30,
+                      color: Colors.white,
+                    ),
+                    // Si tienes una URL de imagen de perfil, úsala aquí:
+                    // backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        Text(
+                          userEmail,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 20),
-
-          // Sección de Soporte
-          _buildExpansionCard(
-            title: 'SOPORTE',
-            children: [
-              _buildProfileOption(context, 'Soporte', () {
-                /* Lógica de Soporte */
-              }),
-            ],
+          const SizedBox(height: 24), // Espacio después de la sección de perfil
+          // Sección "Account" (Configuración del Perfil)
+          Text(
+            'Account', // Título de la sección como en el diseño de FlutterFlow
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(
+                context,
+              ).textTheme.bodySmall?.color, // Color más tenue
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).cardColor, // Color de la tarjeta adaptable al tema
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).dividerColor.withOpacity(0.5), // Borde sutil
+              ),
+            ),
+            child: Column(
+              children: [
+                ProfileListItem(
+                  icon: Icons.info_outline, // Icono adaptado
+                  text: 'Información personal',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PersonalInfoScreenPatient(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.notifications_none, // Icono adaptado
+                  text: 'Notificaciones',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => NotificationsScreenPatient(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.palette_outlined, // Icono adaptado
+                  text: 'Apariencia',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AppearanceScreenPatient(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.language_outlined, // Icono adaptado
+                  text: 'Idioma',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => LanguageScreenPatient(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
 
-          // Sección de Contratos
-          _buildExpansionCard(
-            title: 'CONTRATOS',
-            children: [
-              _buildProfileOption(context, 'Política de privacidad', () {
-                /* Lógica de Política de Privacidad */
-              }),
-              // Puedes añadir más opciones de contratos aquí
-            ],
+          // Sección "General" (Soporte, Contratos, etc.)
+          Text(
+            'General', // Título de la sección como en el diseño de FlutterFlow
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                ProfileListItem(
+                  icon: Icons.help_outline,
+                  text: 'Soporte',
+                  onTap: () {
+                    /* Lógica de Soporte */
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.privacy_tip_outlined,
+                  text: 'Política de privacidad',
+                  onTap: () {
+                    /* Lógica de Política de Privacidad */
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.share_outlined,
+                  text: 'Invitar Amigos',
+                  onTap: () {
+                    /* Lógica de Invitar Amigos */
+                  },
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 30),
 
@@ -103,7 +243,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             listener: (context, state) {
               if (state.status == AuthStatus.unauthenticated &&
                   !Navigator.of(context).canPop()) {
-                // Si el usuario se desautenticó y no hay rutas anteriores, redirigir al login
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -160,182 +299,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  // Widget auxiliar para las tarjetas expandibles (secciones)
-  Widget _buildExpansionCard({
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Theme.of(
-        context,
-      ).cardColor, // Adapta el color de la tarjeta al tema
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: PageStorageKey(title),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor, // El color del título de la sección
-                letterSpacing: 1.2,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            iconColor: primaryColor,
-            collapsedIconColor: primaryColor,
-            children: <Widget>[
-              Divider(height: 1, color: lightAccentColor.withOpacity(0.5)),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: Column(children: children),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget auxiliar para cada opción dentro de una sección
-  Widget _buildProfileOption(
-    BuildContext context,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color, // Adapta el color del texto
-                fontFamily: 'Poppins',
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget para la tarjeta de suscripción Premium
-  Widget _buildSubscriptionCard() {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: AppConstants.warningColor, // Amarillo claro para resaltar
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'SUSCRIPCIÓN',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.orange[800],
-              letterSpacing: 1,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Aurora Premium',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 10),
-          _buildFeatureRow('Acceso al chat con IA mayor tiempo'),
-          _buildFeatureRow('Prioridad de atención'),
-          _buildFeatureRow('Sesión de terapia semanal'),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Iniciando prueba de 3 días')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text(
-                'Prueba 3 días gratis',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget auxiliar para las características de la suscripción
-  Widget _buildFeatureRow(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle_outline, color: primaryColor, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 15,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color, // Adapta el color del texto
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Diálogo de confirmación para cerrar sesión
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog(
@@ -373,7 +336,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                // Disparar evento de logout al AuthBloc
                 context.read<AuthBloc>().add(AuthLogoutRequested());
               },
             ),
@@ -384,12 +346,72 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
   }
 }
 
-// --- Sub-pantallas específicas para el perfil del paciente ---
+// --- Sub-pantallas específicas para el perfil del paciente (actualizadas) ---
 
-class PersonalInfoScreenPatient extends StatelessWidget {
+class PersonalInfoScreenPatient extends StatefulWidget {
+  @override
+  _PersonalInfoScreenPatientState createState() =>
+      _PersonalInfoScreenPatientState();
+}
+
+class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
+
+  // Controladores para los campos de texto
+  final TextEditingController _nameController = TextEditingController(
+    text: 'Usuario 123',
+  );
+  final TextEditingController _dobController = TextEditingController(
+    text: '00/00/0000',
+  );
+  final TextEditingController _genderController = TextEditingController(
+    text: 'Femenino/Masculino',
+  );
+  final TextEditingController _phoneController = TextEditingController(
+    text: '1234567890',
+  );
+
+  // Variable para la URL de la imagen de perfil
+  File? _profileImageFile; // Usamos File de dart:io para la imagen seleccionada
+
+  @override
+  void initState() {
+    super.initState();
+    // Aquí podrías cargar la información real del usuario desde un BLoC/Cubit
+    // Por ejemplo: context.read<UserProfileCubit>().loadProfile();
+    // Y actualizar los controladores con los datos.
+  }
+
+  // Método para seleccionar y simular subida de una foto
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _profileImageFile = File(image.path);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto seleccionada. Ahora puedes guardarla.'),
+          ),
+        );
+        // Aquí llamarías a un evento de BLoC para subir la imagen al almacenamiento (Firebase Storage)
+        // y actualizar la URL en la base de datos del usuario.
+        // Ejemplo: context.read<UserProfileBloc>().add(UploadProfilePicture(imageFile: _profileImageFile!));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se seleccionó ninguna foto.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al seleccionar imagen: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -415,18 +437,41 @@ class PersonalInfoScreenPatient extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: lightAccentColor,
-                    child: const Icon(
-                      Icons.person,
-                      size: 60,
-                      color: Colors.white,
+                  GestureDetector(
+                    onTap:
+                        _pickImage, // Ahora llama a la lógica real de image_picker
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: lightAccentColor,
+                          backgroundImage: _profileImageFile != null
+                              ? FileImage(_profileImageFile!)
+                              : null,
+                          child: _profileImageFile == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: primaryColor,
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Foto de perfil',
+                    'Toca para cambiar foto', // Texto más claro para la acción
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -448,29 +493,17 @@ class PersonalInfoScreenPatient extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            _buildInfoField(
-              'Nombre',
-              'Usuario 123',
-              isEditable: true,
-              context: context,
-            ),
-            _buildInfoField(
+            _buildInputFieldWithLabel(_nameController, 'Nombre', context),
+            _buildInputFieldWithLabel(
+              _dobController,
               'Fecha de nacimiento',
-              '00/00/0000',
-              isEditable: true,
-              context: context,
+              context,
             ),
-            _buildInfoField(
-              'Género',
-              'Femenino/Masculino',
-              isEditable: true,
-              context: context,
-            ),
-            _buildInfoField(
+            _buildInputFieldWithLabel(_genderController, 'Género', context),
+            _buildInputFieldWithLabel(
+              _phoneController,
               'Número de teléfono',
-              '1234567890',
-              isEditable: true,
-              context: context,
+              context,
             ),
             const SizedBox(height: 40),
             Center(
@@ -479,7 +512,7 @@ class PersonalInfoScreenPatient extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Guardando cambios...')),
                   );
-                  // Lógica para guardar la información
+                  // Lógica para guardar la información (disparar evento a un BLoC de perfil)
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
@@ -501,46 +534,16 @@ class PersonalInfoScreenPatient extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: accentColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              label: const Text(
-                'Regresar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _showHelpDialog(
-                  context,
-                  'información personal',
-                  'En la sección de información personal puedes cambiar tus datos personales.',
-                );
-              },
-              icon: const Icon(Icons.help_outline, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
+      // Eliminado BottomAppBar redundante
     );
   }
 
-  Widget _buildInfoField(
+  // Nuevo widget de campo de texto con label y diseño mejorado
+  Widget _buildInputFieldWithLabel(
+    TextEditingController controller,
     String label,
-    String value, {
-    bool isEditable = false,
-    required BuildContext context,
+    BuildContext context, {
+    bool isEditable = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -555,8 +558,9 @@ class PersonalInfoScreenPatient extends StatelessWidget {
               fontFamily: 'Poppins',
             ),
           ),
-          TextField(
-            controller: TextEditingController(text: value),
+          const SizedBox(height: 4), // Pequeño espacio entre label y campo
+          TextFormField(
+            controller: controller,
             readOnly: !isEditable,
             style: TextStyle(
               fontSize: 16,
@@ -565,16 +569,22 @@ class PersonalInfoScreenPatient extends StatelessWidget {
             ),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: EdgeInsets.zero,
-              border: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade300),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 12.0,
+                horizontal: 10.0,
+              ), // Ajustar padding
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
               ),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: UnderlineInputBorder(
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: primaryColor, width: 2),
               ),
+              filled: true,
+              fillColor: Theme.of(
+                context,
+              ).cardColor, // Color de fondo del campo, adaptable
             ),
           ),
         ],
@@ -612,6 +622,15 @@ class PersonalInfoScreenPatient extends StatelessWidget {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _dobController.dispose();
+    _genderController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 }
 
@@ -712,38 +731,7 @@ class _NotificationsScreenPatientState
           ],
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: accentColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              label: const Text(
-                'Regresar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _showHelpDialog(
-                  context,
-                  'notificaciones',
-                  'En la sección de notificaciones puedes activar o desactivar las notificaciones cuando lo desees.',
-                );
-              },
-              icon: const Icon(Icons.help_outline, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
+      // Eliminado BottomAppBar redundante
     );
   }
 
@@ -843,38 +831,7 @@ class _AppearanceScreenPatientState extends State<AppearanceScreenPatient> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: accentColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              label: const Text(
-                'Regresar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _showHelpDialog(
-                  context,
-                  'apariencia',
-                  'En la sección de apariencia puedes activar el tema que más te agrade a la vista.',
-                );
-              },
-              icon: const Icon(Icons.help_outline, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
+      // Eliminado BottomAppBar redundante
     );
   }
 
@@ -888,9 +845,13 @@ class _AppearanceScreenPatientState extends State<AppearanceScreenPatient> {
         setState(() {
           _selectedTheme = themeValue;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Tema cambiado a: $title')));
+        // TODO: Para cambiar el tema real de la app, necesitas un ThemeCubit o Provider
+        // que envuelva MaterialApp en main.dart y que escuche estos cambios.
+        // Ejemplo con Provider: context.read<ThemeProvider>().setThemeMode(ThemeMode.dark);
+        // Ejemplo con BLoC: context.read<ThemeBloc>().add(ThemeChanged(themeMode: ThemeMode.dark));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Simulando cambio de tema a: $title')),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -904,7 +865,7 @@ class _AppearanceScreenPatientState extends State<AppearanceScreenPatient> {
                   _selectedTheme = value!;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Tema cambiado a: $title')),
+                  SnackBar(content: Text('Simulando cambio de tema a: $title')),
                 );
               },
               activeColor: primaryColor,
@@ -1017,38 +978,7 @@ class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: accentColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              label: const Text(
-                'Regresar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _showHelpDialog(
-                  context,
-                  'idioma',
-                  'En la sección de idioma puedes activar el idioma que mejor comprendas.',
-                );
-              },
-              icon: const Icon(Icons.help_outline, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
+      // Eliminado BottomAppBar redundante
     );
   }
 
@@ -1062,9 +992,12 @@ class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
         setState(() {
           _selectedLanguage = langCode;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Idioma cambiado a: $title')));
+        // TODO: Para cambiar el idioma real de la app, necesitas un mecanismo de localización
+        // (ej. flutter_localizations, un LocalizationCubit/Provider) que actualice el Locale de MaterialApp.
+        // Ejemplo: context.read<LocalizationCubit>().changeLanguage(Locale(langCode));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Simulando cambio de idioma a: $title')),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -1078,7 +1011,9 @@ class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
                   _selectedLanguage = value!;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Idioma cambiado a: $title')),
+                  SnackBar(
+                    content: Text('Simulando cambio de idioma a: $title'),
+                  ),
                 );
               },
               activeColor: primaryColor,
