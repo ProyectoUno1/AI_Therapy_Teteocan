@@ -1,14 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart'
+    as http; // Necesario para UserRemoteDataSourceImpl
+
+// Importaciones de las capas de la arquitectura limpia
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
+import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
+import 'package:ai_therapy_teteocan/data/repositories/auth_repository_impl.dart';
+import 'package:ai_therapy_teteocan/data/repositories/user_repository_impl.dart';
+import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
+import 'package:ai_therapy_teteocan/domain/repositories/user_repository.dart';
+import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
+import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
+import 'package:ai_therapy_teteocan/domain/usecases/user/get_user_role_usecase.dart'; // Aunque el rol ya lo trae el repo de auth
+
+// Importaciones de las vistas
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
+import 'package:ai_therapy_teteocan/splash_screen.dart'; // Tu SplashScreen
+
+// Asegúrate de que firebase_options.dart esté generado correctamente
 import 'firebase_options.dart';
-import 'providers/auth_provider.dart'
-    as auth_provider; // Alias para evitar conflicto de nombres
-import 'screens/auth/login_screen.dart';
-import 'screens/patient/patient_home_screen.dart';
-import 'screens/psychologist/psychologist_home_screen.dart';
-import 'splash_screen.dart'; // Tu SplashScreen
 
 
 void main() async {
@@ -23,17 +42,59 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
-  runApp(MyApp());
+  // --- Inyección de dependencias (Service Locator simple) ---
+  // Inicializar DataSources
+  final AuthRemoteDataSource authRemoteDataSource = AuthRemoteDataSourceImpl();
+  final UserRemoteDataSource userRemoteDataSource = UserRemoteDataSourceImpl(
+    client: http.Client(),
+  );
+
+  // Inicializar Repositories
+  final AuthRepository authRepository = AuthRepositoryImpl(
+    authRemoteDataSource: authRemoteDataSource,
+    userRemoteDataSource: userRemoteDataSource,
+  );
+  final UserRepository userRepository = UserRepositoryImpl(
+    remoteDataSource: userRemoteDataSource,
+  );
+
+  // Inicializar UseCases
+  final SignInUseCase signInUseCase = SignInUseCase(authRepository);
+  final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
+    authRepository,
+  );
+  final GetUserRoleUseCase getUserRoleUseCase = GetUserRoleUseCase(
+    userRepository,
+  ); // Se pasa al AuthBloc, pero el AuthRepository ya trae el rol
+
+  runApp(
+    // MultiBlocProvider para proporcionar Blocs a todo el árbol de widgets
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) =>
+              AuthBloc(
+                authRepository: authRepository,
+                signInUseCase: signInUseCase,
+                registerUserUseCase: registerUserUseCase,
+                // getUserRoleUseCase: getUserRoleUseCase, // No es necesario pasarlo directamente si el repo ya lo maneja
+              )..add(
+                const AuthUserChanged(),
+              ), // Disparar evento inicial para verificar el estado de autenticación
+        ),
+        // Puedes añadir otros Blocs/Cubits globales aquí si los necesitas
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 Future<void> _connectToFirebaseEmulator() async {
   try {
-    // Conectar Firebase Auth al emulator
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     print('🔧 Firebase Auth conectado al emulator en localhost:9099');
   } catch (e) {
     print('❌ Error conectando al emulator: $e');
-    // Continuar sin emulator si falla la conexión
   }
 }
 
@@ -49,85 +110,24 @@ class MyApp extends StatelessWidget {
 
       // Colores primarios - tonos suaves de verde azulado (calma y serenidad)
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF4DB6AC), // Teal suave
+        seedColor: AppConstants.accentColor, // Usa tu constante
         brightness: Brightness.light,
-        primary: const Color(0xFF4DB6AC),
+        primary: AppConstants.accentColor, // Usa tu constante
         secondary: const Color(0xFF81C784), // Verde suave
         surface: const Color(0xFFFAFAFA), // Blanco cálido
-        error: const Color(0xFFE57373), // Rojo suave
+        error: AppConstants.errorColor, // Usa tu constante
       ),
 
       // Configuración de texto con Poppins
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w300,
-        ),
-        displayMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        displaySmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        headlineLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        headlineMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        headlineSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        titleLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        titleMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        titleSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        bodyLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        bodyMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        bodySmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-        ),
-        labelLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        labelMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-        labelSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+      textTheme: _poppinsTextTheme(Brightness.light),
 
       // AppBar con diseño suave
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF4DB6AC),
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppConstants.accentColor, // Usa tu constante
         foregroundColor: Colors.white,
         elevation: 2,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
@@ -138,7 +138,7 @@ class MyApp extends StatelessWidget {
       // Botones con esquinas redondeadas
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4DB6AC),
+          backgroundColor: AppConstants.accentColor, // Usa tu constante
           foregroundColor: Colors.white,
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
@@ -155,14 +155,12 @@ class MyApp extends StatelessWidget {
       cardTheme: CardThemeData(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
+        color: Colors.white, // Blanco para modo claro
       ),
       // Input decoration theme para los campos de texto
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Color(
-          0xFF82C4C3,
-        ), // lightAccentColor para los campos de texto
+        fillColor: AppConstants.lightAccentColor, // Usa tu constante
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
@@ -175,9 +173,19 @@ class MyApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
         ),
-        hintStyle: TextStyle(color: Colors.white70, fontFamily: 'Poppins'),
+        hintStyle: const TextStyle(
+          color: Colors.white70,
+          fontFamily: 'Poppins',
+        ),
         prefixIconColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        errorStyle: const TextStyle(
+          height: 0,
+          fontSize: 0,
+        ), // Para ocultar el texto de error de validación
       ),
     );
   }
@@ -191,111 +199,35 @@ class MyApp extends StatelessWidget {
 
       // Colores para modo oscuro - tonos cálidos y suaves
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF4DB6AC),
+        seedColor: AppConstants.accentColor, // Usa tu constante
         brightness: Brightness.dark,
-        primary: const Color(0xFF80CBC4), // Teal más claro para contraste
+        primary: AppConstants.lightAccentColor, // Teal más claro para contraste
         secondary: const Color(0xFFA5D6A7), // Verde más claro
         surface: const Color(0xFF1E1E1E), // Gris oscuro cálido
         error: const Color(0xFFEF9A9A), // Rojo suave para modo oscuro
       ),
 
       // Configuración de texto para modo oscuro
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w300,
-          color: Color(0xFFE0E0E0),
-        ),
-        displayMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        displaySmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        headlineLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        headlineMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        headlineSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        titleLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        titleMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        titleSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        bodyLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        bodyMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFE0E0E0),
-        ),
-        bodySmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w400,
-          color: Color(0xFFBDBDBD),
-        ),
-        labelLarge: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        labelMedium: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFE0E0E0),
-        ),
-        labelSmall: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: Color(0xFFBDBDBD),
-        ),
-      ),
+      textTheme: _poppinsTextTheme(Brightness.dark),
 
       // AppBar para modo oscuro
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF2D2D2D),
-        foregroundColor: Color(0xFF80CBC4),
+        foregroundColor: AppConstants.lightAccentColor, // Usa tu constante
         elevation: 2,
         centerTitle: true,
         titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF80CBC4),
+          color: AppConstants.lightAccentColor, // Usa tu constante
         ),
       ),
 
       // Botones para modo oscuro
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF80CBC4),
+          backgroundColor: AppConstants.lightAccentColor, // Usa tu constante
           foregroundColor: const Color(0xFF1E1E1E),
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
@@ -312,14 +244,13 @@ class MyApp extends StatelessWidget {
       cardTheme: CardThemeData(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFF2D2D2D),
+        color: const Color(0xFF2D2D2D), // Gris oscuro para modo oscuro
       ),
       // Input decoration theme para los campos de texto en modo oscuro
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Color(
-          0xFF5CA0AC,
-        ), // accentColor para los campos de texto en modo oscuro
+        fillColor: AppConstants
+            .accentColor, // Color más oscuro para campos en modo oscuro
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
@@ -332,136 +263,162 @@ class MyApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
         ),
-        hintStyle: TextStyle(color: Colors.white70, fontFamily: 'Poppins'),
+        hintStyle: const TextStyle(
+          color: Colors.white70,
+          fontFamily: 'Poppins',
+        ),
         prefixIconColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        errorStyle: const TextStyle(
+          height: 0,
+          fontSize: 0,
+        ), // Para ocultar el texto de error de validación
+      ),
+    );
+  }
+
+  // Función auxiliar para el TextTheme de Poppins
+  TextTheme _poppinsTextTheme(Brightness brightness) {
+    Color textColor = brightness == Brightness.light
+        ? Colors.black87
+        : Colors.white;
+    Color mutedTextColor = brightness == Brightness.light
+        ? Colors.black54
+        : Colors.grey[400]!;
+
+    return TextTheme(
+      displayLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w300,
+        color: textColor,
+      ),
+      displayMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      displaySmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      bodyLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      bodyMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      bodySmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: mutedTextColor,
+      ),
+      labelLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      labelMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: mutedTextColor,
+      ),
+      labelSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: mutedTextColor,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => auth_provider.AuthProvider()),
-      ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Aurora AI Therapy App',
-        theme: _lightTheme(),
-        darkTheme: _darkTheme(),
-        themeMode: ThemeMode.system,
-        home: PatientHomeScreen(), // Inicia con SplashScreen
-      ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: AppConstants.appName, // Usa la constante
+      theme: _lightTheme(),
+      darkTheme: _darkTheme(),
+      themeMode: ThemeMode.system,
+      home:
+          LoginScreen(), // Usa AuthWrapper para manejar la navegación inicial
     );
   }
 }
 
 class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
   @override
   Widget build(BuildContext context) {
-    // Escucha los cambios en el estado de autenticación de Firebase
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Mostrar SplashScreen o indicador de carga inicial
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SplashScreen(); // O un CircularProgressIndicator en el centro
-        }
-
-        // Si el usuario está autenticado
-        if (snapshot.hasData && snapshot.data != null) {
-          final User? user = snapshot.data;
-          // Si el usuario está autenticado, intentar obtener su rol
-          return FutureBuilder<String>(
-            // TODO: Implementa esta función en tu AuthProvider o un servicio de usuario
-            // para obtener el rol del usuario desde tu backend (PostgreSQL) o Firestore.
-            // Por ahora, es un placeholder.
-            future: _getUserRole(user!.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                return Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF4DB6AC),
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              if (roleSnapshot.hasError) {
-                // Manejar error al obtener el rol
-                print(
-                  'Error al obtener el rol del usuario: ${roleSnapshot.error}',
-                );
-                return LoginScreen(); // O una pantalla de error
-              }
-
-              final String userRole =
-                  roleSnapshot.data ?? 'unknown'; // Rol por defecto
-
-              if (userRole == 'paciente') {
-                return PatientHomeScreen();
-              } else if (userRole == 'psicologo') {
-                return PsychologistHomeScreen();
-              } else {
-                // Si el rol no es reconocido o es 'unknown', redirigir al login
-                // Considera también cerrar sesión si el rol es inválido.
-                print('Rol de usuario no reconocido: $userRole');
-                return LoginScreen();
-              }
-            },
+    // Escucha el estado del AuthBloc para determinar qué pantalla mostrar
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state.status == AuthStatus.unknown) {
+          // Muestra el SplashScreen mientras el AuthBloc verifica el estado inicial
+          return SplashScreen();
+        } else if (state.status == AuthStatus.loading) {
+          // Muestra un indicador de carga durante operaciones de autenticación
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppConstants.accentColor,
+                ),
+              ),
+            ),
           );
-        } else {
-          // Si no hay usuario autenticado, mostrar la pantalla de login
+        } else if (state.status == AuthStatus.authenticatedPatient) {
+          // Redirige al Home del paciente si está autenticado como paciente
+          return PatientHomeScreen();
+        } else if (state.status == AuthStatus.authenticatedPsychologist) {
+          // Redirige al Home del psicólogo si está autenticado como psicólogo
+          return PsychologistHomeScreen();
+        } else if (state.status == AuthStatus.unauthenticated ||
+            state.status == AuthStatus.error) {
+          // Si no está autenticado o hubo un error, muestra la pantalla de Login
           return LoginScreen();
         }
+        // Fallback, aunque con los estados bien definidos no debería ser necesario
+        return const SplashScreen();
       },
     );
-  }
-
-  // TODO: Esta es una función placeholder. DEBES implementarla en tu AuthProvider o un servicio
-  // que consulte tu backend (Node.js/PostgreSQL) o Firestore para obtener el rol del usuario.
-  // Recibe el Firebase UID del usuario autenticado.
-  Future<String> _getUserRole(String firebaseUid) async {
-    // Ejemplo de cómo podrías obtener el rol desde Firestore:
-    /*
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(firebaseUid).get();
-    if (userDoc.exists) {
-      return userDoc.get('role'); // Asume que tienes un campo 'role' en tu documento de usuario
-    }
-    return 'unknown'; // Si el documento no existe o no tiene rol
-    */
-
-    // Ejemplo de cómo podrías obtener el rol desde tu backend Node.js:
-    /*
-    final response = await http.get(
-      Uri.parse('http://YOUR_NODEJS_BACKEND_IP_OR_DOMAIN:PORT/api/user-role/$firebaseUid'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['role'];
-    } else {
-      print('Error al obtener rol del backend: ${response.body}');
-      return 'unknown';
-    }
-    */
-
-    // --- SIMULACIÓN PARA PRUEBAS SIN BACKEND ---
-    // Puedes cambiar esto para simular un rol específico durante el desarrollo
-    await Future.delayed(Duration(seconds: 1)); // Simula una llamada a la red
-    if (firebaseUid.startsWith('patient')) {
-      // Ejemplo: si el UID empieza con 'patient'
-      return 'paciente';
-    } else if (firebaseUid.startsWith('psychologist')) {
-      // Ejemplo: si el UID empieza con 'psychologist'
-      return 'psicologo';
-    }
-    return 'paciente'; // Por defecto para pruebas si no coincide
-    // --- FIN SIMULACIÓN ---
   }
 }
 
