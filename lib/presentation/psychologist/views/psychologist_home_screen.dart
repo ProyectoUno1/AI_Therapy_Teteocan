@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; // Importa AuthState con los nuevos estados
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_content.dart';
+// Importa tus modelos de dominio si son necesarios para castear la UserEntity
+import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
+import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart'; // Si necesitas acceder a propiedades específicas del PsychologistEntity
+import 'package:ai_therapy_teteocan/data/models/psychologist_models.dart'; // Si AuthBloc te devuelve el Model en lugar de la Entity
+
 
 class PsychologistHomeScreen extends StatefulWidget {
   @override
@@ -11,23 +17,11 @@ class PsychologistHomeScreen extends StatefulWidget {
 }
 
 class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
-  int _selectedIndex = 0; // Índice del BottomNavigationBar seleccionado
+  int _selectedIndex = 0;
 
-  // Lista de widgets para las diferentes pestañas del BottomNavigationBar
-  // Ahora se inicializa en el método build para asegurar que el contexto esté disponible.
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
-      Center(
-        child: Text(
-          'Panel de Control del Psicólogo\n(Aquí verás tus pacientes, citas, etc.)',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
+      const PsychologistHomeContent(),
       Center(
         child: Text(
           'Chats con Pacientes',
@@ -50,14 +44,8 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           ),
         ),
       ),
-      ProfileScreenPsychologist(), // La pantalla de perfil para psicólogos
+      ProfileScreenPsychologist(),
     ];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // _widgetOptions ya no se inicializa aquí
   }
 
   void _onItemTapped(int index) {
@@ -68,45 +56,72 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Escucha el estado del AuthBloc para obtener el nombre del usuario
     String userName = 'Psicólogo';
-    final authState = context
-        .watch<AuthBloc>()
-        .state; // Acceso directo al estado del BLoC
-    if (authState.user != null) {
-      userName = authState.user!.username;
-    }
+    String? profilePictureUrl;
 
-    // Inicializa _widgetOptions aquí, donde el contexto ya está disponible
+    final authState = context.watch<AuthBloc>().state;
+
+    // --- CAMBIO CLAVE AQUÍ ---
+    if (authState.status == AuthStatus.authenticatedPsychologist && authState.user != null) {
+      // Intentamos castear la UserEntity a PsychologistEntity
+      if (authState.user is PsychologistEntity) {
+        final psychologistEntity = authState.user as PsychologistEntity;
+        userName = psychologistEntity.username;
+        profilePictureUrl = psychologistEntity.profilePictureUrl;
+      } else if (authState.user is PsychologistModel) { // En caso de que el bloc emita el modelo directamente
+        final psychologistModel = authState.user as PsychologistModel;
+        userName = psychologistModel.username;
+        profilePictureUrl = psychologistModel.profilePictureUrl;
+      }
+      // Si authState.user es solo UserEntity, usará su username y profilePictureUrl si existen
+      else {
+         userName = authState.user!.username;
+         profilePictureUrl = authState.user!.profilePictureUrl;
+      }
+    }
+    // --- FIN CAMBIO CLAVE ---
+
+
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      backgroundColor: AppConstants.lightGreyBackground,
       appBar: AppBar(
-        backgroundColor: AppConstants.accentColor,
+        backgroundColor: AppConstants.lightGreyBackground,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.settings, color: Colors.black),
           onPressed: () {
-            Scaffold.of(
-              context,
-            ).openDrawer(); // Lógica para abrir el menú lateral
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Configuración')),
+            );
           },
         ),
-        title: Text(
-          'Hola, $userName',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-          ),
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Hello, $userName',
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              '👋',
+              style: TextStyle(fontSize: 18),
+            ),
+          ],
         ),
         actions: [
+          
+          const SizedBox(width: 10),
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Ver notificaciones')),
@@ -116,16 +131,12 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           const SizedBox(width: 10),
         ],
       ),
-      body: Center(
-        child: widgetOptions.elementAt(
-          _selectedIndex,
-        ), // Muestra el widget de la pestaña seleccionada
-      ),
+      body: widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppConstants.primaryColor,
-        selectedItemColor: AppConstants.lightAccentColor,
-        unselectedItemColor: Colors.white70,
+        backgroundColor: AppConstants.lightGreyBackground,
+        selectedItemColor: AppConstants.secondaryColor,
+        unselectedItemColor: Colors.grey,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'Poppins',
@@ -135,12 +146,9 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           fontFamily: 'Poppins',
         ),
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Panel'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.handyman),
-            label: 'Herramientas',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         currentIndex: _selectedIndex,

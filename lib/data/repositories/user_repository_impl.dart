@@ -2,7 +2,7 @@
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_models.dart';
 import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 import 'package:ai_therapy_teteocan/domain/entities/patient_entity.dart';

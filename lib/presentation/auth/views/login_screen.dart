@@ -63,6 +63,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+
+  Widget _buildORDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: Text(
+            'O',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ),
+        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
+      ],
+    );
+  }
+
   void _signOutGoogle() async {
     await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
@@ -75,51 +97,25 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          // Fondos tipo RadialGradient (imitando FlutterFlow)
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Transform.translate(
-              offset: const Offset(-100, 70),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color.fromARGB(136, 59, 113, 111),
-                      const Color.fromARGB(64, 223, 253, 253),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
-              ),
+     resizeToAvoidBottomInset: false,
+    body: Stack(
+      children: [
+        // Fondo degradado
+        Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.fromARGB(255, 255, 255, 255), // Teal claro
+                Color.fromARGB(255, 205, 223, 222), // Teal medio
+                Color(0xFF80CBC4), // Teal más fuerte
+              ],
             ),
           ),
-          Align(
-            alignment: Alignment.topRight,
-            child: Transform.translate(
-              offset: const Offset(100, 20),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color.fromARGB(197, 92, 160, 172),
-                      const Color.fromARGB(0, 142, 236, 225),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
-              ),
-            ),
-          ),
+        ),
 
           SafeArea(
             child: SingleChildScrollView(
@@ -146,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Formulario 
+                    // Formulario
                     ClipRRect(
                       borderRadius: BorderRadius.circular(40),
                       child: BackdropFilter(
@@ -154,7 +150,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF82c4c3).withOpacity(0.85),
+                            color: const Color.fromARGB(
+                              255,
+                              255,
+                              255,
+                              255,
+                            ).withOpacity(0.85),
                             borderRadius: BorderRadius.circular(40),
                           ),
                           child: Form(
@@ -168,10 +169,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   validator: InputValidators.validateEmail,
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Color(0xFF82c4c3),
                                   borderRadius: 16,
                                   placeholderColor: Colors.white,
-                                  
                                 ),
                                 const SizedBox(height: 16),
                                 CustomTextField(
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   },
                                   validator: InputValidators.validatePassword,
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Color(0xFF82c4c3),
                                   borderRadius: 16,
                                   placeholderColor: Colors.white,
                                 ),
@@ -201,7 +201,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                       '¿Olvidaste tu contraseña? Recuperar contraseña',
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: const Color.fromARGB(
+                                          255,
+                                          2,
+                                          2,
+                                          2,
+                                        ).withOpacity(0.9),
                                         fontFamily: 'Poppins',
                                       ),
                                     ),
@@ -339,18 +344,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   },
                                 ),
                                 const SizedBox(height: 20),
-                                Center(
-                                  child: Text(
-                                    'O',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      
-                                      color: Colors.white.withOpacity(0.7),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
 
+                                _buildORDivider(),
+
+                                const SizedBox(height: 20),
                                 // --- BOTÓN GOOGLE ---
                                 SizedBox(
                                   width: double.infinity,
@@ -444,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     text: const TextSpan(
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white,
+                                        color: Color.fromARGB(255, 0, 0, 0),
                                         fontFamily: 'Poppins',
                                         fontWeight: FontWeight.w600,
                                       ),
