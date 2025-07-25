@@ -1,13 +1,13 @@
 import 'dart:ui'; // Para aplicar desenfoque con ImageFilter (efecto blur)
-import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';// Barra de progreso personalizada
+import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart'; // Barra de progreso personalizada
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';// Gestión de estados con BLoC
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';// Colores y constantes generales
-import 'package:ai_therapy_teteocan/core/utils/input_validators.dart';// Colores y constantes generales
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';// BLoC para autenticación
+import 'package:flutter_bloc/flutter_bloc.dart'; // Gestión de estados con BLoC
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart'; // Colores y constantes generales
+import 'package:ai_therapy_teteocan/core/utils/input_validators.dart'; // Colores y constantes generales
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // BLoC para autenticación
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';// Campo de texto personalizado
+import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
 
 // Firebase y autenticación con Google
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,7 +22,7 @@ class RegisterPatientScreen extends StatefulWidget {
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   int currentStep = 1;
- // Claves para validar cada paso del formulario
+  // Claves para validar cada paso del formulario
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
 
@@ -42,8 +42,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-
- // Muestra el selector de fecha de nacimiento
+  // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;
   final TextEditingController _birthDateController = TextEditingController();
 
@@ -61,7 +60,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     }
   }
 
-  
   // Valida que se haya elegido una fecha
   String? validateBirthDate(String? value) {
     if (_birthDate == null) {
@@ -101,7 +99,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
         _userCredential = userCredential;
         _emailController.text = userCredential.user?.email ?? '';
         if (currentStep == 1) {
-          currentStep = 2;// Avanzar al paso 2 si google inicia sesión
+          currentStep = 2; // Avanzar al paso 2 si google inicia sesión
         }
       });
 
@@ -118,6 +116,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       );
     }
   }
+
   // Cierra sesión de Google
   void _signOutGoogle() async {
     await _googleSignIn.signOut();
@@ -127,6 +126,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       _emailController.clear();
     });
   }
+
   // Crea un divisor visual "O"
   Widget _buildORDivider() {
     return Row(
@@ -152,48 +152,20 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, 
-      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Fondo decorativo con círculos difuminados
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Transform.translate(
-              offset: const Offset(-100, 70),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color.fromARGB(136, 59, 113, 111),
-                      const Color.fromARGB(64, 223, 253, 253),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.topRight,
-            child: Transform.translate(
-              offset: const Offset(100, 20),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color.fromARGB(197, 92, 160, 172),
-                      const Color.fromARGB(0, 142, 236, 225),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 255, 255, 255), // Teal claro
+                  Color.fromARGB(255, 205, 223, 222), // Teal medio
+                  Color.fromARGB(255, 147, 213, 207), // Teal más fuerte
+                ],
               ),
             ),
           ),
@@ -204,7 +176,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                   // Botón atrás y navegación por pasos
+                  // Botón atrás y navegación por pasos
                   AppBar(
                     backgroundColor: Colors.transparent,
                     elevation: 0,
@@ -278,7 +250,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF82c4c3).withOpacity(0.85),
+                          color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.85),
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: currentStep == 1 ? _buildStep1() : _buildStep2(),
@@ -295,10 +267,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       ),
     );
   }
+
   //Primer paso de formulario
   Widget _buildStep1() {
     return Form(
-      key: _formKeyStep1,// Llave para validar este formulario
+      key: _formKeyStep1, // Llave para validar este formulario
       child: Column(
         children: [
           CustomTextField(
@@ -306,11 +279,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             hintText: 'Email',
             icon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
-            validator: InputValidators.validateEmail,// Validación email
+            validator: InputValidators.validateEmail, // Validación email
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
           const SizedBox(height: 32),
 
@@ -321,11 +294,12 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             obscureText: _obscurePassword,
             toggleVisibility: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
-            validator: InputValidators.validatePassword,// Validación contraseña
+            validator:
+                InputValidators.validatePassword, // Validación contraseña
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
           const SizedBox(height: 16),
 
@@ -339,11 +313,12 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                 _obscureConfirmPassword = !_obscureConfirmPassword;
               });
             },
-            validator: validateConfirmPassword,// Valida que coincida con password
+            validator:
+                validateConfirmPassword, // Valida que coincida con password
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
 
           const SizedBox(height: 24),
@@ -352,7 +327,8 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () {// Si formulario válido, avanzar al siguiente paso
+              onPressed: () {
+                // Si formulario válido, avanzar al siguiente paso
                 if (_formKeyStep1.currentState?.validate() ?? false) {
                   setState(() => currentStep = 2);
                 }
@@ -390,10 +366,10 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
           ),
           const SizedBox(height: 24),
 
-          _buildORDivider(),// Línea divisoria con texto "O"
+          _buildORDivider(), // Línea divisoria con texto "O"
 
           const SizedBox(height: 24),
-           // Botón para iniciar sesión con Google
+          // Botón para iniciar sesión con Google
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -430,7 +406,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
 
   Widget _buildStep2() {
     return Form(
-      key: _formKeyStep2,// Llave para validar segundo formulario
+      key: _formKeyStep2, // Llave para validar segundo formulario
       child: Column(
         children: [
           CustomTextField(
@@ -439,9 +415,9 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             icon: Icons.person_outline,
             validator: InputValidators.validateUsername,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
           const SizedBox(height: 32),
 
@@ -452,9 +428,9 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             keyboardType: TextInputType.phone,
             validator: InputValidators.validatePhoneNumber,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
           const SizedBox(height: 32),
 
@@ -500,9 +476,9 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   return null;
                 },
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Color(0xFF82c4c3),
                 borderRadius: 16,
-                placeholderColor: Colors.grey.shade600,
+                placeholderColor: Colors.white,
                 readOnly: true,
                 onTap: () async {
                   // Igual que el GestureDetector para mostrar el date picker
@@ -557,7 +533,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   onPressed: state.status == AuthStatus.loading
                       ? null
                       : () {
-                        // Dispara evento Bloc para registrar psicólogo
+                          // Dispara evento Bloc para registrar psicólogo
                           if (_formKeyStep2.currentState?.validate() ?? false) {
                             context.read<AuthBloc>().add(
                               AuthRegisterPatientRequested(
@@ -569,7 +545,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                             );
                           }
                         },
-                        // Estilo del botón Crear cuenta
+                  // Estilo del botón Crear cuenta
                   style: ElevatedButton.styleFrom(
                     elevation: 4,
                     backgroundColor: null,
@@ -589,7 +565,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Center(
-                          // Si está cargando muestra spinner, si no el texto "Crear cuenta"
+                      // Si está cargando muestra spinner, si no el texto "Crear cuenta"
                       child: state.status == AuthStatus.loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
@@ -611,7 +587,8 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
       ),
     );
   }
-//libera los controladores al cerrar el widget
+
+  //libera los controladores al cerrar el widget
   @override
   void dispose() {
     _emailController.dispose();

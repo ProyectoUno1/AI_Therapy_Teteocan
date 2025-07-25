@@ -13,7 +13,6 @@ import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-
 class RegisterPsychologistScreen extends StatefulWidget {
   @override
   _RegisterPsychologistScreenState createState() =>
@@ -22,7 +21,6 @@ class RegisterPsychologistScreen extends StatefulWidget {
 
 class _RegisterPsychologistScreenState
     extends State<RegisterPsychologistScreen> {
-
   // Claves para validar cada paso del formulario
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
@@ -43,8 +41,6 @@ class _RegisterPsychologistScreenState
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  
-
   UserCredential? _userCredential;
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -54,7 +50,7 @@ class _RegisterPsychologistScreenState
   DateTime? _birthDate;
 
   final TextEditingController _birthDateController = TextEditingController();
- 
+
   Future<void> _selectBirthDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -80,14 +76,14 @@ class _RegisterPsychologistScreenState
   // Verifica que la contraseña coincida
 
   String? validateConfirmPassword(String? confirmPassword) {
-  if (confirmPassword == null || confirmPassword.isEmpty) {
-    return 'Por favor confirma tu contraseña';
+    if (confirmPassword == null || confirmPassword.isEmpty) {
+      return 'Por favor confirma tu contraseña';
+    }
+    if (confirmPassword != _passwordController.text) {
+      return 'Las contraseñas no coinciden';
+    }
+    return null; // válido
   }
-  if (confirmPassword != _passwordController.text) {
-    return 'Las contraseñas no coinciden';
-  }
-  return null; // válido
-}
 
   // Inicia sesión con Google y llena el campo email si tiene éxito
   Future<void> _signInWithGoogle() async {
@@ -127,6 +123,7 @@ class _RegisterPsychologistScreenState
       );
     }
   }
+
   // Cierra sesión de Google
   void _signOutGoogle() async {
     await _googleSignIn.signOut();
@@ -137,7 +134,7 @@ class _RegisterPsychologistScreenState
     });
   }
 
-// Crea un divisor visual "O"
+  // Crea un divisor visual "O"
   Widget _buildORDivider() {
     return Row(
       children: [
@@ -162,49 +159,21 @@ class _RegisterPsychologistScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: false,
+      // Quitamos backgroundColor para que el Stack maneje el fondo
       body: Stack(
         children: [
-          // Fondo decorativo con círculos difuminados
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Transform.translate(
-              offset: const Offset(-100, 70),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color.fromARGB(136, 59, 113, 111),
-                      const Color.fromARGB(64, 223, 253, 253),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          Align(
-            alignment: Alignment.topRight,
-            child: Transform.translate(
-              offset: const Offset(100, 20),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color.fromARGB(197, 92, 160, 172),
-                      const Color.fromARGB(0, 142, 236, 225),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 255, 255, 255), // Teal claro
+                  Color.fromARGB(255, 205, 223, 222), // Teal medio
+                  Color.fromARGB(255, 147, 213, 207), // Teal más fuerte
+                ],
               ),
             ),
           ),
@@ -265,7 +234,7 @@ class _RegisterPsychologistScreenState
                           ProgressBarWidget(
                             stepText: 'Paso $currentStep de 3',
                             currentStep: currentStep,
-                            totalSteps: 3, 
+                            totalSteps: 3,
                           ),
 
                           const SizedBox(height: 40),
@@ -299,7 +268,7 @@ class _RegisterPsychologistScreenState
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF82c4c3).withOpacity(0.85),
+                          color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.85),
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: currentStep == 1
@@ -320,7 +289,8 @@ class _RegisterPsychologistScreenState
       ),
     );
   }
- //Primer paso de formulario
+
+  //Primer paso de formulario
   Widget _buildStep1() {
     return Form(
       key: _formKeyStep1, // Llave para validar este formulario
@@ -333,7 +303,7 @@ class _RegisterPsychologistScreenState
             keyboardType: TextInputType.emailAddress,
             validator: InputValidators.validateEmail, // Validación email
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
             placeholderColor: Colors.white,
           ),
@@ -349,10 +319,12 @@ class _RegisterPsychologistScreenState
                 _obscurePassword = !_obscurePassword;
               });
             },
-            validator: InputValidators.validatePassword, // Validación contraseña
+            validator:
+                InputValidators.validatePassword, // Validación contraseña
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
+            placeholderColor: const Color.fromARGB(255, 255, 255, 255),
           ),
           const SizedBox(height: 16),
 
@@ -366,11 +338,12 @@ class _RegisterPsychologistScreenState
                 _obscureConfirmPassword = !_obscureConfirmPassword;
               });
             },
-            validator: validateConfirmPassword, // Valida que coincida con password
+            validator:
+                validateConfirmPassword, // Valida que coincida con password
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: const Color.fromARGB(255, 255, 255, 255),
           ),
 
           const SizedBox(height: 24),
@@ -379,7 +352,8 @@ class _RegisterPsychologistScreenState
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: () { // Si formulario válido, avanzar al siguiente paso
+              onPressed: () {
+                // Si formulario válido, avanzar al siguiente paso
                 if (_formKeyStep1.currentState?.validate() ?? false) {
                   setState(() {
                     currentStep = 2;
@@ -423,7 +397,7 @@ class _RegisterPsychologistScreenState
           _buildORDivider(), // Línea divisoria con texto "O"
 
           const SizedBox(height: 24),
-   // Botón para iniciar sesión con Google
+          // Botón para iniciar sesión con Google
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -470,7 +444,7 @@ class _RegisterPsychologistScreenState
             keyboardType: TextInputType.number,
             validator: InputValidators.validateProfessionalId,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
             placeholderColor: Colors.white,
           ),
@@ -533,7 +507,7 @@ class _RegisterPsychologistScreenState
             icon: Icons.person_outline,
             validator: InputValidators.validateUsername, // Validar username
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
             placeholderColor: Colors.white,
           ),
@@ -546,9 +520,9 @@ class _RegisterPsychologistScreenState
             keyboardType: TextInputType.phone,
             validator: InputValidators.validatePhoneNumber, // Validar teléfono
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: Colors.grey.shade600,
+            placeholderColor: Colors.white,
           ),
           const SizedBox(height: 32),
 
@@ -595,9 +569,9 @@ class _RegisterPsychologistScreenState
                   return null;
                 },
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Color(0xFF82c4c3),
                 borderRadius: 16,
-                placeholderColor: Colors.grey.shade600,
+                placeholderColor: Colors.white,
                 readOnly: true,
                 onTap: () async {
                   // Igual que el GestureDetector para mostrar el date picker
@@ -624,7 +598,7 @@ class _RegisterPsychologistScreenState
           ),
           const SizedBox(height: 40),
 
-  // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
+          // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.error) {
@@ -652,7 +626,7 @@ class _RegisterPsychologistScreenState
                   onPressed: state.status == AuthStatus.loading
                       ? null
                       : () {
-                        // Dispara evento Bloc para registrar psicólogo
+                          // Dispara evento Bloc para registrar psicólogo
                           if (_formKeyStep3.currentState?.validate() ?? false) {
                             context.read<AuthBloc>().add(
                               AuthRegisterPsychologistRequested(
@@ -666,7 +640,7 @@ class _RegisterPsychologistScreenState
                             );
                           }
                         },
-                        // Estilo del botón Crear cuenta
+                  // Estilo del botón Crear cuenta
                   style: ElevatedButton.styleFrom(
                     elevation: 4,
                     backgroundColor: null,
@@ -708,6 +682,7 @@ class _RegisterPsychologistScreenState
       ),
     );
   }
+
   //libera los controladores al cerrar el widget
   @override
   void dispose() {
