@@ -541,6 +541,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                                 email: _emailController.text.trim(),
                                 phoneNumber: _phoneController.text.trim(),
                                 password: _passwordController.text.trim(),
+                                dateOfBirth: _birthDate!,
                               ),
                             );
                           }

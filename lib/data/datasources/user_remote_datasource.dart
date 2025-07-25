@@ -1,139 +1,149 @@
 // lib/data/datasources/user_remote_datasource.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
-import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
+import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
+import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 
 abstract class UserRemoteDataSource {
-  Future<UserModel> getUserData(String uid);
-  Future<UserModel> createUser({
+  Future<PatientModel> getPatientData(String authId);
+  Future<PsychologistModel> getPsychologistData(String authId);
+  Future<PatientModel> createPatient({
     required String uid,
     required String username,
     required String email,
     required String phoneNumber,
-    required String role,
-    String? professionalId,
+    String? dateOfBirth,
+    required String idToken,
   });
-  Future<void> updatePatientProfile(PatientModel patient);
-  Future<void> updatePsychologistProfile(PsychologistModel psychologist);
+  Future<PsychologistModel> createPsychologist({
+    required String uid,
+    required String username,
+    required String email,
+    required String phoneNumber,
+    required String professionalLicense,
+    String? specialty,
+    String? schedule,
+    String? aboutMe,
+    required String dateOfBirth,
+  });
+  Future<UserEntity> getUserData(String authId);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
+  final String baseUrl;
   final http.Client client;
 
-  UserRemoteDataSourceImpl({http.Client? client})
-    : client = client ?? http.Client();
+  UserRemoteDataSourceImpl({required this.baseUrl, required this.client});
 
   @override
-  Future<UserModel> getUserData(String uid) async {
-    final url = '${AppConstants.baseUrl}/users/$uid';
-    try {
-      final response = await client.get(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-      );
+  Future<PatientModel> getPatientData(String authId) async {
+    final response = await client.get(Uri.parse('$baseUrl/patient/$authId'));
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return UserModel.fromJson(data);
-      } else if (response.statusCode == 404) {
-        throw UserNotFoundException(
-          'Datos de usuario no encontrados en el backend.',
-        );
-      } else {
-        throw FetchDataException(
-          'Error ${response.statusCode}: ${response.body}',
-        );
-      }
-    } catch (e) {
-      throw FetchDataException(
-        'Error al obtener datos del usuario del backend: $e',
-      );
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+      return PatientModel.fromJson(jsonData);
+    } else if (response.statusCode == 404) {
+      throw NotFoundException('Paciente no encontrado');
+    } else {
+      throw FetchDataException('Error al obtener datos del paciente');
     }
   }
 
   @override
-  Future<UserModel> createUser({
+  Future<PsychologistModel> getPsychologistData(String authId) async {
+    final response = await client.get(Uri.parse('$baseUrl/psychologist/$authId'));
+
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+      return PsychologistModel.fromJson(jsonData);
+    } else if (response.statusCode == 404) {
+      throw NotFoundException('Psicólogo no encontrado');
+    } else {
+      throw FetchDataException('Error al obtener datos del psicólogo');
+    }
+  }
+
+  @override
+  Future<PatientModel> createPatient({
     required String uid,
     required String username,
     required String email,
     required String phoneNumber,
-    required String role,
-    String? professionalId,
+    String? dateOfBirth,
+    required String idToken,
   }) async {
-    final url =
-        '${AppConstants.baseUrl}/register'; // Tu endpoint de registro en Node.js
-    try {
-      final response = await client.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'firebaseUid': uid,
-          'username': username,
-          'email': email,
-          'phoneNumber': phoneNumber,
-          'role': role,
-          if (professionalId != null) 'professionalId': professionalId,
-        }),
-      );
+    final response = await client.post(
+      Uri.parse('$baseUrl/patient'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $idToken'},
+      body: json.encode({
+        'authId': uid,
+        'username': username,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'dateOfBirth': dateOfBirth,
+      }),
+    );
 
-      if (response.statusCode == 201) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return UserModel.fromJson(data);
-      } else {
-        throw BadRequestException(
-          'Error al crear usuario en el backend: ${response.body}',
-        );
-      }
-    } catch (e) {
-      throw FetchDataException(
-        'Error al comunicarse con el backend para crear usuario: $e',
-      );
+    if (response.statusCode == 201) {
+      final jsonData = json.decode(response.body);
+      return PatientModel.fromJson(jsonData);
+    } else {
+      throw CreateDataException('Error al crear paciente');
     }
   }
 
   @override
-  Future<void> updatePatientProfile(PatientModel patient) async {
-    final url = '${AppConstants.baseUrl}/patients/${patient.uid}';
-    try {
-      final response = await client.put(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(patient.toJson()),
-      );
-      if (response.statusCode != 200) {
-        throw BadRequestException(
-          'Error al actualizar perfil de paciente: ${response.body}',
-        );
-      }
-    } catch (e) {
-      throw FetchDataException(
-        'Error de conexión al actualizar perfil de paciente: $e',
-      );
+  Future<PsychologistModel> createPsychologist({
+    required String uid,
+    required String username,
+    required String email,
+    required String phoneNumber,
+    required String professionalLicense,
+    String? specialty,
+    String? schedule,
+    String? aboutMe,
+    required String dateOfBirth,
+  }) async {
+    final response = await client.post(
+      Uri.parse('$baseUrl/psychologist'),
+      headers: {'Content-Type': 'application/json',},
+      body: json.encode({
+        'authId': uid,
+        'username': username,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'professionalLicense': professionalLicense,
+        'specialty': specialty,
+        'schedule': schedule,
+        'aboutMe': aboutMe,
+        'dateOfBirth': dateOfBirth,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      final jsonData = json.decode(response.body);
+      return PsychologistModel.fromJson(jsonData);
+    } else {
+      throw CreateDataException('Error al crear psicólogo');
     }
   }
 
   @override
-  Future<void> updatePsychologistProfile(PsychologistModel psychologist) async {
-    final url = '${AppConstants.baseUrl}/psychologists/${psychologist.uid}';
+  Future<UserEntity> getUserData(String authId) async {
     try {
-      final response = await client.put(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(psychologist.toJson()),
-      );
-      if (response.statusCode != 200) {
-        throw BadRequestException(
-          'Error al actualizar perfil de psicólogo: ${response.body}',
-        );
+      return await getPatientData(authId);
+    } on NotFoundException {
+      try {
+        return await getPsychologistData(authId);
+      } on NotFoundException {
+        throw NotFoundException('Usuario no encontrado');
       }
     } catch (e) {
-      throw FetchDataException(
-        'Error de conexión al actualizar perfil de psicólogo: $e',
-      );
+      rethrow;
     }
   }
 }

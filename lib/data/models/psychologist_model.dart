@@ -1,10 +1,8 @@
-// lib/data/models/psychologist_model.dart
 import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
-import 'package:equatable/equatable.dart';
 
 class PsychologistModel extends UserModel {
-  final String professionalId;
+  final String professionalLicense; // renombrado a professionalLicense
   final String? specialty;
   final String? schedule;
   final String? aboutMe;
@@ -14,7 +12,7 @@ class PsychologistModel extends UserModel {
     required String username,
     required String email,
     required String phoneNumber,
-    required this.professionalId,
+    required this.professionalLicense,
     this.specialty,
     this.schedule,
     this.aboutMe,
@@ -25,7 +23,7 @@ class PsychologistModel extends UserModel {
           email: email,
           phoneNumber: phoneNumber,
           role: 'psicologo',
-          professionalId: professionalId,
+          professionalId: professionalLicense,
           profilePictureUrl: profilePictureUrl,
         );
 
@@ -35,21 +33,21 @@ class PsychologistModel extends UserModel {
       username: json['username'] as String,
       email: json['email'] as String,
       phoneNumber: json['phoneNumber'] as String,
-      professionalId: json['professionalId'] as String,
+      professionalLicense: json['professional_license'] as String,  // snake_case
       specialty: json['specialty'] as String?,
       schedule: json['schedule'] as String?,
-      aboutMe: json['aboutMe'] as String?,
+      aboutMe: json['about_me'] as String?,
       profilePictureUrl: json['profilePictureUrl'] as String?,
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = super.toJson();
-    json['professionalId'] = professionalId;
+    final json = super.toJson();
+    json['professional_license'] = professionalLicense;
     json['specialty'] = specialty;
     json['schedule'] = schedule;
-    json['aboutMe'] = aboutMe;
+    json['about_me'] = aboutMe;
     return json;
   }
 
@@ -59,7 +57,7 @@ class PsychologistModel extends UserModel {
       username: entity.username,
       email: entity.email,
       phoneNumber: entity.phoneNumber,
-      professionalId: entity.professionalId,
+      professionalLicense: entity.professionalId,
       specialty: entity.specialty,
       schedule: entity.schedule,
       aboutMe: entity.aboutMe,
@@ -68,64 +66,53 @@ class PsychologistModel extends UserModel {
   }
 }
 
-// NUEVAS CLASES PARA LA VISTA DEL HOME DEL PSICÓLOGO (Añadidas aquí)
-
-// Represents a patient for the psychologist's view (simplified)
-class PsychologistPatient extends Equatable {
+/// Modelo para representar un paciente en el contexto del psicólogo
+class PsychologistPatient {
   final String id;
   final String name;
-  final String? imageUrl; // Optional image
-  final String latestMessage; // For recent chats
-  final String lastSeen; // For recent chats time
-  final bool isOnline; // For recent chats dot
+  final String? imageUrl;
+  final String latestMessage;
+  final String lastSeen;
+  final bool isOnline;
 
   const PsychologistPatient({
     required this.id,
     required this.name,
     this.imageUrl,
-    required this.latestMessage,
-    required this.lastSeen,
+    this.latestMessage = '',
+    this.lastSeen = '',
     this.isOnline = false,
   });
-
-  @override
-  List<Object?> get props => [id, name, imageUrl, latestMessage, lastSeen, isOnline];
 }
 
-// Represents a therapy session for today's summary
-class Session extends Equatable {
+/// Modelo para representar una sesión con un paciente
+class Session {
   final String id;
   final DateTime time;
   final PsychologistPatient patient;
-  final String type; // e.g., "Therapy Session", "Initial Consultation", "Follow-up"
+  final String type;
   final int durationMinutes;
 
-  const Session({
+  Session({
     required this.id,
     required this.time,
     required this.patient,
     required this.type,
     required this.durationMinutes,
   });
-
-  @override
-  List<Object?> get props => [id, time, patient, type, durationMinutes];
 }
 
-// Represents an article summary for 'Your Articles'
-class PsychologistArticleSummary extends Equatable {
+/// Modelo resumen de artículo para psicólogos
+class PsychologistArticleSummary {
   final String id;
   final String title;
-  final String imageUrl; // Image for the article card
-  final DateTime date; // Publish date
+  final String imageUrl;
+  final DateTime date;
 
-  const PsychologistArticleSummary({
+  PsychologistArticleSummary({
     required this.id,
     required this.title,
     required this.imageUrl,
     required this.date,
   });
-
-  @override
-  List<Object?> get props => [id, title, imageUrl, date];
 }

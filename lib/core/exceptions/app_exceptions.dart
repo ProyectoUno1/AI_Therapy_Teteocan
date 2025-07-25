@@ -58,3 +58,10 @@ class RoleNotFoundException extends AppException {
   RoleNotFoundException([String? message])
     : super(message ?? 'Rol de usuario no definido', 'Rol no Encontrado');
 }
+class CreateDataException extends AppException {
+  CreateDataException(String message) : super(message);
+}
+
+class NotFoundException extends AppException {
+  NotFoundException(String message) : super(message);
+}

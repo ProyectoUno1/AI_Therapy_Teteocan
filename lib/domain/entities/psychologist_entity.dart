@@ -1,4 +1,3 @@
-// lib/domain/entities/psychologist_entity.dart
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 
 class PsychologistEntity extends UserEntity {
@@ -6,6 +5,8 @@ class PsychologistEntity extends UserEntity {
   final String? specialty;
   final String? schedule;
   final String? aboutMe;
+  final String? gender;
+  final String? dateOfBirth;
 
   const PsychologistEntity({
     required String uid,
@@ -16,23 +17,26 @@ class PsychologistEntity extends UserEntity {
     this.specialty,
     this.schedule,
     this.aboutMe,
+    this.gender,
+    this.dateOfBirth,
     String? profilePictureUrl,
   }) : super(
-         uid: uid,
-         username: username,
-         email: email,
-         phoneNumber: phoneNumber,
-         role: 'psicologo',
-         professionalId: professionalId,
-         profilePictureUrl: profilePictureUrl,
-       );
+          uid: uid,
+          username: username,
+          email: email,
+          phoneNumber: phoneNumber,
+          role: 'psicologo',
+          profilePictureUrl: profilePictureUrl,
+        );
 
   @override
   List<Object?> get props => [
-    ...super.props,
-    professionalId,
-    specialty,
-    schedule,
-    aboutMe,
-  ];
+        ...super.props,
+        professionalId,
+        specialty,
+        schedule,
+        aboutMe,
+        gender,
+        dateOfBirth,
+      ];
 }
