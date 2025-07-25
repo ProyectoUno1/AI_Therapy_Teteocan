@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_models.dart'; 
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; 
 
 
 class PsychologistHomeContent extends StatelessWidget {
