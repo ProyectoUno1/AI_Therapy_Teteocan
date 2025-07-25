@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; // Importa AuthState con los nuevos estados
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_content.dart';
-// Importa tus modelos de dominio si son necesarios para castear la UserEntity
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
-import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart'; // Si necesitas acceder a propiedades específicas del PsychologistEntity
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; // Si AuthBloc te devuelve el Model en lugar de la Entity
-
+import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; // Ensure this is correctly imported if needed
 
 class PsychologistHomeScreen extends StatefulWidget {
+  const PsychologistHomeScreen({super.key}); // Added Key for best practices
+
   @override
   _PsychologistHomeScreenState createState() => _PsychologistHomeScreenState();
 }
@@ -21,7 +21,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
-      const PsychologistHomeContent(),
+      const PsychologistHomeContent(), // This is now correctly a StatelessWidget
       Center(
         child: Text(
           'Chats con Pacientes',
@@ -44,7 +44,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           ),
         ),
       ),
-      ProfileScreenPsychologist(),
+      ProfileScreenPsychologist(), // Assuming ProfileScreenPsychologist is also a StatelessWidget or StatefulWidget with a const constructor
     ];
   }
 
@@ -61,26 +61,22 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
     final authState = context.watch<AuthBloc>().state;
 
-    // --- CAMBIO CLAVE AQUÍ ---
     if (authState.status == AuthStatus.authenticatedPsychologist && authState.user != null) {
-      // Intentamos castear la UserEntity a PsychologistEntity
       if (authState.user is PsychologistEntity) {
         final psychologistEntity = authState.user as PsychologistEntity;
         userName = psychologistEntity.username;
         profilePictureUrl = psychologistEntity.profilePictureUrl;
-      } else if (authState.user is PsychologistModel) { // En caso de que el bloc emita el modelo directamente
+      } else if (authState.user is PsychologistModel) {
+        // If the AuthBloc happens to emit a PsychologistModel directly
         final psychologistModel = authState.user as PsychologistModel;
         userName = psychologistModel.username;
         profilePictureUrl = psychologistModel.profilePictureUrl;
-      }
-      // Si authState.user es solo UserEntity, usará su username y profilePictureUrl si existen
-      else {
-         userName = authState.user!.username;
-         profilePictureUrl = authState.user!.profilePictureUrl;
+      } else if (authState.user is UserEntity) {
+        // Fallback for a generic UserEntity if it has these properties
+        userName = authState.user!.username;
+        profilePictureUrl = authState.user!.profilePictureUrl;
       }
     }
-    // --- FIN CAMBIO CLAVE ---
-
 
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 
@@ -118,8 +114,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           ],
         ),
         actions: [
-          
-          const SizedBox(width: 10),
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {

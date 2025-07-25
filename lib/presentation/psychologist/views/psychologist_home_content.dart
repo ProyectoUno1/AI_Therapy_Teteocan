@@ -1,49 +1,34 @@
-// lib/presentation/psychologist/views/psychologist_home_content.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; 
-
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 class PsychologistHomeContent extends StatelessWidget {
-  const PsychologistHomeContent({super.key});
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Inicio Psicólogo'),
-      ),
-      body: PsychologistHomeContent(),
-    );
-  }
-}
-
+  const PsychologistHomeContent({super.key}); // Added Key for best practices
 
   @override
   Widget build(BuildContext context) {
-    
+    // Dummy Data for demonstration
     final List<Session> todaySessions = [
       Session(
         id: 's1',
-        time: DateTime(2025, 7, 24, 9, 30), 
+        time: DateTime(2025, 7, 25, 9, 30), // Changed to current date for relevance
         patient: const PsychologistPatient(
           id: 'p1',
           name: 'Mario',
-          imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg', 
-          latestMessage: '', lastSeen: '', 
+          imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
+          latestMessage: '', lastSeen: '',
         ),
         type: 'Sesión de terapia',
         durationMinutes: 60,
       ),
       Session(
         id: 's2',
-        time: DateTime(2025, 7, 24, 11, 0), 
+        time: DateTime(2025, 7, 25, 11, 0), // Changed to current date
         patient: const PsychologistPatient(
           id: 'p2',
           name: 'Maria',
-          imageUrl: 'https://randomuser.me/api/portraits/women/44.jpg', 
+          imageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
           latestMessage: '', lastSeen: '',
         ),
         type: 'Consulta inicial',
@@ -51,11 +36,11 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
       Session(
         id: 's3',
-        time: DateTime(2025, 7, 24, 14, 15), 
+        time: DateTime(2025, 7, 25, 14, 15), // Changed to current date
         patient: const PsychologistPatient(
           id: 'p3',
-          name: 'David ',
-          imageUrl: 'https://randomuser.me/api/portraits/men/70.jpg', 
+          name: 'David',
+          imageUrl: 'https://randomuser.me/api/portraits/men/70.jpg',
           latestMessage: '', lastSeen: '',
         ),
         type: 'Consulta inicial',
@@ -63,7 +48,6 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     ];
 
-    
     final List<PsychologistPatient> recentChats = [
       const PsychologistPatient(
         id: 'p1',
@@ -71,7 +55,7 @@ class PsychologistHomeContent extends StatelessWidget {
         imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
         latestMessage: 'Gracias por la sesión de hoy. Tengo..',
         lastSeen: '01:45 a.m.',
-        isOnline: true, 
+        isOnline: true,
       ),
       const PsychologistPatient(
         id: 'p2',
@@ -91,11 +75,10 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     ];
 
-    
     final List<Session> recentNotesAndSessions = [
       Session(
         id: 's1',
-        time: DateTime(2025, 7, 17), 
+        time: DateTime(2025, 7, 17),
         patient: const PsychologistPatient(
           id: 'p1',
           name: 'Mario',
@@ -103,7 +86,7 @@ class PsychologistHomeContent extends StatelessWidget {
           latestMessage: '', lastSeen: '',
         ),
         type: 'Sesión de terapia',
-        durationMinutes: 60, 
+        durationMinutes: 60,
       ),
       Session(
         id: 's2',
@@ -119,7 +102,6 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     ];
 
-    
     final List<PsychologistArticleSummary> yourArticles = [
       PsychologistArticleSummary(
         id: 'a1',
@@ -135,14 +117,12 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     ];
 
-
-    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
+          // Today's Summary Section
           _buildSectionHeader(context, 'Resumen de hoy',
               suffixWidget: Row(
                 children: [
@@ -155,16 +135,16 @@ class PsychologistHomeContent extends StatelessWidget {
           ...todaySessions.map((session) => _SessionCard(session: session)).toList(),
           const SizedBox(height: 24),
 
-          
+          // Your Schedule Section
           _buildSectionHeader(context, 'Tu horario',
               suffixWidget: CircleAvatar(
                 backgroundColor: AppConstants.secondaryColor,
                 radius: 16,
                 child: IconButton(
                   icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                  onPressed: () { /* Add schedule logic */ },
-                  padding: EdgeInsets.zero, 
-                  constraints: BoxConstraints.tight(Size(32, 32)), 
+                  onPressed: () { /* Add schedule logic */},
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints.tight(const Size(32, 32)),
                 ),
               )),
           const SizedBox(height: 8),
@@ -188,12 +168,12 @@ class PsychologistHomeContent extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Icon(Icons.arrow_left, color: Colors.grey[600]),
-                      Text('Julio 2025', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                      Text('Julio 2025', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
                       Icon(Icons.arrow_right, color: Colors.grey[600]),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+                  // Calendar Grid
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -206,7 +186,6 @@ class PsychologistHomeContent extends StatelessWidget {
                     itemCount: 31, // For July
                     itemBuilder: (context, index) {
                       final day = index + 1;
-                      
                       final isCurrentDay = (day == DateTime.now().day && DateTime.now().month == 7 && DateTime.now().year == 2025);
                       return Container(
                         alignment: Alignment.center,
@@ -224,21 +203,21 @@ class PsychologistHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          
+          // Recent Chats Section
           _buildSectionHeader(context, 'Chats recientes',
-              suffixText: 'Ver todos', onTapSuffix: () { /* Navigate to chats */ }),
+              suffixText: 'Ver todos', onTapSuffix: () { /* Navigate to chats */}),
           const SizedBox(height: 8),
           ...recentChats.map((patient) => _ChatSummaryCard(patient: patient)).toList(),
           const SizedBox(height: 24),
 
-          
+          // Recent Notes and Sessions Section
           _buildSectionHeader(context, 'Notas y sesiones recientes',
-              suffixText: 'Ver todas', onTapSuffix: () { /* Navigate to notes/sessions */ }),
+              suffixText: 'Ver todas', onTapSuffix: () { /* Navigate to notes/sessions */}),
           const SizedBox(height: 8),
           ...recentNotesAndSessions.map((session) => _NoteSessionCard(session: session)).toList(),
           const SizedBox(height: 24),
 
-          
+          // Availability Section
           _buildSectionHeader(context, 'Disponibilidad'),
           const SizedBox(height: 8),
           Card(
@@ -252,11 +231,11 @@ class PsychologistHomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Disponible para sesiones', style: TextStyle(fontSize: 16, fontFamily: 'Poppins')),
+                      const Text('Disponible para sesiones', style: TextStyle(fontSize: 16, fontFamily: 'Poppins')),
                       Switch(
-                        value: true, 
+                        value: true, // This should ideally be managed by a state management solution
                         onChanged: (bool value) {
-                          
+                          // Handle switch toggle
                         },
                         activeColor: AppConstants.secondaryColor,
                       ),
@@ -264,11 +243,11 @@ class PsychologistHomeContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
-                    width: double.infinity, 
+                    width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () { /* Enable vacation mode */ },
+                      onPressed: () { /* Enable vacation mode */},
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppConstants.secondaryColor, side: BorderSide(color: AppConstants.secondaryColor),
+                        foregroundColor: AppConstants.secondaryColor, side: const BorderSide(color: AppConstants.secondaryColor),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -281,7 +260,7 @@ class PsychologistHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          
+          // Usage Insights Section
           _buildSectionHeader(context, 'Usage Insights'),
           const SizedBox(height: 8),
           Card(
@@ -295,8 +274,8 @@ class PsychologistHomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _InsightMetric(value: '18', label: 'Pacientes activos'),
-                      _InsightMetric(value: '42', label: 'Sesiones este mes'),
+                      const _InsightMetric(value: '18', label: 'Pacientes activos'),
+                      const _InsightMetric(value: '42', label: 'Sesiones este mes'),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -304,9 +283,9 @@ class PsychologistHomeContent extends StatelessWidget {
                     children: [
                       const Icon(Icons.people_alt, color: Colors.grey, size: 20),
                       const SizedBox(width: 8),
-                      Text('Porcentaje de ocupación', style: TextStyle(fontSize: 14, fontFamily: 'Poppins')),
+                      const Text('Porcentaje de ocupación', style: TextStyle(fontSize: 14, fontFamily: 'Poppins')),
                       const Spacer(),
-                      Text('48%', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                      const Text('48%', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -329,21 +308,21 @@ class PsychologistHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-        
+          // Your Articles Section
           _buildSectionHeader(context, 'Tus artículos',
               suffixWidget: CircleAvatar(
                 backgroundColor: AppConstants.secondaryColor,
                 radius: 16,
                 child: IconButton(
                   icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                  onPressed: () { /* Add new article logic */ },
+                  onPressed: () { /* Add new article logic */},
                   padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tight(Size(32, 32)),
+                  constraints: BoxConstraints.tight(const Size(32, 32)),
                 ),
               )),
           const SizedBox(height: 8),
           SizedBox(
-            height: 250, 
+            height: 250, // Fixed height for horizontal scroll cards
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: yourArticles.length,
@@ -353,13 +332,13 @@ class PsychologistHomeContent extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 24), 
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  
+  // Helper method for section headers
   Widget _buildSectionHeader(BuildContext context, String title, {String? suffixText, VoidCallback? onTapSuffix, Widget? suffixWidget}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -389,13 +368,14 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     );
   }
+}
 
-
+// Reusable Widgets (kept as they were, adding `Key` where missing for best practice)
 
 class _SessionCard extends StatelessWidget {
   final Session session;
 
-  const _SessionCard({required this.session});
+  const _SessionCard({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +391,7 @@ class _SessionCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               DateFormat('HH:mm').format(session.time),
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
             ),
             const SizedBox(width: 16),
             CircleAvatar(
@@ -420,7 +400,7 @@ class _SessionCard extends StatelessWidget {
                   ? NetworkImage(session.patient.imageUrl!)
                   : null,
               child: session.patient.imageUrl == null
-                  ? Icon(Icons.person, color: Colors.white)
+                  ? const Icon(Icons.person, color: Colors.white)
                   : null,
               backgroundColor: AppConstants.lightAccentColor.withOpacity(0.5),
             ),
@@ -450,7 +430,7 @@ class _SessionCard extends StatelessWidget {
               ),
               child: Text(
                 '${session.durationMinutes} min',
-                style: TextStyle(fontSize: 12, color: AppConstants.secondaryColor, fontFamily: 'Poppins'),
+                style: const TextStyle(fontSize: 12, color: AppConstants.secondaryColor, fontFamily: 'Poppins'),
               ),
             ),
           ],
@@ -466,6 +446,7 @@ class _ScheduleToggleButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ScheduleToggleButton({
+    super.key,
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -500,21 +481,21 @@ class _ScheduleToggleButton extends StatelessWidget {
 class _ChatSummaryCard extends StatelessWidget {
   final PsychologistPatient patient;
 
-  const _ChatSummaryCard({required this.patient});
+  const _ChatSummaryCard({super.key, required this.patient});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0, 
+      elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.transparent, 
+      color: Colors.transparent,
       child: ListTile(
         leading: Stack(
           children: [
             CircleAvatar(
               radius: 24,
               backgroundImage: patient.imageUrl != null ? NetworkImage(patient.imageUrl!) : null,
-              child: patient.imageUrl == null ? Icon(Icons.person, color: Colors.white) : null,
+              child: patient.imageUrl == null ? const Icon(Icons.person, color: Colors.white) : null,
               backgroundColor: AppConstants.lightAccentColor.withOpacity(0.5),
             ),
             if (patient.isOnline)
@@ -537,7 +518,7 @@ class _ChatSummaryCard extends StatelessWidget {
         subtitle: Text(patient.latestMessage, style: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'), maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text(patient.lastSeen, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontFamily: 'Poppins')),
         onTap: () {
-          
+          // Navigate to chat screen
         },
       ),
     );
@@ -545,9 +526,9 @@ class _ChatSummaryCard extends StatelessWidget {
 }
 
 class _NoteSessionCard extends StatelessWidget {
-  final Session session; 
+  final Session session;
 
-  const _NoteSessionCard({required this.session});
+  const _NoteSessionCard({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +549,7 @@ class _NoteSessionCard extends StatelessWidget {
                       ? NetworkImage(session.patient.imageUrl!)
                       : null,
                   child: session.patient.imageUrl == null
-                      ? Icon(Icons.person, color: Colors.white)
+                      ? const Icon(Icons.person, color: Colors.white)
                       : null,
                   backgroundColor: AppConstants.lightAccentColor.withOpacity(0.5),
                 ),
@@ -614,7 +595,7 @@ class _InsightMetric extends StatelessWidget {
   final String value;
   final String label;
 
-  const _InsightMetric({required this.value, required this.label});
+  const _InsightMetric({super.key, required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -652,7 +633,7 @@ class _InsightMetric extends StatelessWidget {
 class _PsychologistArticleCard extends StatelessWidget {
   final PsychologistArticleSummary article;
 
-  const _PsychologistArticleCard({required this.article});
+  const _PsychologistArticleCard({super.key, required this.article});
 
   @override
   Widget build(BuildContext context) {
