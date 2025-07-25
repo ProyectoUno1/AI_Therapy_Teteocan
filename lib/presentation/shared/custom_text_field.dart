@@ -87,12 +87,12 @@ class CustomTextField extends StatelessWidget {
             color: placeholderColor ?? Colors.black, // color del placeholder
             fontFamily: 'Poppins',
           ),
-          prefixIcon: Icon(icon, color: filled ? Colors.black54 : Colors.white),
+          prefixIcon: Icon(icon, color: filled ?  Colors.white: Colors.white),
           suffixIcon: toggleVisibility != null
               ? IconButton(
                   icon: Icon(
                     obscureText ? Icons.visibility_off : Icons.visibility,
-                    color: filled ? Colors.black54 : Colors.white,
+                    color: filled ? Colors.white : Colors.white,
                   ),
                   onPressed: toggleVisibility, // botón para mostrar/ocultar texto
                 )

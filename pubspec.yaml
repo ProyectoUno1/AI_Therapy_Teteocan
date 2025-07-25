@@ -25,6 +25,7 @@ dependencies:
   equatable: ^2.0.7
   flutter_bloc: ^8.1.6
   bloc: ^8.1.4
+  intl: ^0.18.1
 
   # Gestión de estado y almacenamiento local
   provider: ^6.1.2
