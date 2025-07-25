@@ -9,6 +9,15 @@ import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
 import 'package:image_picker/image_picker.dart'; // Importa image_picker
 import 'dart:io'; // Para File
 
+// Importaciones de las sub-pantallas
+// Asegúrate de que estas clases están definidas en algún lugar accesible,
+// ya sea en este mismo archivo o en archivos separados dentro de la misma carpeta
+// o en una subcarpeta (ej. 'details/personal_info_screen_patient.dart')
+// Para este ejemplo, las mantendré como clases internas para la demo
+// o asumiendo que están en archivos separados importables.
+// Si las tienes en archivos separados, asegúrate de importarlas.
+// Si no existen todavía, las crearé como stubs al final de este archivo.
+
 class ProfileScreenPatient extends StatefulWidget {
   @override
   _ProfileScreenPatientState createState() => _ProfileScreenPatientState();
@@ -37,8 +46,8 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               String userName =
-                  'Francene Vandyne'; // Placeholder como en el diseño
-              String userEmail = 'francenevandyne@gmail.com'; // Placeholder
+                  'Alan Rodriguez'; // Placeholder como en el diseño
+              String userEmail = 'Alan16@gmail.com'; // Placeholder
               String profileImageUrl =
                   'https://picsum.photos/seed/768/600'; // Imagen de ejemplo del diseño
               // Si tienes la URL real en authState.user, úsala aquí:
@@ -104,6 +113,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                     ],
                   ),
                   // Flecha a la derecha para navegar a "Información Personal"
+                  // Esta flecha es opcional si el "Información personal" en la sección de "Account" ya cumple la función.
+                  // Si quieres mantenerla como en el diseño de FlutterFlow para una navegación rápida, aquí está.
+                  // Por ahora, la mantengo para replicar el diseño de la imagen original del usuario.
                   IconButton(
                     icon: Icon(
                       Icons.arrow_forward_ios,
@@ -150,13 +162,15 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             ),
             child: Column(
               children: [
+                // Adaptado del ejemplo de FlutterFlow
                 ProfileListItem(
                   icon:
                       Icons.military_tech_outlined, // Icono de "Member Status"
-                  text: 'Member Status',
-                  secondaryText: 'Gold Member',
+                  text:
+                      'Suscripción', // Cambiado a "Suscripción" según tu solicitud
+                  secondaryText: 'Aurora Premium',
                   onTap: () {
-                    /* Lógica para Member Status */
+                    /* Lógica para Suscripción */
                   },
                 ),
                 Divider(
@@ -166,10 +180,10 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ),
                 ProfileListItem(
                   icon: Icons.credit_card_outlined, // Icono de "My Transaction"
-                  text: 'Wallet',
+                  text: 'Pagos', // Cambiado a "Pagos" según tu solicitud
                   secondaryText: 'N/A',
                   onTap: () {
-                    /* Lógica para My Transaction */
+                    /* Lógica para Pagos */
                   },
                 ),
               ],
@@ -198,7 +212,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             child: Column(
               children: [
                 _buildNotificationToggle(
-                  'Pop-up Notifications',
+                  'Notificaciones Pop-up', // Texto actualizado
                   Icons.notifications_none,
                   true, // Valor inicial (puedes conectarlo a un estado real)
                   (value) {
@@ -213,7 +227,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
                 _buildNotificationToggle(
-                  'Email Notification',
+                  'Notificaciones por Email', // Texto actualizado
                   Icons.mail_outline,
                   true, // Valor inicial
                   (value) {
@@ -250,10 +264,28 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             child: Column(
               children: [
                 ProfileListItem(
-                  icon: Icons.contact_support_outlined,
-                  text: 'Contact Us',
+                  icon: Icons
+                      .settings_outlined, // Usamos 'Settings' como en el ejemplo
+                  text: 'Configuración', // Cambiado a "Configuración"
                   onTap: () {
-                    /* Lógica para Contact Us */
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SettingsScreenPatient(),
+                      ),
+                    ); // Redirige a SettingsScreen
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.contact_support_outlined,
+                  text: 'Contactanos', // Cambiado a "Contactanos"
+                  onTap: () {
+                    /* Lógica para Contactanos */
                   },
                 ),
                 Divider(
@@ -263,27 +295,10 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ),
                 ProfileListItem(
                   icon: Icons.privacy_tip_outlined,
-                  text: 'Privacy Policy',
+                  text:
+                      'Politicas de Privacidad', // Cambiado a "Politicas de Privacidad"
                   onTap: () {
-                    /* Lógica para Privacy Policy */
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                ProfileListItem(
-                  icon: Icons
-                      .settings_outlined, // Usamos 'Settings' como en el ejemplo
-                  text: 'Settings',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AppearanceScreenPatient(),
-                      ),
-                    ); // Redirige a Apariencia
+                    /* Lógica para Politicas de Privacidad */
                   },
                 ),
               ],
@@ -352,55 +367,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  // Widget auxiliar para las tarjetas de información (Height, Weight, Age)
-  Widget _buildInfoCard(String value, String label) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 4.0,
-        ), // Espacio entre tarjetas
-        child: Material(
-          color: Colors
-              .transparent, // Permite que el color del contenedor sea visible
-          elevation: 0.5, // Sombra
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor, // Color adaptable al tema
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: primaryColor, // Color principal para el valor
-                  ),
-                ),
-                Text(
-                  label,
-                  textAlign:
-                      TextAlign.center, // Centrar el label debajo del valor
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).hintColor, // Color para texto secundario
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // Widget auxiliar para los contenedores de sección (Account, Notifications, Other)
+  // Este widget ahora es redundante para el cuerpo principal de ProfileScreenPatient
+  // porque el diseño se construye directamente, pero se mantiene si se usa en otro lugar.
   Widget _buildSectionContainer(
     BuildContext context, {
     required String title,
@@ -410,15 +379,11 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(
-            left: 4.0,
-          ), // Pequeño padding a la izquierda para el título de sección
+          padding: const EdgeInsets.only(left: 4.0),
           child: Text(
             title,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(
-                context,
-              ).textTheme.bodySmall?.color, // Color más tenue
+              color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -427,14 +392,10 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Theme.of(
-              context,
-            ).cardColor, // Color de la tarjeta adaptable al tema
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Theme.of(
-                context,
-              ).dividerColor.withOpacity(0.5), // Borde sutil
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
             ),
           ),
           child: Column(mainAxisSize: MainAxisSize.max, children: children),
@@ -450,11 +411,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     bool initialValue,
     ValueChanged<bool> onChanged,
   ) {
-    // Usamos StatefulBuilder para que el Switch actualice su estado localmente sin redibujar todo el padre
     return StatefulBuilder(
       builder: (BuildContext context, StateSetter setStateInternal) {
-        bool currentValue =
-            initialValue; // Captura el valor inicial o el último valor del estado local
+        bool currentValue = initialValue;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
@@ -484,19 +443,13 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 value: currentValue,
                 onChanged: (newValue) {
                   setStateInternal(() {
-                    // Actualiza el estado local del Switch
                     currentValue = newValue;
                   });
-                  onChanged(
-                    newValue,
-                  ); // Notifica al callback externo (para posibles BLoCs)
+                  onChanged(newValue);
                 },
-                activeColor: accentColor, // Color de track cuando está activo
-                inactiveThumbColor:
-                    Colors.grey, // Color del pulgar cuando está inactivo
-                inactiveTrackColor: Colors
-                    .grey
-                    .shade300, // Color del track cuando está inactivo
+                activeColor: accentColor,
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.shade300,
               ),
             ],
           ),
@@ -510,7 +463,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        // Usar dialogContext para evitar conflictos
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -533,7 +485,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
               ),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Cierra el diálogo
+                Navigator.of(dialogContext).pop();
               },
             ),
             TextButton(
@@ -542,10 +494,8 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
               ),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Cierra el diálogo
-                context.read<AuthBloc>().add(
-                  AuthLogoutRequested(),
-                ); // Disparar evento de logout al AuthBloc
+                Navigator.of(dialogContext).pop();
+                context.read<AuthBloc>().add(AuthLogoutRequested());
               },
             ),
           ],
@@ -555,7 +505,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
   }
 }
 
-// --- Sub-pantallas específicas para el perfil del paciente (actualizadas para usar estilos del tema) ---
+// --- Sub-pantallas del perfil del paciente (actualizadas con los cambios y renombradas) ---
 
 class PersonalInfoScreenPatient extends StatefulWidget {
   @override
@@ -711,7 +661,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               _dobController,
               'Fecha de nacimiento',
             ),
-            _buildInputFieldWithLabel(context, _genderController, 'Género'),
             _buildInputFieldWithLabel(
               context,
               _phoneController,
@@ -986,13 +935,12 @@ class _NotificationsScreenPatientState
   }
 }
 
-class AppearanceScreenPatient extends StatefulWidget {
+class SettingsScreenPatient extends StatefulWidget {
   @override
-  _AppearanceScreenPatientState createState() =>
-      _AppearanceScreenPatientState();
+  _SettingsScreenPatientState createState() => _SettingsScreenPatientState();
 }
 
-class _AppearanceScreenPatientState extends State<AppearanceScreenPatient> {
+class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
@@ -1007,7 +955,7 @@ class _AppearanceScreenPatientState extends State<AppearanceScreenPatient> {
       ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
       appBar: AppBar(
         title: const Text(
-          'Apariencia',
+          'Configuración',
           style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
         ),
         backgroundColor: accentColor,
