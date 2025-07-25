@@ -8,7 +8,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist
 // Importa tus modelos de dominio si son necesarios para castear la UserEntity
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart'; // Si necesitas acceder a propiedades específicas del PsychologistEntity
-import 'package:ai_therapy_teteocan/data/models/psychologist_models.dart'; // Si AuthBloc te devuelve el Model en lugar de la Entity
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; // Si AuthBloc te devuelve el Model en lugar de la Entity
 
 
 class PsychologistHomeScreen extends StatefulWidget {

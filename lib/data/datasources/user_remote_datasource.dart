@@ -5,7 +5,7 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_models.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 abstract class UserRemoteDataSource {
   Future<UserModel> getUserData(String uid);
