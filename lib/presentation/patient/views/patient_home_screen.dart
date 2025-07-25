@@ -16,7 +16,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
-      const PatientHomeContent(), 
+      const PatientHomeContent(),
       const Center(
         child: Text(
           'Chats del Paciente',
@@ -43,7 +43,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-   
     String userName = 'Paciente';
     final authState = context.watch<AuthBloc>().state;
     if (authState.user != null) {
@@ -57,17 +56,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.settings, color: Colors.black),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Abrir configuración')),
-            );
-          },
-        ),
-        centerTitle: true,
+        centerTitle: false,
         title: Text(
-          'Hello, $userName 👋',
+          'Buen dia, $userName 👋',
           style: const TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -105,7 +96,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.psychology),
+            label: 'Psicólogos',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
