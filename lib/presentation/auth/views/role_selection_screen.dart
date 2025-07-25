@@ -8,67 +8,21 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Quitamos backgroundColor para que el Stack maneje el fondo
+      
       body: Stack(
         children: [
-          // Manchas grandes de fondo
-          Align(
-            alignment: Alignment.topLeft,
-            child: Transform.translate(
-              offset: const Offset(300, 0),
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [
-                      Color.fromARGB(178, 130, 196, 195),
-                      Color(0x005ca0ac),
-                    ],
-                    radius: 0.55,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Transform.translate(
-              offset: const Offset(100, 100),
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [
-                      Color.fromARGB(193, 92, 160, 172),
-                      Color(0x0082c4c3),
-                    ],
-                    radius: 0.55,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Transform.translate(
-              offset: const Offset(-120, 80),
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Color.fromARGB(136, 59, 113, 111),
-                      const Color.fromARGB(64, 223, 253, 253),
-                    ],
-                    radius: 0.6,
-                  ),
-                ),
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 255, 255, 255), // Teal claro
+                  Color.fromARGB(255, 205, 223, 222), // Teal medio
+                  Color.fromARGB(255, 147, 213, 207), // Teal más fuerte
+                ],
               ),
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   @override
@@ -11,53 +12,27 @@ class PatientHomeScreen extends StatefulWidget {
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
-  int _selectedIndex = 0; // Índice del BottomNavigationBar seleccionado
+  int _selectedIndex = 0;
 
-  // Lista de widgets para las diferentes pestañas del BottomNavigationBar
-  // Ahora se inicializa en el método build para asegurar que el contexto esté disponible.
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
-      Center(
-        child: Text(
-          'Contenido principal del Paciente\n(Aquí irá la IA de terapia y más)',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
-      Center(
+      const PatientHomeContent(), 
+      const Center(
         child: Text(
           'Chats del Paciente',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
+          style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
         ),
       ),
-      Center(
+      const Center(
         child: Text(
           'Psicólogos disponibles para el Paciente',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
+          style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
         ),
       ),
-      ProfileScreenPatient(), // La pantalla de perfil para pacientes
+      ProfileScreenPatient(),
     ];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // _widgetOptions ya no se inicializa aquí
   }
 
   void _onItemTapped(int index) {
@@ -68,64 +43,55 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Escucha el estado del AuthBloc para obtener el nombre del usuario
+   
     String userName = 'Paciente';
-    final authState = context
-        .watch<AuthBloc>()
-        .state; // Acceso directo al estado del BLoC
+    final authState = context.watch<AuthBloc>().state;
     if (authState.user != null) {
       userName = authState.user!.username;
     }
 
-    // Inicializa _widgetOptions aquí, donde el contexto ya está disponible
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: AppConstants.accentColor,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.settings, color: Colors.black),
           onPressed: () {
-            Scaffold.of(
-              context,
-            ).openDrawer(); // Lógica para abrir el menú lateral
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Abrir configuración')),
+            );
           },
         ),
+        centerTitle: true,
         title: Text(
-          'Hola, $userName',
+          'Hello, $userName 👋',
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
+            color: Colors.black,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
             fontFamily: 'Poppins',
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Ver notificaciones')),
               );
             },
           ),
-          const SizedBox(width: 10),
         ],
       ),
-      body: Center(
-        child: widgetOptions.elementAt(
-          _selectedIndex,
-        ), // Muestra el widget de la pestaña seleccionada
-      ),
+      body: widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppConstants.primaryColor,
+        backgroundColor: Colors.white,
         selectedItemColor: AppConstants.lightAccentColor,
-        unselectedItemColor: Colors.white70,
+        unselectedItemColor: Colors.grey,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'Poppins',
@@ -134,17 +100,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           fontWeight: FontWeight.normal,
           fontFamily: 'Poppins',
         ),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.psychology),
-            label: 'Psicólogos',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-        ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
+          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        ],
       ),
     );
   }

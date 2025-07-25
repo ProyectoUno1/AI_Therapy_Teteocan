@@ -13,6 +13,12 @@ class AppConstants {
   ); // Amarillo para suscripción
   static const Color errorColor = Color(0xFFE57373); // Rojo para errores
 
+   // NEW: Define these colors for the psychologist UI
+  static const Color secondaryColor = Color(0xFF00A389); // A greenish/teal color, as seen in your psychologist images
+  static const Color lightSecondaryColor = Color(0xFF66D9EF); // A lighter blue/green, if you need a lighter shade
+  static const Color lightGreyBackground = Color(0xFFF5F5F5); // A very light grey often used for screen/card backgrounds
+
+
   // Rutas de imágenes
   static const String logoAuroraPath = 'assets/images/LogoAurora.png';
 
