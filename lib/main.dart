@@ -43,10 +43,13 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
+  
+
   // --- Inyección de dependencias (Service Locator simple) ---
   // Inicializar DataSources
   final AuthRemoteDataSource authRemoteDataSource = AuthRemoteDataSourceImpl();
-  final UserRemoteDataSource userRemoteDataSource = UserRemoteDataSourceImpl(
+  final userRemoteDataSource = UserRemoteDataSourceImpl(
+    baseUrl: 'http://10.0.2.2:3000',
     client: http.Client(),
   );
 
@@ -72,9 +75,7 @@ void main() async {
     // MultiBlocProvider para proporcionar Blocs a todo el árbol de widgets
     MultiBlocProvider(
       providers: [
-        BlocProvider<HomeContentCubit>(
-          create: (context) => HomeContentCubit(), 
-        ),
+        BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthBloc(
@@ -83,7 +84,7 @@ void main() async {
                 registerUserUseCase: registerUserUseCase,
                 // getUserRoleUseCase: getUserRoleUseCase, // No es necesario pasarlo directamente si el repo ya lo maneja
               )..add(
-                const AuthUserChanged(),
+                AuthUserChanged(),
               ), // Disparar evento inicial para verificar el estado de autenticación
         ),
         // Puedes añadir otros Blocs/Cubits globales aquí si los necesitas
@@ -380,8 +381,9 @@ class MyApp extends StatelessWidget {
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
-      home:
-          LoginScreen(), // Usa AuthWrapper para manejar la navegación inicial
+      home: LoginScreen(),
+      //home: PatientHomeScreen(),
+      //home: PsychologistHomeScreen(), 
     );
   }
 }

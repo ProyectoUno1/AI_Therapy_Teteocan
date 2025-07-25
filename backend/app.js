@@ -37,10 +37,13 @@ app.use((error, req, res, next) => {
   });
 });
 
-const helloRoutes = require('./routes/hello');
-const usersRoutes = require('./routes/users');
-app.use('/api', helloRoutes);
-app.use('/api/users', usersRoutes);
+
+const patientsRoutes = require('./routes/patients');
+const psychologistsRoutes = require('./routes/psychologists');
+
+app.use('/api/patients', patientsRoutes);
+app.use('/api/psychologists', psychologistsRoutes);
+
 
 // Exporta la aplicacion para que pueda ser utilizada en otros archivos
 module.exports = app;

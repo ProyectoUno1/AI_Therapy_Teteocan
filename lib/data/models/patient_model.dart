@@ -1,9 +1,7 @@
-// lib/data/models/patient_model.dart
 import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/domain/entities/patient_entity.dart';
 
 class PatientModel extends UserModel {
-  // Puedes añadir campos específicos del paciente aquí
   final String? dateOfBirth;
   final String? gender;
 
@@ -31,15 +29,15 @@ class PatientModel extends UserModel {
       email: json['email'] as String,
       phoneNumber: json['phoneNumber'] as String,
       profilePictureUrl: json['profilePictureUrl'] as String?,
-      dateOfBirth: json['dateOfBirth'] as String?,
+      dateOfBirth: json['date_of_birth'] as String?,  // Nota: usa snake_case si así lo guardas en DB
       gender: json['gender'] as String?,
     );
   }
 
   @override
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = super.toJson();
-    json['dateOfBirth'] = dateOfBirth;
+    final json = super.toJson();
+    json['date_of_birth'] = dateOfBirth;
     json['gender'] = gender;
     return json;
   }
@@ -51,9 +49,8 @@ class PatientModel extends UserModel {
       email: entity.email,
       phoneNumber: entity.phoneNumber,
       profilePictureUrl: entity.profilePictureUrl,
-      // Asume que PatientEntity tiene estos campos si los necesitas
-      // dateOfBirth: (entity as dynamic).dateOfBirth,
-      // gender: (entity as dynamic).gender,
+      dateOfBirth: (entity as dynamic).dateOfBirth,
+      gender: (entity as dynamic).gender,
     );
   }
 }

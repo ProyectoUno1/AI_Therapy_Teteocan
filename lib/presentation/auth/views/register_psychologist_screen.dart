@@ -633,9 +633,11 @@ class _RegisterPsychologistScreenState
                                 username: _usernameController.text.trim(),
                                 email: _emailController.text.trim(),
                                 phoneNumber: _phoneController.text.trim(),
-                                professionalId: _professionalIdController.text
+                                professionalLicense: _professionalIdController.text
                                     .trim(),
                                 password: _passwordController.text.trim(),
+                                dateOfBirth: _birthDate!,
+                                
                               ),
                             );
                           }
