@@ -72,9 +72,7 @@ void main() async {
     // MultiBlocProvider para proporcionar Blocs a todo el árbol de widgets
     MultiBlocProvider(
       providers: [
-        BlocProvider<HomeContentCubit>(
-          create: (context) => HomeContentCubit(), 
-        ),
+        BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthBloc(
@@ -381,7 +379,7 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       home:
-          LoginScreen(), // Usa AuthWrapper para manejar la navegación inicial
+          PatientHomeScreen(), // Usa AuthWrapper para manejar la navegación inicial
     );
   }
 }
