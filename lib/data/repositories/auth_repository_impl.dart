@@ -1,9 +1,7 @@
-// lib/data/repositories/auth_repository_impl.dart
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
-import 'package:ai_therapy_teteocan/data/models/user_model.dart';
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 
@@ -31,13 +29,12 @@ class AuthRepositoryImpl implements AuthRepository {
           'No se pudo obtener el usuario después del inicio de sesión.',
         );
       }
-      // Obtener los datos completos del usuario y su rol desde tu backend
       final userModel = await userRemoteDataSource.getUserData(
         userCredential.user!.uid,
       );
       return userModel;
     } on AppException {
-      rethrow; // Relanzar excepciones personalizadas
+      rethrow;
     } catch (e) {
       throw FetchDataException('Error al iniciar sesión: $e');
     }
@@ -49,6 +46,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String username,
     required String phoneNumber,
+    required DateTime dateOfBirth,
   }) async {
     try {
       final userCredential = await authRemoteDataSource.register(
@@ -58,13 +56,19 @@ class AuthRepositoryImpl implements AuthRepository {
       if (userCredential.user == null) {
         throw AppException('No se pudo registrar el usuario en Firebase.');
       }
-      // Crear el usuario en tu backend con el rol de paciente
-      final userModel = await userRemoteDataSource.createUser(
+
+      final idToken = await userCredential.user!.getIdToken();
+      if (idToken == null) {
+        throw AppException('No se pudo obtener el token de autenticación.');
+      }
+
+      final userModel = await userRemoteDataSource.createPatient(
         uid: userCredential.user!.uid,
         username: username,
         email: email,
         phoneNumber: phoneNumber,
-        role: 'paciente',
+        dateOfBirth: dateOfBirth.toIso8601String(),
+        idToken: idToken,
       );
       return userModel;
     } on AppException {
@@ -80,7 +84,11 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String username,
     required String phoneNumber,
-    required String professionalId,
+    required String professionalLicense,
+    String? specialty,
+    String? schedule,
+    String? aboutMe,
+    required DateTime dateOfBirth,
   }) async {
     try {
       final userCredential = await authRemoteDataSource.register(
@@ -90,14 +98,23 @@ class AuthRepositoryImpl implements AuthRepository {
       if (userCredential.user == null) {
         throw AppException('No se pudo registrar el usuario en Firebase.');
       }
-      // Crear el usuario en tu backend con el rol de psicólogo
-      final userModel = await userRemoteDataSource.createUser(
+
+      final idToken = await userCredential.user!.getIdToken();
+      if (idToken == null) {
+        throw AppException('No se pudo obtener el token de autenticación.');
+      }
+
+      final userModel = await userRemoteDataSource.createPsychologist(
         uid: userCredential.user!.uid,
         username: username,
         email: email,
         phoneNumber: phoneNumber,
-        role: 'psicologo',
-        professionalId: professionalId,
+        professionalLicense: professionalLicense,
+        specialty: specialty,
+        schedule: schedule,
+        dateOfBirth: dateOfBirth.toIso8601String(),
+        aboutMe: aboutMe,
+        
       );
       return userModel;
     } on AppException {
@@ -124,15 +141,11 @@ class AuthRepositoryImpl implements AuthRepository {
       if (fbUser == null) {
         return null;
       }
-      // Si hay un usuario de Firebase, obtener sus datos completos y rol de tu backend
       try {
         final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
         return userModel;
       } on AppException catch (e) {
         print('Error al obtener datos de usuario para authStateChanges: $e');
-        // Si no se encuentra el usuario en tu backend, podría ser un usuario recién autenticado
-        // o un problema. Podrías decidir cerrar sesión o devolver un UserEntity parcial.
-        // Por ahora, devolvemos null si no se encuentran los datos en el backend.
         return null;
       }
     });
