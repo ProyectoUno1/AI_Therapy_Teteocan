@@ -43,10 +43,13 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
+  
+
   // --- Inyección de dependencias (Service Locator simple) ---
   // Inicializar DataSources
   final AuthRemoteDataSource authRemoteDataSource = AuthRemoteDataSourceImpl();
-  final UserRemoteDataSource userRemoteDataSource = UserRemoteDataSourceImpl(
+  final userRemoteDataSource = UserRemoteDataSourceImpl(
+    baseUrl: 'http://10.0.2.2:3000',
     client: http.Client(),
   );
 
@@ -81,7 +84,7 @@ void main() async {
                 registerUserUseCase: registerUserUseCase,
                 // getUserRoleUseCase: getUserRoleUseCase, // No es necesario pasarlo directamente si el repo ya lo maneja
               )..add(
-                const AuthUserChanged(),
+                AuthUserChanged(),
               ), // Disparar evento inicial para verificar el estado de autenticación
         ),
         // Puedes añadir otros Blocs/Cubits globales aquí si los necesitas
@@ -378,8 +381,11 @@ class MyApp extends StatelessWidget {
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
-      home:
-          PatientHomeScreen(), // Usa AuthWrapper para manejar la navegación inicial
+      splashAnimation
+      home: LoginScreen(),
+      //home: PatientHomeScreen(),
+      //home: PsychologistHomeScreen(), 
+
     );
   }
 }

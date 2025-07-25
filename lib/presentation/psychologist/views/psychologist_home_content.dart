@@ -8,6 +8,19 @@ import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 class PsychologistHomeContent extends StatelessWidget {
   const PsychologistHomeContent({super.key});
 
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Inicio Psicólogo'),
+      ),
+      body: PsychologistHomeContent(),
+    );
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     
@@ -376,7 +389,7 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
     );
   }
-}
+
 
 
 class _SessionCard extends StatelessWidget {

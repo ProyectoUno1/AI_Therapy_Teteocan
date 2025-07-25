@@ -32,7 +32,7 @@ class UserRepositoryImpl implements UserRepository {
   Future<void> updatePatientProfile(PatientEntity patient) async {
     try {
       final patientModel = PatientModel.fromEntity(patient);
-      await remoteDataSource.updatePatientProfile(patientModel);
+      //await remoteDataSource.updatePatientProfile(patientModel);
     } on AppException {
       rethrow;
     } catch (e) {
@@ -46,7 +46,7 @@ class UserRepositoryImpl implements UserRepository {
   ) async {
     try {
       final psychologistModel = PsychologistModel.fromEntity(psychologist);
-      await remoteDataSource.updatePsychologistProfile(psychologistModel);
+      //await remoteDataSource.updatePsychologistProfile(psychologistModel);
     } on AppException {
       rethrow;
     } catch (e) {

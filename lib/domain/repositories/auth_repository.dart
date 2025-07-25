@@ -8,15 +8,19 @@ abstract class AuthRepository {
     required String password,
     required String username,
     required String phoneNumber,
+    required DateTime dateOfBirth,
   });
   Future<UserEntity> registerPsychologist({
     required String email,
     required String password,
     required String username,
     required String phoneNumber,
-    required String professionalId,
+    required String professionalLicense,
+    required DateTime dateOfBirth,
+    String? specialty,
+    String? schedule,
+    String? aboutMe,
   });
   Future<void> signOut();
-  Stream<UserEntity?>
-  get authStateChanges; // Para escuchar cambios de autenticación
+  Stream<UserEntity?> get authStateChanges;
 }
