@@ -381,11 +381,9 @@ class MyApp extends StatelessWidget {
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
-      splashAnimation
       home: LoginScreen(),
       //home: PatientHomeScreen(),
       //home: PsychologistHomeScreen(), 
-
     );
   }
 }
