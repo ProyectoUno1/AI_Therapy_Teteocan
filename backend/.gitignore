@@ -9,3 +9,4 @@ notes.txt
 # Firebase Emulators
 firebase.json
 .firebaserc
+key.properties
