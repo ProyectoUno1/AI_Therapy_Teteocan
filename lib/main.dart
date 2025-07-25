@@ -377,13 +377,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: AppConstants.appName, // Usa la constante
+      title: AppConstants.appName, 
       theme: _lightTheme(),
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
-      home: LoginScreen(),
+      //home: LoginScreen(),
       //home: PatientHomeScreen(),
-      //home: PsychologistHomeScreen(), 
+      home: PsychologistHomeScreen(), 
     );
   }
 }
@@ -402,6 +402,7 @@ class AuthWrapper extends StatelessWidget {
         } else if (state.status == AuthStatus.loading) {
           // Muestra un indicador de carga durante operaciones de autenticación
           return const Scaffold(
+            
             body: Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(
