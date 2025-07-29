@@ -5,9 +5,9 @@ class ProfileListItem extends StatelessWidget {
   final IconData icon;
   final String text;
   final String?
-  secondaryText; // Texto secundario como "Gold Member" o "3 Linked"
-  final VoidCallback? onTap; // Acción al tocar el ítem
-  final bool showArrow; // Mostrar flecha de navegación
+  secondaryText; 
+  final VoidCallback? onTap; 
+  final bool showArrow; 
 
   const ProfileListItem({
     Key? key,
@@ -32,7 +32,7 @@ class ProfileListItem extends StatelessWidget {
                 Icon(
                   icon,
                   color: Theme.of(context).textTheme.bodyMedium?.color
-                      ?.withOpacity(0.7), // Color adaptable al tema
+                      ?.withOpacity(0.7), 
                   size: 24,
                 ),
                 const SizedBox(width: 16),
@@ -42,7 +42,7 @@ class ProfileListItem extends StatelessWidget {
                     fontSize: 16,
                     color: Theme.of(
                       context,
-                    ).textTheme.bodyMedium?.color, // Color adaptable al tema
+                    ).textTheme.bodyMedium?.color, 
                     fontFamily: 'Poppins',
                   ),
                 ),
@@ -58,7 +58,7 @@ class ProfileListItem extends StatelessWidget {
                       color: Theme.of(context)
                           .textTheme
                           .bodySmall
-                          ?.color, // Color más tenue para texto secundario
+                          ?.color, 
                       fontFamily: 'Poppins',
                     ),
                   ),
@@ -69,7 +69,7 @@ class ProfileListItem extends StatelessWidget {
                     size: 16,
                     color: Theme.of(
                       context,
-                    ).textTheme.bodySmall?.color, // Color adaptable al tema
+                    ).textTheme.bodySmall?.color,
                   ),
                 ],
               ],

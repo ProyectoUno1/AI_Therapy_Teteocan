@@ -44,7 +44,7 @@ class UserModel extends UserEntity {
     };
   }
 
-  // Convertir de UserEntity a UserModel (útil si recibes una entidad y necesitas un modelo para JSON)
+
   factory UserModel.fromEntity(UserEntity entity) {
     return UserModel(
       uid: entity.uid,

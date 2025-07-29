@@ -1,5 +1,6 @@
 // lib/presentation/auth/views/login_screen.dart
-import 'dart:ui'; // para ImageFilter
+
+import 'dart:ui'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -10,11 +11,9 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/role_selection_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
 
-// Firebase y Google Sign-In
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -24,44 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
-
-  UserCredential? _userCredential;
-
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-
-  Future<void> _signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return; // usuario canceló
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(
-        credential,
-      );
-
-      setState(() {
-        _userCredential = userCredential;
-        _emailController.text = userCredential.user?.email ?? '';
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Google sign-in exitoso, continúa con el login.'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al iniciar sesión con Google')),
-      );
-    }
-  }
 
 
   Widget _buildORDivider() {
@@ -84,38 +45,29 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-
-  void _signOutGoogle() async {
-    await _googleSignIn.signOut();
-    await _firebaseAuth.signOut();
-    setState(() {
-      _userCredential = null;
-      _emailController.clear();
-    });
-  }
-
+  //Fondo degradado
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     resizeToAvoidBottomInset: false,
-    body: Stack(
-      children: [
-        // Fondo degradado
-        Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.fromARGB(255, 255, 255, 255), // Teal claro
-                Color.fromARGB(255, 205, 223, 222), // Teal medio
-                Color(0xFF80CBC4), // Teal más fuerte
-              ],
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          // Fondo degradado
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 255, 255, 255), // Teal claro
+                  Color.fromARGB(255, 205, 223, 222), // Teal medio
+                  Color(0xFF80CBC4), // Teal más fuerte
+                ],
+              ),
             ),
           ),
-        ),
 
           SafeArea(
             child: SingleChildScrollView(
@@ -151,10 +103,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
                             color: const Color.fromARGB(
-                              255,
-                              255,
-                              255,
-                              255,
+                              255, // Alpha
+                              255, // Red
+                              255, // Green
+                              255, // Blue
                             ).withOpacity(0.85),
                             borderRadius: BorderRadius.circular(40),
                           ),
@@ -195,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   alignment: Alignment.centerLeft,
                                   child: GestureDetector(
                                     onTap: () {
-                                      // Acción para recuperar contraseña
+                                      // Acción para recuperar contraseña - podrías navegar a una pantalla de recuperación
                                     },
                                     child: Text(
                                       '¿Olvidaste tu contraseña? Recuperar contraseña',
@@ -216,16 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 BlocConsumer<AuthBloc, AuthState>(
                                   listener: (context, state) {
                                     if (state.status == AuthStatus.error) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            state.errorMessage ??
-                                                'Error desconocido',
+                                            state.errorMessage ?? 'Error desconocido',
                                           ),
-                                          backgroundColor:
-                                              AppConstants.errorColor,
+                                          backgroundColor: AppConstants.errorColor,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          margin: EdgeInsets.all(16),
+                                          duration: Duration(seconds: 3),
                                         ),
                                       );
                                     }
@@ -237,72 +192,48 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: ElevatedButton(
                                         onPressed:
                                             state.status == AuthStatus.loading
-                                            ? null
-                                            : () {
-                                                if (_formKey.currentState
-                                                        ?.validate() ??
-                                                    false) {
-                                                  context.read<AuthBloc>().add(
-                                                    AuthLoginRequested(
-                                                      email:
-                                                          _emailController.text,
-                                                      password:
-                                                          _passwordController
-                                                              .text,
-                                                    ),
-                                                  );
-                                                } else {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Row(
-                                                        children: const [
-                                                          Icon(
-                                                            Icons
-                                                                .warning_amber_rounded,
-                                                            color: Colors.white,
-                                                          ),
-                                                          SizedBox(width: 8),
-                                                          Expanded(
-                                                            child: Text(
-                                                              'Por favor completa todos los campos.',
+                                                ? null // Deshabilita el botón mientras carga
+                                                : () {
+                                                    if (_formKey.currentState?.validate() ?? false) {
+                                                      context.read<AuthBloc>().add(
+                                                            AuthSignInRequested( 
+                                                              email: _emailController.text,
+                                                              password: _passwordController.text,
                                                             ),
+                                                          );
+                                                    } else {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Row(
+                                                            children: const [
+                                                              Icon(
+                                                                Icons.warning_amber_rounded,
+                                                                color: Colors.white,
+                                                              ),
+                                                              SizedBox(width: 8),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  'Por favor completa todos los campos correctamente.', // Mensaje más específico
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                        ],
-                                                      ),
-                                                      backgroundColor:
-                                                          Color.fromARGB(
-                                                            221,
-                                                            255,
-                                                            10,
-                                                            10,
+                                                          backgroundColor: Color.fromARGB(221, 255, 10, 10),
+                                                          behavior: SnackBarBehavior.floating,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(12),
                                                           ),
-                                                      behavior: SnackBarBehavior
-                                                          .floating,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                      ),
-                                                      margin: EdgeInsets.all(
-                                                        16,
-                                                      ),
-                                                      duration: Duration(
-                                                        seconds: 3,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                              },
+                                                          margin: EdgeInsets.all(16),
+                                                          duration: Duration(seconds: 3),
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
                                         style: ElevatedButton.styleFrom(
                                           elevation: 4,
-                                          backgroundColor: null,
+                                          backgroundColor: null, 
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              24,
-                                            ),
+                                            borderRadius: BorderRadius.circular(24),
                                           ),
                                           padding: const EdgeInsets.all(0),
                                         ),
@@ -316,23 +247,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                               begin: Alignment.topLeft,
                                               end: Alignment.bottomRight,
                                             ),
-                                            borderRadius: BorderRadius.circular(
-                                              24,
-                                            ),
+                                            borderRadius: BorderRadius.circular(24),
                                           ),
                                           child: Center(
-                                            child:
-                                                state.status ==
-                                                    AuthStatus.loading
-                                                ? const CircularProgressIndicator(
-                                                    color: Colors.white,
-                                                  )
+                                            child: state.status == AuthStatus.loading
+                                                ? const CircularProgressIndicator(color: Colors.white)
                                                 : const Text(
                                                     'Iniciar Sesión',
                                                     style: TextStyle(
                                                       fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                      fontWeight: FontWeight.w600,
                                                       color: Colors.white,
                                                       fontFamily: 'Poppins',
                                                     ),
@@ -348,57 +272,52 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _buildORDivider(),
 
                                 const SizedBox(height: 20),
-                                // --- BOTÓN GOOGLE ---
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton.icon(
-                                    icon: Image.asset(
-                                      'assets/images/google-logo-icon.png',
-                                      height: 24,
-                                      width: 24,
-                                    ),
-                                    label: Text(
-                                      _userCredential == null
-                                          ? 'Continuar con Google'
-                                          : 'Google conectado: ${_userCredential!.user?.email ?? ''}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        side: BorderSide(
-                                          color: Colors.grey.shade400,
+                               // --- BOTÓN GOOGLE ---
+                               
+                                BlocConsumer<AuthBloc, AuthState>(
+                                  listener: (context, state) {
+                                
+                                  },
+                                  builder: (context, state) {
+                                    return SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: ElevatedButton.icon(
+                                        icon: Image.asset(
+                                          'assets/images/google-logo-icon.png',
+                                          height: 24,
+                                          width: 24,
                                         ),
+                                        label: const Text(
+                                          'Continuar con Google',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white,
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            side: BorderSide(
+                                              color: Colors.grey.shade400,
+                                            ),
+                                          ),
+                                        ),
+                                        // Ahora 'state' está disponible aquí
+                                        onPressed: state.status == AuthStatus.loading
+                                            ? null // Deshabilita el botón mientras carga
+                                            : () {
+                                                
+                                                context.read<AuthBloc>().add(AuthSignInWithGoogleRequested());
+                                              },
                                       ),
-                                    ),
-                                    onPressed: _userCredential == null
-                                        ? _signInWithGoogle
-                                        : null,
-                                  ),
+                                    );
+                                  },
                                 ),
-                                if (_userCredential != null)
-                                  TextButton.icon(
-                                    onPressed: _signOutGoogle,
-                                    icon: Icon(
-                                      Icons.logout,
-                                      color: AppConstants.accentColor,
-                                    ),
-                                    label: const Text(
-                                      'Desconectar Google',
-                                      style: TextStyle(
-                                        color: Colors.black87,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                  ),
 
                                 const SizedBox(height: 20),
 
@@ -407,33 +326,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       PageRouteBuilder(
-                                        pageBuilder:
-                                            (
-                                              context,
-                                              animation,
-                                              secondaryAnimation,
-                                            ) => RoleSelectionScreen(),
-                                        transitionsBuilder:
-                                            (
-                                              context,
-                                              animation,
-                                              secondaryAnimation,
-                                              child,
-                                            ) {
-                                              const begin = Offset(1.0, 0.0);
-                                              const end = Offset.zero;
-                                              const curve = Curves.ease;
-                                              var tween = Tween(
-                                                begin: begin,
-                                                end: end,
-                                              ).chain(CurveTween(curve: curve));
-                                              return SlideTransition(
-                                                position: animation.drive(
-                                                  tween,
-                                                ),
-                                                child: child,
-                                              );
-                                            },
+                                        pageBuilder: (context, animation, secondaryAnimation) => RoleSelectionScreen(),
+                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                          const begin = Offset(1.0, 0.0);
+                                          const end = Offset.zero;
+                                          const curve = Curves.ease;
+                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                          return SlideTransition(
+                                            position: animation.drive(tween),
+                                            child: child,
+                                          );
+                                        },
                                       ),
                                     );
                                   },
@@ -452,8 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         TextSpan(
                                           text: 'Crear Cuenta',
                                           style: TextStyle(
-                                            decoration:
-                                                TextDecoration.underline,
+                                            decoration: TextDecoration.underline,
                                           ),
                                         ),
                                       ],
@@ -466,11 +368,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 30),
-
                     const SizedBox(height: 60),
-
                     const Text(
                       'AURORA',
                       style: TextStyle(

@@ -1,10 +1,19 @@
+// lib/presentation/psychologist/views/profile_screen_psychologist.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart'; // Make sure this import is present
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // Para redirigir al cerrar sesión
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+// You'll likely need to import these screens as well:
+// import 'package:ai_therapy_teteocan/presentation/psychologist/views/personal_info_screen_psychologist.dart';
+// import 'package:ai_therapy_teteocan/presentation/psychologist/views/notifications_screen_psychologist.dart';
+// import 'package:ai_therapy_teteocan/presentation/psychologist/views/appearance_screen_psychologist.dart';
+// import 'package:ai_therapy_teteocan/presentation/psychologist/views/language_screen_psychologist.dart';
+// import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_screen_psychologist.dart';
+
 
 class ProfileScreenPsychologist extends StatefulWidget {
   @override
@@ -12,80 +21,63 @@ class ProfileScreenPsychologist extends StatefulWidget {
       _ProfileScreenPsychologistState();
 }
 
-class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
-  // El nombre de usuario ahora se obtiene del AuthBloc
-  // String _userName = 'Psicólogo'; // Ya no es necesario como estado local
 
-  // Colores de tu paleta
+class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
+  // The username is now obtained from the AuthBloc
+  // String _userName = 'Psicólogo'; // No longer needed as local state
+  void _onLogoutPressed() { // Or whatever method or widget callback you're using
+    context.read<AuthBloc>().add(const AuthSignOutRequested()); // This line is correct
+  }
+
+  // Your color palette
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
   @override
   Widget build(BuildContext context) {
-    // Eliminado el AppBar de aquí, ya que PsychologistHomeScreen ya tiene uno.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sección de Configuración del Perfil
+          // Profile Settings Section
           _buildExpansionCard(
             title: 'CONFIGURACIÓN DEL PERFIL',
             children: [
               _buildProfileOption(context, 'Información personal', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PersonalInfoScreenPsychologist(),
-                  ),
-                );
+                // Ensure PersonalInfoScreenPsychologist is imported
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => PersonalInfoScreenPsychologist()));
               }),
               _buildProfileOption(context, 'Notificaciones', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NotificationsScreenPsychologist(),
-                  ),
-                );
+                // Ensure NotificationsScreenPsychologist is imported
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsScreenPsychologist()));
               }),
               _buildProfileOption(context, 'Apariencia', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppearanceScreenPsychologist(),
-                  ),
-                );
+                // Ensure AppearanceScreenPsychologist is imported
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => AppearanceScreenPsychologist()));
               }),
               _buildProfileOption(context, 'Idioma', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LanguageScreenPsychologist(),
-                  ),
-                );
+                // Ensure LanguageScreenPsychologist is imported
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => LanguageScreenPsychologist()));
               }),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Sección de Perfil Profesional (Solo para psicólogos)
+          // Professional Profile Section (Psychologists only)
           _buildExpansionCard(
             title: 'PERFIL PROFESIONAL',
             children: [
               _buildProfileOption(context, 'Información profesional', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfessionalInfoScreenPsychologist(),
-                  ),
-                );
+                // Ensure ProfessionalInfoScreenPsychologist is imported
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => ProfessionalInfoScreenPsychologist()));
               }),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Sección de Cuenta Asociada (Solo para psicólogos)
+          // Associated Account Section (Psychologists only)
           _buildExpansionCard(
             title: 'CUENTA ASOCIADA',
             children: [
@@ -93,37 +85,37 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                 context,
                 'Información para recibir pagos',
                 () {
-                  /* Lógica de pagos */
+                  /* Payment logic */
                 },
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Sección de Soporte
+          // Support Section
           _buildExpansionCard(
             title: 'SOPORTE',
             children: [
               _buildProfileOption(context, 'Soporte', () {
-                /* Lógica de Soporte */
+                /* Support Logic */
               }),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Sección de Contratos
+          // Contracts Section
           _buildExpansionCard(
             title: 'CONTRATOS',
             children: [
               _buildProfileOption(context, 'Política de privacidad', () {
-                /* Lógica de Política de Privacidad */
+                /* Privacy Policy Logic */
               }),
-              // Puedes añadir más opciones de contratos aquí
+              // You can add more contract options here
             ],
           ),
           const SizedBox(height: 30),
 
-          // Botón de Cerrar Sesión
+          // Sign Out Button
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.unauthenticated &&
@@ -184,7 +176,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     );
   }
 
-  // Widget auxiliar para las tarjetas expandibles (secciones)
+  // Helper widget for expandable cards (sections)
   Widget _buildExpansionCard({
     required String title,
     required List<Widget> children,
@@ -195,7 +187,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       color: Theme.of(
         context,
-      ).cardColor, // Adapta el color de la tarjeta al tema
+      ).cardColor,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
         child: Theme(
@@ -207,7 +199,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: primaryColor, // El color del título de la sección
+                color: primaryColor,
                 letterSpacing: 1.2,
                 fontFamily: 'Poppins',
               ),
@@ -230,7 +222,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     );
   }
 
-  // Widget auxiliar para cada opción dentro de una sección
+  // Helper widget for each option within a section
   Widget _buildProfileOption(
     BuildContext context,
     String title,
@@ -249,7 +241,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                 fontSize: 16,
                 color: Theme.of(
                   context,
-                ).textTheme.bodyMedium?.color, // Adapta el color del texto
+                ).textTheme.bodyMedium?.color,
                 fontFamily: 'Poppins',
               ),
             ),
@@ -260,7 +252,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     );
   }
 
-  // Diálogo de confirmación para cerrar sesión
+  // Logout confirmation dialog
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -297,8 +289,8 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                // Disparar evento de logout al AuthBloc
-                context.read<AuthBloc>().add(AuthLogoutRequested());
+                // Dispatch logout event to AuthBloc
+                context.read<AuthBloc>().add(const AuthSignOutRequested()); // <-- FIX IS HERE!
               },
             ),
           ],

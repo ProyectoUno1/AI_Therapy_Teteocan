@@ -4,23 +4,21 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // Para redirigir al cerrar sesión
-import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart'; // Tu widget de ítem de lista
-import 'package:image_picker/image_picker.dart'; // Importa image_picker
-import 'dart:io'; // Para File
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; 
+import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart'; 
+import 'package:image_picker/image_picker.dart'; 
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-// Importaciones de las sub-pantallas
-// Asegúrate de que estas clases están definidas en algún lugar accesible,
-// ya sea en este mismo archivo o en archivos separados dentro de la misma carpeta
-// o en una subcarpeta (ej. 'details/personal_info_screen_patient.dart')
-// Para este ejemplo, las mantendré como clases internas para la demo
-// o asumiendo que están en archivos separados importables.
-// Si las tienes en archivos separados, asegúrate de importarlas.
-// Si no existen todavía, las crearé como stubs al final de este archivo.
+
 
 class ProfileScreenPatient extends StatefulWidget {
+
+  const ProfileScreenPatient({super.key});
   @override
   _ProfileScreenPatientState createState() => _ProfileScreenPatientState();
+  
 }
 
 class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
@@ -29,48 +27,41 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
   final Color warningColor = AppConstants
-      .warningColor; // Para la tarjeta de suscripción, si decides reintroducirla en este diseño
+      .warningColor; 
+      
 
   @override
   Widget build(BuildContext context) {
-    // El AppBar y BottomNavigationBar se manejan en PatientHomeScreen.
-    // Este widget es solo el cuerpo de la pestaña de perfil.
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0), // Padding general
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         mainAxisSize:
-            MainAxisSize.min, // Para que la columna se ajuste al contenido
+            MainAxisSize.min,
         children: [
-          const SizedBox(height: 30), // Espacio superior
-          // Sección superior de Perfil (Avatar, Nombre, Email, Botón Edit)
+          const SizedBox(height: 30),  
+          
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               String userName =
-                  'Alan Rodriguez'; // Placeholder como en el diseño
-              String userEmail = 'Alan16@gmail.com'; // Placeholder
+                  'Alan Rodriguez';
+              String userEmail = 'Alan16@gmail.com'; 
               String profileImageUrl =
-                  'https://picsum.photos/seed/768/600'; // Imagen de ejemplo del diseño
-              // Si tienes la URL real en authState.user, úsala aquí:
-              // if (authState.user != null) {
-              //   userName = authState.user!.username;
-              //   userEmail = authState.user!.email;
-              //   if (authState.user!.profilePictureUrl != null) {
-              //     profileImageUrl = authState.user!.profilePictureUrl!;
-              //   }
-              // }
+                  'https://picsum.photos/seed/768/600';
+             
 
               return Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween, // Distribuye el espacio
+                    MainAxisAlignment.spaceBetween, 
                 children: [
-                  // Avatar y Texto de Perfil
+                  
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       Container(
-                        width: 56, // Ancho de 56 para el avatar
-                        height: 56, // Alto de 56 para el avatar
+                        width: 56, 
+                        height: 56, 
                         clipBehavior: Clip.antiAlias,
                         decoration: const BoxDecoration(shape: BoxShape.circle),
                       ),
@@ -81,7 +72,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                           0,
                           0,
                           0,
-                        ), // Espacio entre imagen y texto
+                        ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +82,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     fontWeight: FontWeight
-                                        .bold, // Bold como en el diseño
+                                        .bold, 
                                     color: Theme.of(
                                       context,
                                     ).textTheme.bodyLarge?.color,
@@ -103,7 +94,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                                   ?.copyWith(
                                     color: Theme.of(
                                       context,
-                                    ).hintColor, // Color secundario para el email
+                                    ).hintColor, 
                                     fontSize: 14,
                                   ),
                             ),
@@ -112,10 +103,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                       ),
                     ],
                   ),
-                  // Flecha a la derecha para navegar a "Información Personal"
-                  // Esta flecha es opcional si el "Información personal" en la sección de "Account" ya cumple la función.
-                  // Si quieres mantenerla como en el diseño de FlutterFlow para una navegación rápida, aquí está.
-                  // Por ahora, la mantengo para replicar el diseño de la imagen original del usuario.
+                  
                   IconButton(
                     icon: Icon(
                       Icons.arrow_forward_ios,
@@ -135,14 +123,14 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               );
             },
           ),
-          const SizedBox(height: 24), // Espacio después del encabezado
-          // Sección "Account" (Configuración del Perfil)
+          const SizedBox(height: 24), 
+          
           Text(
-            'Account', // Título de la sección como en el diseño
+            'Account', 
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Theme.of(
                 context,
-              ).textTheme.bodySmall?.color, // Color más tenue
+              ).textTheme.bodySmall?.color, 
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -152,25 +140,25 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             decoration: BoxDecoration(
               color: Theme.of(
                 context,
-              ).cardColor, // Color de la tarjeta adaptable al tema
+              ).cardColor, 
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: Theme.of(
                   context,
-                ).dividerColor.withOpacity(0.5), // Borde sutil
+                ).dividerColor.withOpacity(0.5), 
               ),
             ),
             child: Column(
               children: [
-                // Adaptado del ejemplo de FlutterFlow
+              
                 ProfileListItem(
                   icon:
-                      Icons.military_tech_outlined, // Icono de "Member Status"
+                      Icons.military_tech_outlined, 
                   text:
-                      'Suscripción', // Cambiado a "Suscripción" según tu solicitud
+                      'Suscripción', 
                   secondaryText: 'Aurora Premium',
                   onTap: () {
-                    /* Lógica para Suscripción */
+                    
                   },
                 ),
                 Divider(
@@ -179,11 +167,11 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
                 ProfileListItem(
-                  icon: Icons.credit_card_outlined, // Icono de "My Transaction"
-                  text: 'Pagos', // Cambiado a "Pagos" según tu solicitud
+                  icon: Icons.credit_card_outlined, 
+                  text: 'Pagos',
                   secondaryText: 'N/A',
                   onTap: () {
-                    /* Lógica para Pagos */
+                   //logica para pagos
                   },
                 ),
               ],
@@ -191,9 +179,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           ),
           const SizedBox(height: 24),
 
-          // Sección "Notifications" (como en el diseño con toggles)
+          
           Text(
-            'Notifications', // Título de la sección
+            'Notifications', 
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
@@ -212,9 +200,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             child: Column(
               children: [
                 _buildNotificationToggle(
-                  'Notificaciones Pop-up', // Texto actualizado
+                  'Notificaciones Pop-up', 
                   Icons.notifications_none,
-                  true, // Valor inicial (puedes conectarlo a un estado real)
+                  true,
                   (value) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Pop-up Notificaciones: $value')),
@@ -227,9 +215,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
                 _buildNotificationToggle(
-                  'Notificaciones por Email', // Texto actualizado
+                  'Notificaciones por Email', 
                   Icons.mail_outline,
-                  true, // Valor inicial
+                  true,
                   (value) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -243,9 +231,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           ),
           const SizedBox(height: 24),
 
-          // Sección "Other" (General)
+         
           Text(
-            'Other', // Título de la sección
+            'Other', 
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
@@ -265,15 +253,15 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               children: [
                 ProfileListItem(
                   icon: Icons
-                      .settings_outlined, // Usamos 'Settings' como en el ejemplo
-                  text: 'Configuración', // Cambiado a "Configuración"
+                      .settings_outlined, 
+                  text: 'Configuración', 
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => SettingsScreenPatient(),
                       ),
-                    ); // Redirige a SettingsScreen
+                    ); 
                   },
                 ),
                 Divider(
@@ -283,7 +271,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ),
                 ProfileListItem(
                   icon: Icons.contact_support_outlined,
-                  text: 'Contactanos', // Cambiado a "Contactanos"
+                  text: 'Contactanos', 
                   onTap: () {
                     /* Lógica para Contactanos */
                   },
@@ -296,7 +284,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ProfileListItem(
                   icon: Icons.privacy_tip_outlined,
                   text:
-                      'Politicas de Privacidad', // Cambiado a "Politicas de Privacidad"
+                      'Politicas de Privacidad',
                   onTap: () {
                     /* Lógica para Politicas de Privacidad */
                   },
@@ -367,9 +355,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  // Widget auxiliar para los contenedores de sección (Account, Notifications, Other)
-  // Este widget ahora es redundante para el cuerpo principal de ProfileScreenPatient
-  // porque el diseño se construye directamente, pero se mantiene si se usa en otro lugar.
   Widget _buildSectionContainer(
     BuildContext context, {
     required String title,
@@ -404,7 +389,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  // Widget para toggles de notificación adaptado al diseño
+ 
   Widget _buildNotificationToggle(
     String title,
     IconData icon,
@@ -495,7 +480,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               ),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                context.read<AuthBloc>().add(AuthLogoutRequested());
+                context.read<AuthBloc>().add(const AuthSignOutRequested());
               },
             ),
           ],
@@ -505,7 +490,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
   }
 }
 
-// --- Sub-pantallas del perfil del paciente (actualizadas con los cambios y renombradas) ---
 
 class PersonalInfoScreenPatient extends StatefulWidget {
   @override
@@ -525,9 +509,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   final TextEditingController _dobController = TextEditingController(
     text: '00/00/0000',
   );
-  final TextEditingController _genderController = TextEditingController(
-    text: 'Femenino/Masculino',
-  );
   final TextEditingController _phoneController = TextEditingController(
     text: '1234567890',
   );
@@ -538,9 +519,17 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   @override
   void initState() {
     super.initState();
-    // Aquí podrías cargar la información real del usuario desde un BLoC/Cubit
-    // Por ejemplo: context.read<UserProfileCubit>().loadProfile();
-    // Y actualizar los controladores con los datos.
+    _trySignOut();
+
+  }
+  // Nueva función para intentar cerrar sesión
+  Future<void> _trySignOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      print('✅ Sesión de Firebase cerrada exitosamente al iniciar RegisterPatientScreen.');
+    } catch (e) {
+      print('⚠️ Error al intentar cerrar sesión de Firebase: $e');
+    }
   }
 
   // Método para seleccionar una foto de la galería
@@ -557,9 +546,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
             content: Text('Foto seleccionada. ¡Ahora puedes guardarla!'),
           ),
         );
-        // TODO: Aquí llamarías a un evento de BLoC para subir la imagen al almacenamiento (Firebase Storage)
-        // y actualizar la URL en la base de datos del usuario.
-        // Ejemplo: context.read<UserProfileBloc>().add(UploadProfilePicture(imageFile: _profileImageFile!));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No se seleccionó ninguna foto.')),
@@ -577,7 +563,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     return Scaffold(
       backgroundColor: Theme.of(
         context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      ).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Información Personal',
@@ -600,7 +586,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               child: Column(
                 children: [
                   GestureDetector(
-                    onTap: _pickImage, // Habilitar la opción de subir foto
+                    onTap: _pickImage,
                     child: Stack(
                       alignment: Alignment.bottomRight,
                       children: [
@@ -632,7 +618,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Toca para cambiar foto', // Texto más claro para la acción
+                    'Toca para cambiar foto', 
                     style: TextStyle(
                       fontSize: 14,
                       color: Theme.of(context).hintColor,
@@ -654,7 +640,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               ),
             ),
             const SizedBox(height: 10),
-            // Utilizando el nuevo _buildInputFieldWithLabel con un diseño mejorado
             _buildInputFieldWithLabel(context, _nameController, 'Nombre'),
             _buildInputFieldWithLabel(
               context,
@@ -673,7 +658,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Guardando cambios...')),
                   );
-                  // Lógica para guardar la información (disparar evento a un BLoC de perfil)
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
@@ -698,7 +682,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     );
   }
 
-  // Widget para construir campos de texto con label arriba y diseño mejorado
   Widget _buildInputFieldWithLabel(
     BuildContext context,
     TextEditingController controller,
@@ -719,7 +702,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               fontFamily: 'Poppins',
             ),
           ),
-          const SizedBox(height: 4), // Pequeño espacio entre label y campo
+          const SizedBox(height: 4),
           TextFormField(
             controller: controller,
             readOnly: !isEditable,
@@ -734,13 +717,13 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               contentPadding: const EdgeInsets.symmetric(
                 vertical: 12.0,
                 horizontal: 10.0,
-              ), // Ajustar padding
+              ), 
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
                   color: Theme.of(context).dividerColor,
                   width: 1,
-                ), // Borde adaptable al tema
+                ), 
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -749,7 +732,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               filled: true,
               fillColor: Theme.of(
                 context,
-              ).cardColor, // Color de fondo del campo, adaptable
+              ).cardColor,
             ),
           ),
         ],
@@ -793,7 +776,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   void dispose() {
     _nameController.dispose();
     _dobController.dispose();
-    _genderController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -811,14 +793,14 @@ class _NotificationsScreenPatientState
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
-  bool _receiveNotifications = true; // Estado para el toggle de notificaciones
+  bool _receiveNotifications = true; 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(
         context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      ).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Notificaciones',
@@ -945,14 +927,14 @@ class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
-  String _selectedTheme = 'system'; // Estado local para la selección del Radio
+  String _selectedTheme = 'system';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(
         context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      ).scaffoldBackgroundColor, 
       appBar: AppBar(
         title: const Text(
           'Configuración',
@@ -1013,10 +995,7 @@ class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
         setState(() {
           _selectedTheme = themeValue;
         });
-        // TODO: Para cambiar el tema real de la app, necesitas un ThemeCubit o Provider
-        // que envuelva MaterialApp en main.dart y que escuche estos cambios.
-        // Ejemplo con Provider: context.read<ThemeProvider>().setThemeMode(ThemeMode.dark);
-        // Ejemplo con BLoC: context.read<ThemeBloc>().add(ThemeChanged(themeMode: ThemeMode.dark));
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Simulando cambio de tema a: $title')),
         );
@@ -1095,14 +1074,14 @@ class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
-  String _selectedLanguage = 'es'; // Estado local para la selección del Radio
+  String _selectedLanguage = 'es'; 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(
         context,
-      ).scaffoldBackgroundColor, // Adapta el color de fondo al tema
+      ).scaffoldBackgroundColor, 
       appBar: AppBar(
         title: const Text(
           'Idioma',
@@ -1162,9 +1141,7 @@ class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
         setState(() {
           _selectedLanguage = langCode;
         });
-        // TODO: Para cambiar el idioma real de la app, necesitas un mecanismo de localización
-        // (ej. flutter_localizations, un LocalizationCubit/Provider) que actualice el Locale de MaterialApp.
-        // Ejemplo: context.read<LocalizationCubit>().changeLanguage(Locale(langCode));
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Simulando cambio de idioma a: $title')),
         );

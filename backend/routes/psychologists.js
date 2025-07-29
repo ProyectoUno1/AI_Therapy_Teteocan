@@ -1,79 +1,96 @@
 // backend/routes/psychologists.js
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db');
 const verifyFirebaseToken = require('../middlewares/auth_middleware');
+const admin = require('../firebase-admin'); // Importa Firebase Admin
+const db = admin.firestore(); // Obtén la instancia de Firestore
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
-  try {
-    const { uid, username, email, phoneNumber, professional_license, dateOfBirth } = req.body;
-    const firebaseUser = req.firebaseUser;
+    try {
+        const { uid, username, email, phoneNumber, professional_license, dateOfBirth, profilePictureUrl } = req.body;
+        const firebaseUser = req.firebaseUser;
 
-    if (firebaseUser.uid !== uid) {
-      return res.status(403).json({ error: 'UID mismatch' });
+        if (firebaseUser.uid !== uid) {
+            return res.status(403).json({ error: 'UID mismatch' });
+        }
+
+        const psychologistRef = db.collection('psychologists').doc(uid);
+        const doc = await psychologistRef.get();
+
+        if (doc.exists) {
+            return res.status(400).json({ error: 'Psicólogo ya registrado' });
+        }
+
+        const psychologistData = {
+            firebase_uid: uid,
+            username: username,
+            email: email,
+            phone_number: phoneNumber,
+            professional_license: professional_license,
+            date_of_birth: dateOfBirth,
+            profile_picture_url: profilePictureUrl || null, 
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await psychologistRef.set(psychologistData);
+
+        res.status(201).json({
+            message: 'Psicólogo registrado exitosamente',
+            psychologist: { id: uid, ...psychologistData }, 
+        });
+    } catch (error) {
+        console.error('Error al registrar psicólogo en Firestore:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    // Verificar si psicólogo ya existe
-    const existing = await pool.query('SELECT * FROM psychologists WHERE auth_id = $1', [uid]);
-
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Psicólogo ya registrado' });
-    }
-
-    // Insertar psicólogo
-    const newPsychologist = await pool.query(
-      `INSERT INTO psychologists (firebase_uid, username, email, phone_number, professional_license, date_of_birth)
-   VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [uid, username, email, phoneNumber, professional_license, dateOfBirth]
-    );
-
-    res.status(201).json({
-      message: 'Psicólogo registrado exitosamente',
-      psychologist: newPsychologist.rows[0],
-    });
-  } catch (error) {
-    console.error('Error al registrar psicólogo:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
 });
 
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
-  try {
-    const uid = req.firebaseUser.uid;
+    try {
+        const uid = req.firebaseUser.uid;
+        const psychologistRef = db.collection('psychologists').doc(uid);
+        const doc = await psychologistRef.get();
 
-    const result = await pool.query('SELECT * FROM psychologists WHERE auth_id = $1', [uid]);
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        }
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        res.json({ psychologist: { id: doc.id, ...doc.data() } });
+    } catch (error) {
+        console.error('Error al obtener perfil psicólogo de Firestore:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    res.json({ psychologist: result.rows[0] });
-  } catch (error) {
-    console.error('Error al obtener perfil psicólogo:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
 });
 
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
-  try {
-    const uid = req.firebaseUser.uid;
-    const { username, email, phoneNumber, professional_license } = req.body;
+    try {
+        const uid = req.firebaseUser.uid;
+        const { username, email, phoneNumber, professional_license, profilePictureUrl } = req.body;
 
-    const result = await pool.query(
-      `UPDATE psychologists SET username = $1, email = $2, phone_number = $3, professional_license = $4 WHERE auth_id = $5 RETURNING *`,
-      [username, email, phoneNumber, professional_license, uid]
-    );
+        const psychologistRef = db.collection('psychologists').doc(uid);
+        const doc = await psychologistRef.get();
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        }
+
+        const updateData = {
+            username: username,
+            email: email,
+            phone_number: phoneNumber,
+            professional_license: professional_license,
+            profile_picture_url: profilePictureUrl || null,
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await psychologistRef.update(updateData);
+
+        const updatedDoc = await psychologistRef.get(); // Obtener el documento actualizado para la respuesta
+
+        res.json({ message: 'Perfil actualizado', psychologist: { id: updatedDoc.id, ...updatedDoc.data() } });
+    } catch (error) {
+        console.error('Error al actualizar perfil psicólogo en Firestore:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    res.json({ message: 'Perfil actualizado', psychologist: result.rows[0] });
-  } catch (error) {
-    console.error('Error al actualizar perfil psicólogo:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
 });
-
 
 module.exports = router;

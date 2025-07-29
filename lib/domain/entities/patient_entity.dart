@@ -2,7 +2,7 @@ import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 
 class PatientEntity extends UserEntity {
   final String? dateOfBirth;
-  final String? gender;
+  
 
   const PatientEntity({
     required String uid,
@@ -11,7 +11,6 @@ class PatientEntity extends UserEntity {
     required String phoneNumber,
     String? profilePictureUrl,
     this.dateOfBirth,
-    this.gender,
   }) : super(
           uid: uid,
           username: username,
@@ -22,5 +21,5 @@ class PatientEntity extends UserEntity {
         );
 
   @override
-  List<Object?> get props => [...super.props, dateOfBirth, gender];
+  List<Object?> get props => [...super.props, dateOfBirth];
 }

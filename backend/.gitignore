@@ -10,3 +10,5 @@ notes.txt
 firebase.json
 .firebaserc
 key.properties
+serviceAccountKey.json
+firestore.rules

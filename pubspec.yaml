@@ -18,6 +18,7 @@ dependencies:
   firebase_core: ^3.7.1
   firebase_auth: ^5.3.2
   google_sign_in: ^6.2.2
+  cloud_firestore: ^5.6.12
 
   # HTTP requests para comunicación con backend
   http: ^1.2.2

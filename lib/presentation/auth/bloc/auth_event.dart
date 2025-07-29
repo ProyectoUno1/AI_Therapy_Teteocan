@@ -1,59 +1,97 @@
 // lib/presentation/auth/bloc/auth_event.dart
-abstract class AuthEvent {}
 
-class AuthUserChanged extends AuthEvent {
-  final String? firebaseUid;
-  final String? userRole;
-  final String? userName;
+import 'package:equatable/equatable.dart'; 
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
-  AuthUserChanged({this.firebaseUid, this.userRole, this.userName});
+abstract class AuthEvent extends Equatable {
+  const AuthEvent(); 
+
+  @override
+  List<Object?> get props => []; 
 }
 
-class AuthLoginRequested extends AuthEvent {
+
+class AuthSignInRequested extends AuthEvent {
   final String email;
   final String password;
 
-  AuthLoginRequested({required this.email, required this.password});
+  const AuthSignInRequested({required this.email, required this.password});
+
+  @override
+  List<Object> get props => [email, password];
 }
 
+class AuthSignInWithGoogleRequested extends AuthEvent {
+  const AuthSignInWithGoogleRequested(); 
+
+  @override
+  List<Object?> get props => []; 
+}
 class AuthRegisterPatientRequested extends AuthEvent {
   final String email;
   final String password;
-  final String username;
+  final String username; 
   final String phoneNumber;
-  final DateTime dateOfBirth;  
+  final DateTime dateOfBirth;
 
-  AuthRegisterPatientRequested({
+  const AuthRegisterPatientRequested({
     required this.email,
     required this.password,
-    required this.username,
+    required this.username, 
     required this.phoneNumber,
-    required this.dateOfBirth,  
+    required this.dateOfBirth,
   });
+
+  @override
+  List<Object?> get props => [email, password, username, phoneNumber, dateOfBirth];
 }
 
 class AuthRegisterPsychologistRequested extends AuthEvent {
   final String email;
   final String password;
-  final String username;
+  final String username; 
   final String phoneNumber;
   final String professionalLicense;
-  final String? specialty;
-  final String? schedule;
-  final String? aboutMe;
   final DateTime dateOfBirth;
 
-  AuthRegisterPsychologistRequested({
+  const AuthRegisterPsychologistRequested({
     required this.email,
     required this.password,
-    required this.username,
+    required this.username, 
     required this.phoneNumber,
     required this.professionalLicense,
-    this.specialty,
-    this.schedule,
-    this.aboutMe,
-    required this.dateOfBirth,  
+    required this.dateOfBirth,
   });
+
+  @override
+  List<Object?> get props => [
+        email,
+        password,
+        username,
+        phoneNumber,
+        professionalLicense,
+        dateOfBirth,
+      ];
 }
 
-class AuthLogoutRequested extends AuthEvent {}
+class AuthSignOutRequested extends AuthEvent {
+  const AuthSignOutRequested(); 
+}
+
+class AuthStatusChanged extends AuthEvent {
+  final AuthStatus status;
+  final dynamic userProfile; 
+  final UserRole userRole; 
+
+  const AuthStatusChanged(this.status, this.userProfile, {this.userRole = UserRole.unknown});
+
+  @override
+  List<Object?> get props => [status, userProfile, userRole];
+}
+
+
+class AuthStarted extends AuthEvent {
+  const AuthStarted();
+}

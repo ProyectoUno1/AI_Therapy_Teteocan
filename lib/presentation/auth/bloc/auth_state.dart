@@ -1,43 +1,80 @@
 // lib/presentation/auth/bloc/auth_state.dart
+
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
+import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 enum AuthStatus {
-  unknown,               // Estado inicial, cargando
-  success,               // Estado genérico de éxito (login o registro correcto)
-  authenticatedPatient,  // Autenticado como paciente 
-  authenticatedPsychologist, // Autenticado como psicólogo 
-  unauthenticated,       // No autenticado
-  loading,               // Para operaciones en curso (login/registro)
-  error,                 // Error en login/registro
+  unknown,
+  authenticated,
+  unauthenticated,
+  loading,
+  error,
+  success,
+}
+
+enum UserRole {
+  unknown,
+  patient,
+  psychologist,
 }
 
 class AuthState extends Equatable {
   final AuthStatus status;
-  final UserEntity? user; // Puede ser PatientEntity o PsychologistEntity
+  final PatientModel? patient;
+  final PsychologistModel? psychologist;
   final String? errorMessage;
+  final UserRole userRole;
 
-  const AuthState._({
+  const AuthState({
     this.status = AuthStatus.unknown,
-    this.user,
+    this.patient,
+    this.psychologist,
     this.errorMessage,
+    this.userRole = UserRole.unknown,
   });
 
-  // Constructores para estados específicos
-  const AuthState.unknown() : this._();
-  const AuthState.loading() : this._(status: AuthStatus.loading);
-  const AuthState.unauthenticated() : this._(status: AuthStatus.unauthenticated);
-  const AuthState.success(UserEntity user) : this._(status: AuthStatus.success, user: user);
-  const AuthState.authenticatedPatient(UserEntity user) : this._(status: AuthStatus.authenticatedPatient, user: user);
-  const AuthState.authenticatedPsychologist(UserEntity user) : this._(status: AuthStatus.authenticatedPsychologist, user: user);
-  const AuthState.error(String message) : this._(status: AuthStatus.error, errorMessage: message);
+  AuthState copyWith({
+    AuthStatus? status,
+  
+    Object? patient, 
+    Object? psychologist, 
+    String? errorMessage,
+    UserRole? userRole,
+  }) {
+    final newStatus = status ?? this.status;
+    final newUserRole = userRole ?? this.userRole;
 
-  // Método para saber si está autenticado en cualquiera de las formas
-  bool get isAuthenticated =>
-      status == AuthStatus.authenticatedPatient ||
-      status == AuthStatus.authenticatedPsychologist ||
-      status == AuthStatus.success;
+    return AuthState(
+      status: newStatus,
+      
+      patient: newStatus == AuthStatus.authenticated && newUserRole == UserRole.patient
+          ? (patient is PatientModel ? patient : this.patient) 
+          : null, 
+      psychologist: newStatus == AuthStatus.authenticated && newUserRole == UserRole.psychologist
+          ? (psychologist is PsychologistModel ? psychologist : this.psychologist) 
+          : null,
+      errorMessage: errorMessage, 
+      userRole: newUserRole,
+    );
+  }
+
+
+  bool get isAuthenticatedPatient =>
+      status == AuthStatus.authenticated &&
+      userRole == UserRole.patient && 
+      patient != null;
+
+  bool get isAuthenticatedPsychologist =>
+      status == AuthStatus.authenticated &&
+      userRole == UserRole.psychologist && 
+      psychologist != null;
+
+  bool get isLoading => status == AuthStatus.loading;
+  bool get isError => status == AuthStatus.error;
+  bool get isUnauthenticated => status == AuthStatus.unauthenticated;
+  bool get isUnknown => status == AuthStatus.unknown;
 
   @override
-  List<Object?> get props => [status, user, errorMessage];
+  List<Object?> get props => [status, patient, psychologist, errorMessage, userRole];
 }

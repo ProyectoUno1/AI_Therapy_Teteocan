@@ -4,15 +4,15 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 class PsychologistHomeContent extends StatelessWidget {
-  const PsychologistHomeContent({super.key}); // Added Key for best practices
+  const PsychologistHomeContent({super.key}); 
 
   @override
   Widget build(BuildContext context) {
-    // Dummy Data for demonstration
+    
     final List<Session> todaySessions = [
       Session(
         id: 's1',
-        time: DateTime(2025, 7, 25, 9, 30), // Changed to current date for relevance
+        time: DateTime(2025, 7, 25, 9, 30), 
         patient: const PsychologistPatient(
           id: 'p1',
           name: 'Mario',
@@ -24,7 +24,7 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
       Session(
         id: 's2',
-        time: DateTime(2025, 7, 25, 11, 0), // Changed to current date
+        time: DateTime(2025, 7, 25, 11, 0), 
         patient: const PsychologistPatient(
           id: 'p2',
           name: 'Maria',
@@ -36,7 +36,7 @@ class PsychologistHomeContent extends StatelessWidget {
       ),
       Session(
         id: 's3',
-        time: DateTime(2025, 7, 25, 14, 15), // Changed to current date
+        time: DateTime(2025, 7, 25, 14, 15), 
         patient: const PsychologistPatient(
           id: 'p3',
           name: 'David',
@@ -233,9 +233,9 @@ class PsychologistHomeContent extends StatelessWidget {
                     children: [
                       const Text('Disponible para sesiones', style: TextStyle(fontSize: 16, fontFamily: 'Poppins')),
                       Switch(
-                        value: true, // This should ideally be managed by a state management solution
+                        value: true, 
                         onChanged: (bool value) {
-                          // Handle switch toggle
+                          
                         },
                         activeColor: AppConstants.secondaryColor,
                       ),
@@ -260,7 +260,6 @@ class PsychologistHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Usage Insights Section
           _buildSectionHeader(context, 'Usage Insights'),
           const SizedBox(height: 8),
           Card(
@@ -307,8 +306,6 @@ class PsychologistHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Your Articles Section
           _buildSectionHeader(context, 'Tus artículos',
               suffixWidget: CircleAvatar(
                 backgroundColor: AppConstants.secondaryColor,
@@ -322,7 +319,7 @@ class PsychologistHomeContent extends StatelessWidget {
               )),
           const SizedBox(height: 8),
           SizedBox(
-            height: 250, // Fixed height for horizontal scroll cards
+            height: 250, 
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: yourArticles.length,
@@ -338,7 +335,7 @@ class PsychologistHomeContent extends StatelessWidget {
     );
   }
 
-  // Helper method for section headers
+
   Widget _buildSectionHeader(BuildContext context, String title, {String? suffixText, VoidCallback? onTapSuffix, Widget? suffixWidget}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -370,7 +367,7 @@ class PsychologistHomeContent extends StatelessWidget {
   }
 }
 
-// Reusable Widgets (kept as they were, adding `Key` where missing for best practice)
+
 
 class _SessionCard extends StatelessWidget {
   final Session session;
@@ -518,7 +515,7 @@ class _ChatSummaryCard extends StatelessWidget {
         subtitle: Text(patient.latestMessage, style: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'), maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text(patient.lastSeen, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontFamily: 'Poppins')),
         onTap: () {
-          // Navigate to chat screen
+         
         },
       ),
     );
@@ -638,7 +635,7 @@ class _PsychologistArticleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200, // Fixed width for horizontal scroll cards
+      width: 200, 
       margin: const EdgeInsets.only(right: 16),
       child: Card(
         elevation: 2,

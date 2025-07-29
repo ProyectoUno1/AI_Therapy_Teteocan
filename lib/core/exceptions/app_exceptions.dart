@@ -65,3 +65,27 @@ class CreateDataException extends AppException {
 class NotFoundException extends AppException {
   NotFoundException(String message) : super(message);
 }
+
+
+class ServerException extends AppException { 
+  ServerException(String message) : super(message);
+}
+
+class AuthException extends AppException { 
+  AuthException(String message) : super(message);
+}
+
+class UserCreationException extends AppException {
+  UserCreationException([String? message])
+    : super(message ?? 'No se pudo crear el usuario de autenticación', 'Error de Creación de Usuario');
+}
+
+
+class InvalidEmailException extends AppException {
+  InvalidEmailException([String? message]) : super(message ?? "Formato de correo electrónico inválido.");
+}
+
+class InvalidCredentialsException extends AppException {
+  InvalidCredentialsException([String? message]) : super(message ?? "Credenciales inválidas. Por favor, verifica tu correo y contraseña.");
+}
+

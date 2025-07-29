@@ -8,6 +8,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // B
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 
 // Firebase y autenticación con Google
 import 'package:firebase_auth/firebase_auth.dart';
@@ -615,6 +616,12 @@ class _RegisterPsychologistScreenState
                     content: Text('Registro exitoso!'),
                     backgroundColor: Colors.green,
                   ),
+                ); 
+                if (!context.mounted) return;
+
+                // Redirige al LoginScreen
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) =>  LoginScreen()), // Asegúrate de importar LoginScreen
                 );
               }
             },

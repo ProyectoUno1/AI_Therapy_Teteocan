@@ -2,10 +2,6 @@ import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 
 class PsychologistEntity extends UserEntity {
   final String professionalId;
-  final String? specialty;
-  final String? schedule;
-  final String? aboutMe;
-  final String? gender;
   final String? dateOfBirth;
 
   const PsychologistEntity({
@@ -14,10 +10,6 @@ class PsychologistEntity extends UserEntity {
     required String email,
     required String phoneNumber,
     required this.professionalId,
-    this.specialty,
-    this.schedule,
-    this.aboutMe,
-    this.gender,
     this.dateOfBirth,
     String? profilePictureUrl,
   }) : super(
@@ -33,10 +25,6 @@ class PsychologistEntity extends UserEntity {
   List<Object?> get props => [
         ...super.props,
         professionalId,
-        specialty,
-        schedule,
-        aboutMe,
-        gender,
         dateOfBirth,
       ];
 }

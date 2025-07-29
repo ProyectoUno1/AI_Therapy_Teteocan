@@ -8,10 +8,13 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // B
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // O la ruta correcta a tu LoginScreen // O la ruta correcta a tu LoginScreen
 
 // Firebase y autenticación con Google
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
+
 
 class RegisterPatientScreen extends StatefulWidget {
   const RegisterPatientScreen({super.key});
@@ -19,6 +22,9 @@ class RegisterPatientScreen extends StatefulWidget {
   @override
   State<RegisterPatientScreen> createState() => _RegisterPatientScreenState();
 }
+
+
+
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   int currentStep = 1;
@@ -523,6 +529,13 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
+
+                
+                if (!context.mounted) return;
+
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) =>  LoginScreen()), 
+                );
               }
             },
             builder: (context, state) {
@@ -566,7 +579,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Center(
-                      // Si está cargando muestra spinner, si no el texto "Crear cuenta"
                       child: state.status == AuthStatus.loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(

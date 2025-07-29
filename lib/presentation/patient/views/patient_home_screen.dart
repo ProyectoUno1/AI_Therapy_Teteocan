@@ -1,8 +1,10 @@
+// lib/presentation/patient/views/patient_home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; // Importa AuthState
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 
@@ -31,7 +33,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
         ),
       ),
-      ProfileScreenPatient(),
+       const ProfileScreenPatient()
     ];
   }
 
@@ -43,10 +45,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String userName = 'Paciente';
+    String userName = 'Paciente'; // Valor por defecto
     final authState = context.watch<AuthBloc>().state;
-    if (authState.user != null) {
-      userName = authState.user!.username;
+
+    if (authState.isAuthenticatedPatient) {
+      userName = authState.patient!.username; // Accede directamente a 'patient'
     }
 
     final List<Widget> widgetOptions = _getWidgetOptions(context);

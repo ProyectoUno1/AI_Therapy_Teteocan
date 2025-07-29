@@ -1,70 +1,103 @@
-import 'package:ai_therapy_teteocan/data/models/user_model.dart';
+// lib/data/models/psychologist_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
 
-class PsychologistModel extends UserModel {
-  final String professionalLicense; // renombrado a professionalLicense
-  final String? specialty;
-  final String? schedule;
-  final String? aboutMe;
+
+class PsychologistModel {
+  final String uid; // Este será el ID del documento en Firestore (firebase_uid)
+  final String username; // Corresponde al campo 'full_name' en Firestore
+  final String email; // Corresponde al campo 'email' en Firestore
+  final String phoneNumber; // Corresponde al campo 'phone_number' en Firestore
+  final String professionalLicense; // Corresponde al campo 'professional_license' en Firestore
+  final String? profilePictureUrl; // Corresponde al campo 'profile_picture_url' en Firestore
+  final DateTime dateOfBirth; // Corresponde al campo 'date_of_birth' en Firestore (String "YYYY-MM-DD")
+  final DateTime createdAt;   // Corresponde al campo 'created_at' en Firestore (Timestamp)
+  final DateTime updatedAt;   // Corresponde al campo 'updated_at' en Firestore (Timestamp)
 
   const PsychologistModel({
-    required String uid,
-    required String username,
-    required String email,
-    required String phoneNumber,
+    required this.uid,
+    required this.username,
+    required this.email,
+    required this.phoneNumber,
     required this.professionalLicense,
-    this.specialty,
-    this.schedule,
-    this.aboutMe,
-    String? profilePictureUrl,
-  }) : super(
-          uid: uid,
-          username: username,
-          email: email,
-          phoneNumber: phoneNumber,
-          role: 'psicologo',
-          professionalId: professionalLicense,
-          profilePictureUrl: profilePictureUrl,
-        );
+    this.profilePictureUrl,
+    required this.dateOfBirth,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
-  factory PsychologistModel.fromJson(Map<String, dynamic> json) {
+  
+  factory PsychologistModel.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+    SnapshotOptions? options,
+  ) {
+    final data = snapshot.data();
+    if (data == null) {
+      throw StateError('El documento de psicólogo no contiene datos.');
+    }
+
+    // Manejo robusto de Timestamps para createdAt y updatedAt
+    final Timestamp createdAtTimestamp = data['created_at'] is Timestamp
+        ? data['created_at']
+        : Timestamp.now(); // Fallback por si acaso
+    final Timestamp updatedAtTimestamp = data['updated_at'] is Timestamp
+        ? data['updated_at']
+        : Timestamp.now(); // Fallback por si acaso
+
+    
+    DateTime parsedDateOfBirth;
+    if (data['date_of_birth'] is Timestamp) {
+      parsedDateOfBirth = (data['date_of_birth'] as Timestamp).toDate();
+    } else if (data['date_of_birth'] is String) {
+      parsedDateOfBirth = DateTime.tryParse(data['date_of_birth']) ?? DateTime(1900); 
+    } else {
+      parsedDateOfBirth = DateTime(1900); 
+    }
+
     return PsychologistModel(
-      uid: json['firebaseUid'] as String,
-      username: json['username'] as String,
-      email: json['email'] as String,
-      phoneNumber: json['phoneNumber'] as String,
-      professionalLicense: json['professional_license'] as String,  // snake_case
-      specialty: json['specialty'] as String?,
-      schedule: json['schedule'] as String?,
-      aboutMe: json['about_me'] as String?,
-      profilePictureUrl: json['profilePictureUrl'] as String?,
+      uid: snapshot.id, 
+      username: data['username'] as String,
+      email: data['email'] as String,
+      phoneNumber: data['phone_number'] as String,
+      professionalLicense: data['professional_license'] as String,
+      profilePictureUrl: data['profile_picture_url'] as String?,
+      dateOfBirth: parsedDateOfBirth,
+      createdAt: createdAtTimestamp.toDate(),
+      updatedAt: updatedAtTimestamp.toDate(),
     );
   }
 
-  @override
+  
+  Map<String, dynamic> toFirestore() {
+    return {
+      "username": username,
+      "email": email,
+      "phone_number": phoneNumber,
+      "professional_license": professionalLicense,
+      "profile_picture_url": profilePictureUrl,
+      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], // Almacenar solo la fecha como String "YYYY-MM-DD"
+      "created_at": Timestamp.fromDate(createdAt), // Guardar como Timestamp de Firestore
+      "updated_at": Timestamp.fromDate(updatedAt), // Guardar como Timestamp de Firestore
+    };
+  }
+
+  
   Map<String, dynamic> toJson() {
-    final json = super.toJson();
-    json['professional_license'] = professionalLicense;
-    json['specialty'] = specialty;
-    json['schedule'] = schedule;
-    json['about_me'] = aboutMe;
-    return json;
-  }
-
-  factory PsychologistModel.fromEntity(PsychologistEntity entity) {
-    return PsychologistModel(
-      uid: entity.uid,
-      username: entity.username,
-      email: entity.email,
-      phoneNumber: entity.phoneNumber,
-      professionalLicense: entity.professionalId,
-      specialty: entity.specialty,
-      schedule: entity.schedule,
-      aboutMe: entity.aboutMe,
-      profilePictureUrl: entity.profilePictureUrl,
-    );
+    return {
+      'uid': uid,
+      'username': username,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'professionalLicense': professionalLicense,
+      'profilePictureUrl': profilePictureUrl,
+      'dateOfBirth': dateOfBirth.toIso8601String().split('T')[0],
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
   }
 }
+
+
 
 /// Modelo para representar un paciente en el contexto del psicólogo
 class PsychologistPatient {

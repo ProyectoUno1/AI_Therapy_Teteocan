@@ -1,16 +1,16 @@
+// lib/presentation/psychologist/views/psychologist_home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; 
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_content.dart';
-import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
-import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; // Ensure this is correctly imported if needed
+
 
 class PsychologistHomeScreen extends StatefulWidget {
-  const PsychologistHomeScreen({super.key}); // Added Key for best practices
 
   @override
   _PsychologistHomeScreenState createState() => _PsychologistHomeScreenState();
@@ -21,7 +21,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
-      const PsychologistHomeContent(), // This is now correctly a StatelessWidget
+      const PsychologistHomeContent(),
       Center(
         child: Text(
           'Chats con Pacientes',
@@ -44,7 +44,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           ),
         ),
       ),
-      ProfileScreenPsychologist(), // Assuming ProfileScreenPsychologist is also a StatelessWidget or StatefulWidget with a const constructor
+      ProfileScreenPsychologist(),
     ];
   }
 
@@ -61,22 +61,12 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
     final authState = context.watch<AuthBloc>().state;
 
-    if (authState.status == AuthStatus.authenticatedPsychologist && authState.user != null) {
-      if (authState.user is PsychologistEntity) {
-        final psychologistEntity = authState.user as PsychologistEntity;
-        userName = psychologistEntity.username;
-        profilePictureUrl = psychologistEntity.profilePictureUrl;
-      } else if (authState.user is PsychologistModel) {
-        // If the AuthBloc happens to emit a PsychologistModel directly
-        final psychologistModel = authState.user as PsychologistModel;
-        userName = psychologistModel.username;
-        profilePictureUrl = psychologistModel.profilePictureUrl;
-      } else if (authState.user is UserEntity) {
-        // Fallback for a generic UserEntity if it has these properties
-        userName = authState.user!.username;
-        profilePictureUrl = authState.user!.profilePictureUrl;
-      }
+  
+    if (authState.isAuthenticatedPsychologist) { 
+      userName = authState.psychologist!.username; 
+      profilePictureUrl = authState.psychologist!.profilePictureUrl;
     }
+   
 
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 

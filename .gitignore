@@ -71,3 +71,4 @@ backend/package-lock.json
 # Firebase Emulators
 firebase.json
 .firebaserc
+serviceAccountKey.json
