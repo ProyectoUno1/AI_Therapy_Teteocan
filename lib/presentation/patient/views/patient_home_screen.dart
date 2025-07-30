@@ -1,31 +1,26 @@
-// lib/presentation/patient/views/patient_home_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; // Importa AuthState
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
+import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
+  const PatientHomeScreen({super.key});
+
   @override
-  _PatientHomeScreenState createState() => _PatientHomeScreenState();
+  State<PatientHomeScreen> createState() => PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends State<PatientHomeScreen> {
+class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
 
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
       const PatientHomeContent(),
-      const Center(
-        child: Text(
-          'Chats del Paciente',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
-        ),
-      ),
+      const ChatListScreen(),
       const Center(
         child: Text(
           'Psicólogos disponibles para el Paciente',
@@ -33,7 +28,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
         ),
       ),
-       const ProfileScreenPatient()
+      ProfileScreenPatient(),
     ];
   }
 
@@ -45,11 +40,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String userName = 'Paciente'; // Valor por defecto
+    String userName = 'Paciente';
     final authState = context.watch<AuthBloc>().state;
-
-    if (authState.isAuthenticatedPatient) {
-      userName = authState.patient!.username; // Accede directamente a 'patient'
+    if (authState.patient != null) {
+      userName = authState.patient!.username;
     }
 
     final List<Widget> widgetOptions = _getWidgetOptions(context);
