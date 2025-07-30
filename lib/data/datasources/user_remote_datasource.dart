@@ -19,6 +19,8 @@ abstract class UserRemoteDataSource {
     required String phoneNumber,
     required DateTime dateOfBirth,
     String? profilePictureUrl,
+    required String role,
+    
   });
 
   Future<PsychologistModel> createPsychologist({
@@ -29,6 +31,7 @@ abstract class UserRemoteDataSource {
     required String professionalLicense,
     required DateTime dateOfBirth,
     String? profilePictureUrl,
+    required String role,
   });
 
   Future<dynamic> getUserData(String uid);
@@ -92,6 +95,8 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required String phoneNumber,
     required DateTime dateOfBirth,
     String? profilePictureUrl,
+    required String role,
+    
   }) async {
     try {
       final now = DateTime.now();
@@ -104,6 +109,8 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
         profilePictureUrl: profilePictureUrl,
         createdAt: now,
         updatedAt: now,
+        role:role,
+        
       );
 
       await _firestore
@@ -127,6 +134,8 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required String professionalLicense,
     required DateTime dateOfBirth,
     String? profilePictureUrl,
+    required String role,
+    
   }) async {
     try {
       final now = DateTime.now();
@@ -140,6 +149,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
         profilePictureUrl: profilePictureUrl,
         createdAt: now,
         updatedAt: now,
+        
       );
 
       await _firestore
