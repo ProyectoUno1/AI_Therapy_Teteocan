@@ -4,15 +4,15 @@ import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
 
 
 class PsychologistModel {
-  final String uid; // Este será el ID del documento en Firestore (firebase_uid)
-  final String username; // Corresponde al campo 'full_name' en Firestore
-  final String email; // Corresponde al campo 'email' en Firestore
-  final String phoneNumber; // Corresponde al campo 'phone_number' en Firestore
-  final String professionalLicense; // Corresponde al campo 'professional_license' en Firestore
-  final String? profilePictureUrl; // Corresponde al campo 'profile_picture_url' en Firestore
-  final DateTime dateOfBirth; // Corresponde al campo 'date_of_birth' en Firestore (String "YYYY-MM-DD")
-  final DateTime createdAt;   // Corresponde al campo 'created_at' en Firestore (Timestamp)
-  final DateTime updatedAt;   // Corresponde al campo 'updated_at' en Firestore (Timestamp)
+  final String uid; 
+  final String username; 
+  final String email; 
+  final String phoneNumber; 
+  final String professionalLicense; 
+  final String? profilePictureUrl; 
+  final DateTime dateOfBirth; 
+  final DateTime createdAt;   
+  final DateTime updatedAt;   
 
   const PsychologistModel({
     required this.uid,
@@ -39,10 +39,10 @@ class PsychologistModel {
     // Manejo robusto de Timestamps para createdAt y updatedAt
     final Timestamp createdAtTimestamp = data['created_at'] is Timestamp
         ? data['created_at']
-        : Timestamp.now(); // Fallback por si acaso
+        : Timestamp.now(); 
     final Timestamp updatedAtTimestamp = data['updated_at'] is Timestamp
         ? data['updated_at']
-        : Timestamp.now(); // Fallback por si acaso
+        : Timestamp.now(); 
 
     
     DateTime parsedDateOfBirth;
@@ -75,9 +75,9 @@ class PsychologistModel {
       "phone_number": phoneNumber,
       "professional_license": professionalLicense,
       "profile_picture_url": profilePictureUrl,
-      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], // Almacenar solo la fecha como String "YYYY-MM-DD"
-      "created_at": Timestamp.fromDate(createdAt), // Guardar como Timestamp de Firestore
-      "updated_at": Timestamp.fromDate(updatedAt), // Guardar como Timestamp de Firestore
+      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], 
+      "created_at": Timestamp.fromDate(createdAt), 
+      "updated_at": Timestamp.fromDate(updatedAt), 
     };
   }
 
@@ -99,7 +99,7 @@ class PsychologistModel {
 
 
 
-/// Modelo para representar un paciente en el contexto del psicólogo
+
 class PsychologistPatient {
   final String id;
   final String name;
@@ -118,7 +118,7 @@ class PsychologistPatient {
   });
 }
 
-/// Modelo para representar una sesión con un paciente
+
 class Session {
   final String id;
   final DateTime time;
@@ -135,7 +135,7 @@ class Session {
   });
 }
 
-/// Modelo resumen de artículo para psicólogos
+
 class PsychologistArticleSummary {
   final String id;
   final String title;

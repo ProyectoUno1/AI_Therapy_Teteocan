@@ -4,13 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
-// import 'package:firebase_auth/firebase_auth.dart'; // Este import ya no es necesario aquí si registerUser se elimina
+
 
 
 abstract class UserRemoteDataSource {
   Future<PatientModel> getPatientData(String uid);
   Future<PsychologistModel> getPsychologistData(String uid);
-  // ¡AQUÍ ES DONDE ESTABA LA LÍNEA DE registerUser, Y YA LA ELIMINAMOS!
+ 
 
   Future<PatientModel> createPatient({
     required String uid,

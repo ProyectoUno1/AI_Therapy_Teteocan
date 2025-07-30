@@ -17,12 +17,8 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.d
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
-import 'package:ai_therapy_teteocan/splash_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 
 import 'firebase_options.dart';
 
@@ -282,26 +278,10 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: BlocConsumer<AuthBloc, AuthState>(
-  listener: (context, state) {
-    
-  },
-  builder: (context, state) {
-    if (state.isUnknown || state.isLoading) {
-      print('DEBUG: Mostrando SplashScreen debido a estado: ${state.status}');
-      return  SplashScreen();
-    } else if (state.isAuthenticatedPatient) {
-      print('DEBUG: Mostrando PatientHomeScreen. Usuario: ${state.patient?.username}');
-      return  PatientHomeScreen();
-    } else if (state.isAuthenticatedPsychologist) {
-      print('DEBUG: Mostrando PsychologistHomeScreen. Usuario: ${state.psychologist?.username}');
-      return PsychologistHomeScreen();
-    } else {
-      print('DEBUG: Mostrando LoginScreen debido a estado: ${state.status}');
-      return LoginScreen();
-    }
-  },
-),
+      home: const AuthWrapper(),
+
+  
+
     );
   }
 }

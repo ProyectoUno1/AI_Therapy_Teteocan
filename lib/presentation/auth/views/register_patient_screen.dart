@@ -10,9 +10,9 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // O la ruta correcta a tu LoginScreen // O la ruta correcta a tu LoginScreen
 
-// Firebase y autenticación con Google
+// Firebase 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+
 
 
 
@@ -46,7 +46,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   UserCredential? _userCredential;
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
 
   // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;
@@ -85,75 +85,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     return null; // válido
   }
 
-  // Inicia sesión con Google y llena el campo email si tiene éxito
-  Future<void> _signInWithGoogle() async {
-    try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return;
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(
-        credential,
-      );
-
-      setState(() {
-        _userCredential = userCredential;
-        _emailController.text = userCredential.user?.email ?? '';
-        if (currentStep == 1) {
-          currentStep = 2; // Avanzar al paso 2 si google inicia sesión
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Google sign-in exitoso, completa el resto del formulario.',
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al iniciar sesión con Google: $e')),
-      );
-    }
-  }
-
-  // Cierra sesión de Google
-  void _signOutGoogle() async {
-    await _googleSignIn.signOut();
-    await _firebaseAuth.signOut();
-    setState(() {
-      _userCredential = null;
-      _emailController.clear();
-    });
-  }
-
-  // Crea un divisor visual "O"
-  Widget _buildORDivider() {
-    return Row(
-      children: [
-        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Text(
-            'O',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
-              fontFamily: 'Poppins',
-            ),
-          ),
-        ),
-        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -371,40 +302,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             ),
           ),
           const SizedBox(height: 24),
-
-          _buildORDivider(), // Línea divisoria con texto "O"
-
-          const SizedBox(height: 24),
-          // Botón para iniciar sesión con Google
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              icon: Image.asset(
-                'assets/images/google-logo-icon.png',
-                height: 24,
-                width: 24,
-              ),
-              label: const Text(
-                'Continuar con Google',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade400),
-                ),
-              ),
-              onPressed: _signInWithGoogle,
-            ),
-          ),
         ],
       ),
     );

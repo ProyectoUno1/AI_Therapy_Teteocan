@@ -6,9 +6,9 @@ class UserEntity extends Equatable {
   final String username;
   final String email;
   final String phoneNumber;
-  final String role; // 'paciente' o 'psicologo'
-  final String? professionalId; // Solo para psicólogos
-  final String? profilePictureUrl; // Si planeas añadir fotos de perfil
+  final String role; 
+  final String? professionalId; 
+  final String? profilePictureUrl; 
 
   const UserEntity({
     required this.uid,

@@ -41,7 +41,7 @@ class UserNotFoundException extends AppException {
 
 class WrongPasswordException extends AppException {
   WrongPasswordException([String? message])
-    : super(message ?? 'Contraseña incorrecta', 'Contraseña Incorrecta');
+    : super(message ?? 'Correo o Contraseña incorrectos', 'Correo o Contraseña Incorrectos');
 }
 
 class EmailAlreadyInUseException extends AppException {
