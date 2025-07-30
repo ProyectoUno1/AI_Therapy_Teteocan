@@ -12,7 +12,8 @@ class PsychologistModel {
   final String? profilePictureUrl; 
   final DateTime dateOfBirth; 
   final DateTime createdAt;   
-  final DateTime updatedAt;   
+  final DateTime updatedAt;
+  final String role;   
 
   const PsychologistModel({
     required this.uid,
@@ -24,6 +25,7 @@ class PsychologistModel {
     required this.dateOfBirth,
     required this.createdAt,
     required this.updatedAt,
+    this.role = 'psychologist',
   });
 
   
@@ -64,6 +66,7 @@ class PsychologistModel {
       dateOfBirth: parsedDateOfBirth,
       createdAt: createdAtTimestamp.toDate(),
       updatedAt: updatedAtTimestamp.toDate(),
+      role: data['role'] as String
     );
   }
 
@@ -78,6 +81,7 @@ class PsychologistModel {
       "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], 
       "created_at": Timestamp.fromDate(createdAt), 
       "updated_at": Timestamp.fromDate(updatedAt), 
+      "role": role,
     };
   }
 
@@ -93,6 +97,7 @@ class PsychologistModel {
       'dateOfBirth': dateOfBirth.toIso8601String().split('T')[0],
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'role': ['role'] as String? ?? 'psychologist',
     };
   }
 }
@@ -141,11 +146,13 @@ class PsychologistArticleSummary {
   final String title;
   final String imageUrl;
   final DateTime date;
+  
 
   PsychologistArticleSummary({
     required this.id,
     required this.title,
     required this.imageUrl,
     required this.date,
+   
   });
 }

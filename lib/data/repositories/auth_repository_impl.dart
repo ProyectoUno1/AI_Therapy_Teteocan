@@ -5,32 +5,37 @@ import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:developer'; // Para logs más estructurados, si prefieres sobre print
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource authRemoteDataSource;
   final UserRemoteDataSource userRemoteDataSource;
+  final FirebaseAuth _firebaseAuth;
 
+  // Constructor
   AuthRepositoryImpl({
     required this.authRemoteDataSource,
     required this.userRemoteDataSource,
-  });
+    FirebaseAuth? firebaseAuth,
+  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   @override
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
-    print('🚀 Repo: Iniciando sesión para $email');
+  Future<void> signIn({required String email, required String password}) async {
+    log('🚀 Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
     try {
-      await authRemoteDataSource.signIn(
-        email: email,
-        password: password,
+      await authRemoteDataSource.signIn(email: email, password: password);
+      log(
+        '✅ Repo: Inicio de sesión en Firebase exitoso.',
+        name: 'AuthRepositoryImpl',
       );
-      print('✅ Repo: Inicio de sesión en Firebase exitoso.');
     } on FirebaseAuthException catch (e) {
-      print('❌ Repo: FirebaseAuthException: ${e.code} - ${e.message}');
+      log(
+        '❌ Repo: FirebaseAuthException: ${e.code} - ${e.message}',
+        name: 'AuthRepositoryImpl',
+      );
       if (e.code == 'user-not-found') {
         throw UserNotFoundException('No se encontró un usuario con ese email.');
       } else if (e.code == 'wrong-password') {
@@ -38,14 +43,18 @@ class AuthRepositoryImpl implements AuthRepository {
       } else if (e.code == 'invalid-email') {
         throw InvalidEmailException('El formato del email es incorrecto.');
       } else if (e.code == 'invalid-credential') {
-        throw InvalidCredentialsException('Credenciales inválidas. Verifica tu email y contraseña.');
+        throw InvalidCredentialsException(
+          'Credenciales inválidas. Verifica tu email y contraseña.',
+        );
       }
-    
       throw AuthException('Error de autenticación: ${e.message ?? e.code}');
     } on AppException {
-      rethrow; 
+      rethrow;
     } catch (e) {
-      print('❌ Repo: Error genérico al iniciar sesión: $e');
+      log(
+        '❌ Repo: Error genérico al iniciar sesión: $e',
+        name: 'AuthRepositoryImpl',
+      );
       throw FetchDataException(
         'Error inesperado en la capa de repositorio al iniciar sesión: $e',
       );
@@ -59,8 +68,11 @@ class AuthRepositoryImpl implements AuthRepository {
     required String username,
     required String phoneNumber,
     required DateTime dateOfBirth,
-    
   }) async {
+    log(
+      '🚀 Repo: Iniciando registro de paciente para $email',
+      name: 'AuthRepositoryImpl',
+    );
     try {
       final now = DateTime.now();
 
@@ -79,36 +91,58 @@ class AuthRepositoryImpl implements AuthRepository {
         uid: userCredential.user!.uid,
         email: email,
         username: username,
-        
         phoneNumber: phoneNumber,
         dateOfBirth: dateOfBirth,
         createdAt: now,
         updatedAt: now,
+        role: 'patient', // Asegúrate de que el rol se guarde en el modelo
       );
 
       await userRemoteDataSource.createPatient(
         uid: patient.uid,
         username: patient.username,
         email: patient.email,
-        
         phoneNumber: patient.phoneNumber,
         dateOfBirth: patient.dateOfBirth,
         profilePictureUrl: patient.profilePictureUrl,
+        role: patient.role,
+
+        // No olvides pasar el rol si tu `createPatient` lo necesita o lo deriva
       );
-      print('✅ Repo: Registro de paciente y datos de Firestore exitoso.');
-      return patient; 
+      log(
+        '✅ Repo: Registro de paciente y datos de Firestore exitoso.',
+        name: 'AuthRepositoryImpl',
+      );
+
+      // Después de un registro exitoso, desautenticar inmediatamente
+      // Esto asegura que el usuario vaya a la pantalla de login, no al home.
+      await signOut(); // <--- ¡MANTENER ESTA LÍNEA!
+      log(
+        '✅ Repo: Usuario desautenticado después del registro de paciente.',
+        name: 'AuthRepositoryImpl',
+      );
+
+      return patient; // Retornamos el modelo aunque desautentiquemos, por si se necesita.
     } on FirebaseAuthException catch (e) {
-      print('❌ Repo: FirebaseAuthException en registro de paciente: ${e.code} - ${e.message}');
-       if (e.code == 'email-already-in-use') {
+      log(
+        '❌ Repo: FirebaseAuthException en registro de paciente: ${e.code} - ${e.message}',
+        name: 'AuthRepositoryImpl',
+      );
+      if (e.code == 'email-already-in-use') {
         throw EmailAlreadyInUseException('El email ya está en uso.');
       } else if (e.code == 'weak-password') {
         throw WeakPasswordException('La contraseña es demasiado débil.');
       }
-      throw AuthException('Error de autenticación al registrar paciente: ${e.message ?? e.code}');
+      throw AuthException(
+        'Error de autenticación al registrar paciente: ${e.message ?? e.code}',
+      );
     } on AppException {
       rethrow;
     } catch (e) {
-      print('🚨 ERROR CAPTURADO en AuthRepositoryImpl.registerPatient: $e');
+      log(
+        '🚨 ERROR CAPTURADO en AuthRepositoryImpl.registerPatient: $e',
+        name: 'AuthRepositoryImpl',
+      );
       throw FetchDataException('Error inesperado al registrar paciente: $e');
     }
   }
@@ -122,6 +156,10 @@ class AuthRepositoryImpl implements AuthRepository {
     required String professionalLicense,
     required DateTime dateOfBirth,
   }) async {
+    log(
+      '🚀 Repo: Iniciando registro de psicólogo para $email',
+      name: 'AuthRepositoryImpl',
+    );
     try {
       final now = DateTime.now();
 
@@ -140,88 +178,158 @@ class AuthRepositoryImpl implements AuthRepository {
         uid: userCredential.user!.uid,
         email: email,
         username: username,
-        
         phoneNumber: phoneNumber,
         professionalLicense: professionalLicense,
         dateOfBirth: dateOfBirth,
         createdAt: now,
         updatedAt: now,
+        role: 'psychologist',
       );
 
       await userRemoteDataSource.createPsychologist(
         uid: psychologist.uid,
         username: psychologist.username,
         email: psychologist.email,
-       
         phoneNumber: psychologist.phoneNumber,
         professionalLicense: psychologist.professionalLicense,
         dateOfBirth: psychologist.dateOfBirth,
         profilePictureUrl: psychologist.profilePictureUrl,
+        role: psychologist.role,
+
+        // No olvides pasar el rol si tu `createPsychologist` lo necesita o lo deriva
       );
-      print('✅ Repo: Registro de psicólogo y datos de Firestore exitoso.');
-      return psychologist;  
+      log(
+        '✅ Repo: Registro de psicólogo y datos de Firestore exitoso.',
+        name: 'AuthRepositoryImpl',
+      );
+
+      // Después de un registro exitoso, desautenticar inmediatamente
+      // Esto asegura que el usuario vaya a la pantalla de login, no al home.
+      await signOut(); // <--- ¡MANTENER ESTA LÍNEA!
+      log(
+        '✅ Repo: Usuario desautenticado después del registro de psicólogo.',
+        name: 'AuthRepositoryImpl',
+      );
+
+      return psychologist; // Retornamos el modelo aunque desautentiquemos, por si se necesita.
     } on FirebaseAuthException catch (e) {
-      print('❌ Repo: FirebaseAuthException en registro de psicólogo: ${e.code} - ${e.message}');
+      log(
+        '❌ Repo: FirebaseAuthException en registro de psicólogo: ${e.code} - ${e.message}',
+        name: 'AuthRepositoryImpl',
+      );
       if (e.code == 'email-already-in-use') {
         throw EmailAlreadyInUseException('El email ya está en uso.');
       } else if (e.code == 'weak-password') {
         throw WeakPasswordException('La contraseña es demasiado débil.');
       }
-      throw AuthException('Error de autenticación al registrar psicólogo: ${e.message ?? e.code}');
+      throw AuthException(
+        'Error de autenticación al registrar psicólogo: ${e.message ?? e.code}',
+      );
     } on AppException {
       rethrow;
     } catch (e) {
+      log(
+        '🚨 ERROR CAPTURADO en AuthRepositoryImpl.registerPsychologist: $e',
+        name: 'AuthRepositoryImpl',
+      );
       throw FetchDataException('Error inesperado al registrar psicólogo: $e');
-    }
-  }
-
-  @override
-  Future<void> signOut() async {
-    print('🔴 ¡ALERT! Se llamó a signOut() desde AuthRepositoryImpl.');
-    StackTrace.current.toString().split('\n').forEach((line) {
-      if (line.contains('package:ai_therapy_teteocan')) {
-        print(line);
-      }
-    });
-    try {
-      await authRemoteDataSource.signOut();
-      print('✅ Sesión cerrada exitosamente en Firebase.');
-    } on FirebaseAuthException catch (e) {
-      print('❌ Repo: FirebaseAuthException al cerrar sesión: ${e.code} - ${e.message}');
-      throw AuthException('Error de autenticación al cerrar sesión: ${e.message ?? e.code}');
-    } on AppException {
-      rethrow;
-    } catch (e) {
-      print('❌ Repo: Error genérico al cerrar sesión: $e');
-      throw AuthException('Error inesperado al cerrar sesión: $e');
     }
   }
 
   @override
   Stream<dynamic?> get authStateChanges {
     return authRemoteDataSource.authStateChanges.asyncMap((fbUser) async {
-      print('DEBUG: Repo authStateChanges - Firebase User: ${fbUser?.uid ?? 'null'}');
+      log(
+        'DEBUG: Repo authStateChanges - Firebase User: ${fbUser?.uid ?? 'null'}',
+        name: 'AuthRepositoryImpl',
+      );
+
+      // Si el usuario de Firebase es nulo, simplemente emitimos null.
       if (fbUser == null) {
-        print('DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.');
-        return null; 
+        log(
+          'DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.',
+          name: 'AuthRepositoryImpl',
+        );
+        return null;
       }
+
+      // --- CAMBIO CLAVE AQUÍ: Validar consistencia ---
+      // Si recibimos un `fbUser` (que viene del stream de Firebase Auth)
+      // pero el `_firebaseAuth.currentUser` actual es nulo O es un UID diferente,
+      // significa que ya se ha desautenticado o ha cambiado el usuario,
+      // y esta emisión del stream es una "remanencia" o algo ya no relevante.
+      // En este escenario, debemos ignorar y emitir null.
+      final currentUser = _firebaseAuth.currentUser;
+      if (currentUser == null || currentUser.uid != fbUser.uid) {
+        log(
+          '⚠️ DEBUG: Repo authStateChanges - El usuario ${fbUser.uid} recibido del stream YA NO es el current user (${currentUser?.uid ?? 'null'}). Ignorando carga de perfil y emitiendo null.',
+          name: 'AuthRepositoryImpl',
+        );
+        return null; // ¡Ignoramos esta emisión!
+      }
+      // ---------------------------------------------
+
       try {
-        
         final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
         if (userModel != null) {
-          print('✅ DEBUG: Repo authStateChanges - Perfil de usuario (tipo: ${userModel.runtimeType}) cargado para UID: ${fbUser.uid}');
+          log(
+            '✅ DEBUG: Repo authStateChanges - Perfil de usuario (tipo: ${userModel.runtimeType}) cargado para UID: ${fbUser.uid}',
+            name: 'AuthRepositoryImpl',
+          );
           return userModel;
         } else {
-          print('🔴 DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist.');
+          // Si el perfil no se encuentra para un usuario autenticado de Firebase Auth,
+          // significa una inconsistencia de datos. Forzamos un cierre de sesión.
+          log(
+            '🔴 DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist. Forzando signOut.',
+            name: 'AuthRepositoryImpl',
+          );
+          await signOut(); // Llama al signOut de tu repositorio para limpiar.
           return null;
         }
       } on AppException catch (e) {
-        print('🔴 Error al obtener datos de usuario para authStateChanges (AppException): $e');
+        log(
+          '🔴 Error al obtener datos de usuario para authStateChanges (AppException): $e',
+          name: 'AuthRepositoryImpl',
+        );
+        await signOut(); // Desautentica si hay un error al cargar el perfil
         return null;
       } catch (e) {
-        print('🔴 Error inesperado al obtener datos de usuario para authStateChanges: $e');
+        log(
+          '🔴 Error inesperado al obtener datos de usuario para authStateChanges: $e',
+          name: 'AuthRepositoryImpl',
+        );
+        await signOut(); // Desautentica si hay un error inesperado
         return null;
       }
     });
+  }
+
+  @override
+  Future<void> signOut() async {
+    log(
+      '🔴 ¡ALERT! Se llamó a signOut() desde AuthRepositoryImpl.',
+      name: 'AuthRepositoryImpl',
+    );
+    try {
+      await authRemoteDataSource
+          .signOut(); // Esta es la llamada clave a Firebase Auth
+      log(
+        '✅ Sesión cerrada exitosamente en Firebase.',
+        name: 'AuthRepositoryImpl',
+      );
+    } on AppException catch (e) {
+      log(
+        '🔴 Error de AppException al cerrar sesión en AuthRepositoryImpl: ${e.message}',
+        name: 'AuthRepositoryImpl',
+      );
+      rethrow;
+    } catch (e) {
+      log(
+        '🔴 Error inesperado al cerrar sesión en AuthRepositoryImpl: $e',
+        name: 'AuthRepositoryImpl',
+      );
+      rethrow;
+    }
   }
 }

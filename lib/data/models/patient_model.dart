@@ -12,6 +12,7 @@ class PatientModel{
   final DateTime dateOfBirth; 
   final DateTime createdAt; 
   final DateTime updatedAt; 
+  final String role;
 
   const PatientModel({
     required this.uid,
@@ -22,6 +23,7 @@ class PatientModel{
     required this.dateOfBirth, 
     required this.createdAt,
     required this.updatedAt,
+    this.role = 'patient',
   });
 
   
@@ -61,6 +63,7 @@ class PatientModel{
       dateOfBirth: parsedDateOfBirth,
       createdAt: createdAtTimestamp.toDate(),
       updatedAt: updatedAtTimestamp.toDate(),
+      role: data['role'] as String,
     );
   }
 
@@ -74,6 +77,7 @@ class PatientModel{
       "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], 
       "created_at": Timestamp.fromDate(createdAt), 
       "updated_at": Timestamp.fromDate(updatedAt), 
+      "role": role,
     };
   }
 
@@ -88,6 +92,7 @@ class PatientModel{
       'dateOfBirth': dateOfBirth.toIso8601String().split('T')[0],
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'role': ['role'] as String? ?? 'patient',
     };
   }
 
@@ -105,6 +110,7 @@ class PatientModel{
           : DateTime(1900), 
       createdAt: DateTime.now(), 
       updatedAt: DateTime.now(), 
+      role: entity.role,
     );
   }
 }

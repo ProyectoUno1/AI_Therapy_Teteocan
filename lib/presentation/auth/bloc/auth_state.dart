@@ -1,19 +1,20 @@
 // lib/presentation/auth/bloc/auth_state.dart
+
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/data/models/patient_model.dart'; 
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; 
+import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 enum AuthStatus {
-  unknown, // Estado inicial, mientras se verifica la autenticación
-  loading, // Cargando alguna operación de autenticación
-  authenticated, // El usuario está logueado
-  unauthenticated, // El usuario no está logueado
-  error, // Hubo un error en la autenticación
-  success, // Operación (ej. registro) fue exitosa
+  unknown,
+  loading,
+  authenticated,
+  unauthenticated,
+  error,
+  success,
 }
 
 enum UserRole {
-  unknown, // Rol aún no determinado o no aplicable
+  unknown,
   patient,
   psychologist,
 }
@@ -22,26 +23,30 @@ class AuthState extends Equatable {
   final AuthStatus status;
   final String? errorMessage;
   final UserRole userRole;
-  final PatientModel? patient; 
-  final PsychologistModel? psychologist; 
-  
+  final PatientModel? patient;
+  final PsychologistModel? psychologist;
 
- 
+  // --- GETTERS AÑADIDOS/VERIFICADOS ---
+  bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isUnauthenticated => status == AuthStatus.unauthenticated;
+  bool get isLoading => status == AuthStatus.loading;
+  bool get isError => status == AuthStatus.error; // ¡Este es el que te faltaba!
+  bool get isSuccess => status == AuthStatus.success; // ¡Este también!
+  bool get isUnknown => status == AuthStatus.unknown;
+
   bool get isAuthenticatedPatient => status == AuthStatus.authenticated && userRole == UserRole.patient && patient != null;
   bool get isAuthenticatedPsychologist => status == AuthStatus.authenticated && userRole == UserRole.psychologist && psychologist != null;
-  bool get isUnknown => status == AuthStatus.unknown;
-  bool get isLoading => status == AuthStatus.loading;
-
+  // ------------------------------------
 
   const AuthState({
-    this.status = AuthStatus.unknown, // Default a unknown para el inicio de la app
+    this.status = AuthStatus.unknown,
     this.errorMessage,
     this.userRole = UserRole.unknown,
     this.patient,
     this.psychologist,
   });
 
-  // Constructor para estado autenticado
+  // Constructores convenientes (ya los tienes, pero los incluyo por completitud)
   const AuthState.authenticated({
     required this.userRole,
     this.patient,
@@ -50,11 +55,10 @@ class AuthState extends Equatable {
         errorMessage = null,
         assert(
           (userRole == UserRole.patient && patient != null && psychologist == null) ||
-          (userRole == UserRole.psychologist && psychologist != null && patient == null),
+              (userRole == UserRole.psychologist && psychologist != null && patient == null),
           'Authenticated state must have a user (patient or psychologist) matching the role.',
         );
 
-  // Constructores convenientes para otros estados
   const AuthState.unauthenticated({
     this.errorMessage,
   })  : status = AuthStatus.unauthenticated,
@@ -90,7 +94,7 @@ class AuthState extends Equatable {
         patient = null,
         psychologist = null;
 
-
+  // Tu método copyWith existente
   AuthState copyWith({
     AuthStatus? status,
     String? errorMessage,
@@ -102,9 +106,9 @@ class AuthState extends Equatable {
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       userRole: userRole ?? this.userRole,
-      // Manejo de nullable: si el nuevo valor es null, explícitamente se vuelve null
-      patient: patient is PatientModel ? patient : (patient == null ? null : this.patient),
-      psychologist: psychologist is PsychologistModel ? psychologist : (psychologist == null ? null : this.psychologist),
+      // La lógica de copyWith para nullables es más segura así:
+      patient: patient == null ? null : (patient is PatientModel ? patient : this.patient),
+      psychologist: psychologist == null ? null : (psychologist is PsychologistModel ? psychologist : this.psychologist),
     );
   }
 
