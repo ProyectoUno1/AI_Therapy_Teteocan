@@ -3,22 +3,14 @@ import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 
 class UserModel extends UserEntity {
   const UserModel({
-    required String uid,
-    required String username,
-    required String email,
-    required String phoneNumber,
-    required String role,
-    String? professionalId,
-    String? profilePictureUrl,
-  }) : super(
-         uid: uid,
-         username: username,
-         email: email,
-         phoneNumber: phoneNumber,
-         role: role,
-         professionalId: professionalId,
-         profilePictureUrl: profilePictureUrl,
-       );
+    required super.uid,
+    required super.username,
+    required super.email,
+    required super.phoneNumber,
+    required super.role,
+    super.professionalId,
+    super.profilePictureUrl,
+  });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -43,7 +35,6 @@ class UserModel extends UserEntity {
       if (profilePictureUrl != null) 'profilePictureUrl': profilePictureUrl,
     };
   }
-
 
   factory UserModel.fromEntity(UserEntity entity) {
     return UserModel(

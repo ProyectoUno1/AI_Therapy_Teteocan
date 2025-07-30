@@ -23,9 +23,9 @@ import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_scre
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:ai_therapy_teteocan/splash_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 
 import 'firebase_options.dart';
-
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -40,12 +40,10 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
-  final AuthRemoteDataSourceImpl authRemoteDataSource = AuthRemoteDataSourceImpl(
-    firebaseAuth: FirebaseAuth.instance,
-  );
-  final UserRemoteDataSourceImpl userRemoteDataSource = UserRemoteDataSourceImpl(
-    FirebaseFirestore.instance,
-  );
+  final AuthRemoteDataSourceImpl authRemoteDataSource =
+      AuthRemoteDataSourceImpl(firebaseAuth: FirebaseAuth.instance);
+  final UserRemoteDataSourceImpl userRemoteDataSource =
+      UserRemoteDataSourceImpl(FirebaseFirestore.instance);
 
   final AuthRepository authRepository = AuthRepositoryImpl(
     authRemoteDataSource: authRemoteDataSource,
@@ -62,13 +60,13 @@ void main() async {
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
-          create: (context) =>
-              AuthBloc(
-                authRepository: authRepository,
-                signInUseCase: signInUseCase,
-                registerUserUseCase: registerUserUseCase,
-              )..add(const AuthStarted()),
+          create: (context) => AuthBloc(
+            authRepository: authRepository,
+            signInUseCase: signInUseCase,
+            registerUserUseCase: registerUserUseCase,
+          )..add(const AuthStarted()),
         ),
+        BlocProvider<ChatBloc>(create: (context) => ChatBloc()),
       ],
       child: const MyApp(),
     ),
@@ -161,10 +159,7 @@ class MyApp extends StatelessWidget {
           horizontal: 16,
           vertical: 12,
         ),
-        errorStyle: const TextStyle(
-          height: 0,
-          fontSize: 0,
-        ),
+        errorStyle: const TextStyle(height: 0, fontSize: 0),
       ),
     );
   }
@@ -238,10 +233,7 @@ class MyApp extends StatelessWidget {
           horizontal: 16,
           vertical: 12,
         ),
-        errorStyle: const TextStyle(
-          height: 0,
-          fontSize: 0,
-        ),
+        errorStyle: const TextStyle(height: 0, fontSize: 0),
       ),
     );
   }
@@ -255,21 +247,81 @@ class MyApp extends StatelessWidget {
         : Colors.grey[400]!;
 
     return TextTheme(
-      displayLarge: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w300, color: textColor),
-      displayMedium: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      displaySmall: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      headlineLarge: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      headlineMedium: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      headlineSmall: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: textColor),
-      titleLarge: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: textColor),
-      titleMedium: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: textColor),
-      titleSmall: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: textColor),
-      bodyLarge: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      bodyMedium: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: textColor),
-      bodySmall: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w400, color: mutedTextColor),
-      labelLarge: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: textColor),
-      labelMedium: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: mutedTextColor),
-      labelSmall: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: mutedTextColor),
+      displayLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w300,
+        color: textColor,
+      ),
+      displayMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      displaySmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      headlineSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      titleSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      bodyLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      bodyMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: textColor,
+      ),
+      bodySmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w400,
+        color: mutedTextColor,
+      ),
+      labelLarge: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: textColor,
+      ),
+      labelMedium: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: mutedTextColor,
+      ),
+      labelSmall: TextStyle(
+        fontFamily: 'Poppins',
+        fontWeight: FontWeight.w500,
+        color: mutedTextColor,
+      ),
     );
   }
 
@@ -282,26 +334,7 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: BlocConsumer<AuthBloc, AuthState>(
-  listener: (context, state) {
-    
-  },
-  builder: (context, state) {
-    if (state.isUnknown || state.isLoading) {
-      print('DEBUG: Mostrando SplashScreen debido a estado: ${state.status}');
-      return  SplashScreen();
-    } else if (state.isAuthenticatedPatient) {
-      print('DEBUG: Mostrando PatientHomeScreen. Usuario: ${state.patient?.username}');
-      return  PatientHomeScreen();
-    } else if (state.isAuthenticatedPsychologist) {
-      print('DEBUG: Mostrando PsychologistHomeScreen. Usuario: ${state.psychologist?.username}');
-      return PsychologistHomeScreen();
-    } else {
-      print('DEBUG: Mostrando LoginScreen debido a estado: ${state.status}');
-      return LoginScreen();
-    }
-  },
-),
+      home: PatientHomeScreen(),
     );
   }
 }
