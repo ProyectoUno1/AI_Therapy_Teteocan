@@ -1,80 +1,119 @@
 // lib/presentation/auth/bloc/auth_state.dart
-
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/data/models/patient_model.dart'; 
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; 
 
 enum AuthStatus {
-  unknown,
-  authenticated,
-  unauthenticated,
-  loading,
-  error,
-  success,
+  unknown, // Estado inicial, mientras se verifica la autenticación
+  loading, // Cargando alguna operación de autenticación
+  authenticated, // El usuario está logueado
+  unauthenticated, // El usuario no está logueado
+  error, // Hubo un error en la autenticación
+  success, // Operación (ej. registro) fue exitosa
 }
 
 enum UserRole {
-  unknown,
+  unknown, // Rol aún no determinado o no aplicable
   patient,
   psychologist,
 }
 
 class AuthState extends Equatable {
   final AuthStatus status;
-  final PatientModel? patient;
-  final PsychologistModel? psychologist;
   final String? errorMessage;
   final UserRole userRole;
+  final PatientModel? patient; 
+  final PsychologistModel? psychologist; 
+  
+
+ 
+  bool get isAuthenticatedPatient => status == AuthStatus.authenticated && userRole == UserRole.patient && patient != null;
+  bool get isAuthenticatedPsychologist => status == AuthStatus.authenticated && userRole == UserRole.psychologist && psychologist != null;
+  bool get isUnknown => status == AuthStatus.unknown;
+  bool get isLoading => status == AuthStatus.loading;
+
 
   const AuthState({
-    this.status = AuthStatus.unknown,
-    this.patient,
-    this.psychologist,
+    this.status = AuthStatus.unknown, // Default a unknown para el inicio de la app
     this.errorMessage,
     this.userRole = UserRole.unknown,
+    this.patient,
+    this.psychologist,
   });
+
+  // Constructor para estado autenticado
+  const AuthState.authenticated({
+    required this.userRole,
+    this.patient,
+    this.psychologist,
+  })  : status = AuthStatus.authenticated,
+        errorMessage = null,
+        assert(
+          (userRole == UserRole.patient && patient != null && psychologist == null) ||
+          (userRole == UserRole.psychologist && psychologist != null && patient == null),
+          'Authenticated state must have a user (patient or psychologist) matching the role.',
+        );
+
+  // Constructores convenientes para otros estados
+  const AuthState.unauthenticated({
+    this.errorMessage,
+  })  : status = AuthStatus.unauthenticated,
+        userRole = UserRole.unknown,
+        patient = null,
+        psychologist = null;
+
+  const AuthState.loading()
+      : status = AuthStatus.loading,
+        errorMessage = null,
+        userRole = UserRole.unknown,
+        patient = null,
+        psychologist = null;
+
+  const AuthState.error({
+    this.errorMessage,
+  })  : status = AuthStatus.error,
+        userRole = UserRole.unknown,
+        patient = null,
+        psychologist = null;
+
+  const AuthState.success({
+    this.errorMessage,
+  })  : status = AuthStatus.success,
+        userRole = UserRole.unknown,
+        patient = null,
+        psychologist = null;
+
+  const AuthState.unknown()
+      : status = AuthStatus.unknown,
+        errorMessage = null,
+        userRole = UserRole.unknown,
+        patient = null,
+        psychologist = null;
+
 
   AuthState copyWith({
     AuthStatus? status,
-  
-    Object? patient, 
-    Object? psychologist, 
     String? errorMessage,
     UserRole? userRole,
+    PatientModel? patient,
+    PsychologistModel? psychologist,
   }) {
-    final newStatus = status ?? this.status;
-    final newUserRole = userRole ?? this.userRole;
-
     return AuthState(
-      status: newStatus,
-      
-      patient: newStatus == AuthStatus.authenticated && newUserRole == UserRole.patient
-          ? (patient is PatientModel ? patient : this.patient) 
-          : null, 
-      psychologist: newStatus == AuthStatus.authenticated && newUserRole == UserRole.psychologist
-          ? (psychologist is PsychologistModel ? psychologist : this.psychologist) 
-          : null,
-      errorMessage: errorMessage, 
-      userRole: newUserRole,
+      status: status ?? this.status,
+      errorMessage: errorMessage ?? this.errorMessage,
+      userRole: userRole ?? this.userRole,
+      // Manejo de nullable: si el nuevo valor es null, explícitamente se vuelve null
+      patient: patient is PatientModel ? patient : (patient == null ? null : this.patient),
+      psychologist: psychologist is PsychologistModel ? psychologist : (psychologist == null ? null : this.psychologist),
     );
   }
 
-
-  bool get isAuthenticatedPatient =>
-      status == AuthStatus.authenticated &&
-      userRole == UserRole.patient && 
-      patient != null;
-
-  bool get isAuthenticatedPsychologist =>
-      status == AuthStatus.authenticated &&
-      userRole == UserRole.psychologist && 
-      psychologist != null;
-
-  bool get isLoading => status == AuthStatus.loading;
-  bool get isError => status == AuthStatus.error;
-  bool get isUnauthenticated => status == AuthStatus.unauthenticated;
-  bool get isUnknown => status == AuthStatus.unknown;
-
   @override
-  List<Object?> get props => [status, patient, psychologist, errorMessage, userRole];
+  List<Object?> get props => [
+        status,
+        errorMessage,
+        userRole,
+        patient,
+        psychologist,
+      ];
 }

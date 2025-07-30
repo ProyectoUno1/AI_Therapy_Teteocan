@@ -17,13 +17,10 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.d
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
-import 'package:ai_therapy_teteocan/splash_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
+
 
 import 'firebase_options.dart';
 
@@ -334,7 +331,9 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: PatientHomeScreen(),
+      home: const AuthWrapper(),
+      //home: PatientHomeScreen(),
+
     );
   }
 }

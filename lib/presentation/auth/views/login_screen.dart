@@ -1,6 +1,6 @@
 // lib/presentation/auth/views/login_screen.dart
 
-import 'dart:ui'; 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -10,7 +10,8 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/role_selection_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
-
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart'; // O la ruta exacta donde está PatientHomeScreen
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart'; // O la ruta exacta donde está PsychologistHomeScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
-
 
   Widget _buildORDivider() {
     return Row(
@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
+
   //Fondo degradado
   @override
   Widget build(BuildContext context) {
@@ -147,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   alignment: Alignment.centerLeft,
                                   child: GestureDetector(
                                     onTap: () {
-                                      // Acción para recuperar contraseña - podrías navegar a una pantalla de recuperación
+                                      // Acción para recuperar contraseña 
                                     },
                                     child: Text(
                                       '¿Olvidaste tu contraseña? Recuperar contraseña',
@@ -168,19 +169,43 @@ class _LoginScreenState extends State<LoginScreen> {
                                 BlocConsumer<AuthBloc, AuthState>(
                                   listener: (context, state) {
                                     if (state.status == AuthStatus.error) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            state.errorMessage ?? 'Error desconocido',
+                                            state.errorMessage ??
+                                                'Error desconocido',
                                           ),
-                                          backgroundColor: AppConstants.errorColor,
+                                          backgroundColor:
+                                              AppConstants.errorColor,
                                           behavior: SnackBarBehavior.floating,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
                                           margin: EdgeInsets.all(16),
                                           duration: Duration(seconds: 3),
+                                        ),
+                                      );
+                                    } else if (state.isAuthenticatedPatient) {
+                                      // Cuando el usuario es un paciente autenticado
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                         
+                                          builder: (context) =>
+                                              PatientHomeScreen(),
+                                        ),
+                                      );
+                                    } else if (state
+                                        .isAuthenticatedPsychologist) {
+                                      // Cuando el usuario es un psicólogo autenticado
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          
+                                          builder: (context) =>
+                                              PsychologistHomeScreen(),
                                         ),
                                       );
                                     }
@@ -192,48 +217,72 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: ElevatedButton(
                                         onPressed:
                                             state.status == AuthStatus.loading
-                                                ? null // Deshabilita el botón mientras carga
-                                                : () {
-                                                    if (_formKey.currentState?.validate() ?? false) {
-                                                      context.read<AuthBloc>().add(
-                                                            AuthSignInRequested( 
-                                                              email: _emailController.text,
-                                                              password: _passwordController.text,
+                                            ? null
+                                            : () {
+                                                if (_formKey.currentState
+                                                        ?.validate() ??
+                                                    false) {
+                                                  context.read<AuthBloc>().add(
+                                                    AuthSignInRequested(
+                                                      email:
+                                                          _emailController.text,
+                                                      password:
+                                                          _passwordController
+                                                              .text,
+                                                    ),
+                                                  );
+                                                } else {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Row(
+                                                        children: const [
+                                                          Icon(
+                                                            Icons
+                                                                .warning_amber_rounded,
+                                                            color: Colors.white,
+                                                          ),
+                                                          SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              'Por favor completa todos los campos correctamente.',
                                                             ),
-                                                          );
-                                                    } else {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        SnackBar(
-                                                          content: Row(
-                                                            children: const [
-                                                              Icon(
-                                                                Icons.warning_amber_rounded,
-                                                                color: Colors.white,
-                                                              ),
-                                                              SizedBox(width: 8),
-                                                              Expanded(
-                                                                child: Text(
-                                                                  'Por favor completa todos los campos correctamente.', // Mensaje más específico
-                                                                ),
-                                                              ),
-                                                            ],
                                                           ),
-                                                          backgroundColor: Color.fromARGB(221, 255, 10, 10),
-                                                          behavior: SnackBarBehavior.floating,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(12),
+                                                        ],
+                                                      ),
+                                                      backgroundColor:
+                                                          Color.fromARGB(
+                                                            221,
+                                                            255,
+                                                            10,
+                                                            10,
                                                           ),
-                                                          margin: EdgeInsets.all(16),
-                                                          duration: Duration(seconds: 3),
-                                                        ),
-                                                      );
-                                                    }
-                                                  },
+                                                      behavior: SnackBarBehavior
+                                                          .floating,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                      ),
+                                                      margin: EdgeInsets.all(
+                                                        16,
+                                                      ),
+                                                      duration: Duration(
+                                                        seconds: 3,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
                                         style: ElevatedButton.styleFrom(
                                           elevation: 4,
-                                          backgroundColor: null, 
+                                          backgroundColor: null,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(24),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
                                           ),
                                           padding: const EdgeInsets.all(0),
                                         ),
@@ -247,73 +296,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                               begin: Alignment.topLeft,
                                               end: Alignment.bottomRight,
                                             ),
-                                            borderRadius: BorderRadius.circular(24),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
                                           ),
                                           child: Center(
-                                            child: state.status == AuthStatus.loading
-                                                ? const CircularProgressIndicator(color: Colors.white)
+                                            child:
+                                                state.status ==
+                                                    AuthStatus.loading
+                                                ? const CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                  )
                                                 : const Text(
                                                     'Iniciar Sesión',
                                                     style: TextStyle(
                                                       fontSize: 18,
-                                                      fontWeight: FontWeight.w600,
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                       color: Colors.white,
                                                       fontFamily: 'Poppins',
                                                     ),
                                                   ),
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 20),
-
-                                _buildORDivider(),
-
-                                const SizedBox(height: 20),
-                               // --- BOTÓN GOOGLE ---
-                               
-                                BlocConsumer<AuthBloc, AuthState>(
-                                  listener: (context, state) {
-                                
-                                  },
-                                  builder: (context, state) {
-                                    return SizedBox(
-                                      width: double.infinity,
-                                      height: 50,
-                                      child: ElevatedButton.icon(
-                                        icon: Image.asset(
-                                          'assets/images/google-logo-icon.png',
-                                          height: 24,
-                                          width: 24,
-                                        ),
-                                        label: const Text(
-                                          'Continuar con Google',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black87,
-                                            fontFamily: 'Poppins',
-                                          ),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white,
-                                          elevation: 2,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            side: BorderSide(
-                                              color: Colors.grey.shade400,
-                                            ),
-                                          ),
-                                        ),
-                                        // Ahora 'state' está disponible aquí
-                                        onPressed: state.status == AuthStatus.loading
-                                            ? null // Deshabilita el botón mientras carga
-                                            : () {
-                                                
-                                                context.read<AuthBloc>().add(AuthSignInWithGoogleRequested());
-                                              },
                                       ),
                                     );
                                   },
@@ -326,17 +331,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       PageRouteBuilder(
-                                        pageBuilder: (context, animation, secondaryAnimation) => RoleSelectionScreen(),
-                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                          const begin = Offset(1.0, 0.0);
-                                          const end = Offset.zero;
-                                          const curve = Curves.ease;
-                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                          return SlideTransition(
-                                            position: animation.drive(tween),
-                                            child: child,
-                                          );
-                                        },
+                                        pageBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                            ) => RoleSelectionScreen(),
+                                        transitionsBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                              child,
+                                            ) {
+                                              const begin = Offset(1.0, 0.0);
+                                              const end = Offset.zero;
+                                              const curve = Curves.ease;
+                                              var tween = Tween(
+                                                begin: begin,
+                                                end: end,
+                                              ).chain(CurveTween(curve: curve));
+                                              return SlideTransition(
+                                                position: animation.drive(
+                                                  tween,
+                                                ),
+                                                child: child,
+                                              );
+                                            },
                                       ),
                                     );
                                   },
@@ -355,7 +376,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         TextSpan(
                                           text: 'Crear Cuenta',
                                           style: TextStyle(
-                                            decoration: TextDecoration.underline,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
                                       ],

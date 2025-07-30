@@ -10,15 +10,20 @@ class InputValidators {
     return null;
   }
 
-  static String? validatePassword(String? password) {
-    if (password == null || password.isEmpty) {
-      return 'La contraseña es obligatoria.';
-    }
-    if (password.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres.';
-    }
-    return null;
+ static String? validatePassword(String? password) {
+  if (password == null || password.isEmpty) {
+    return 'La contraseña es obligatoria.';
   }
+  if (password.length < 6) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  final validCharacters = RegExp(r'^[a-zA-Z0-9]+$');
+  if (!validCharacters.hasMatch(password)) {
+    return 'La contraseña solo puede contener letras y números.';
+  }
+  return null;
+}
+
 
   static String? validateConfirmPassword(
     String? password,

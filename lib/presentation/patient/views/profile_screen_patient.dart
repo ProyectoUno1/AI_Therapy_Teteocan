@@ -9,7 +9,7 @@ import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
 import 'package:image_picker/image_picker.dart'; 
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+
 
 
 

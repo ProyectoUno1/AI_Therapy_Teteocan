@@ -22,10 +22,10 @@ abstract class AuthRepository {
   Future<PsychologistModel> registerPsychologist({
     required String email,
     required String password,
-    required String username, // Cambiado de username
+    required String username, 
     required String phoneNumber,
     required String professionalLicense,
-    required DateTime dateOfBirth, // Cambiado a DateTime
+    required DateTime dateOfBirth, 
   });
 
   Future<void> signOut();

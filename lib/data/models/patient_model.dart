@@ -1,18 +1,17 @@
 // lib/data/models/patient_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart'; // ¡Importante para Firestore!
-// Si PatientEntity aún existe y la usas para algo, mantenla, si no, puedes quitarla.
+import 'package:cloud_firestore/cloud_firestore.dart'; 
  import 'package:ai_therapy_teteocan/domain/entities/patient_entity.dart';
  
 
 class PatientModel{
-  final String uid; // Este será el ID del documento en Firestore (firebase_uid)
-  final String username; // Corresponde al campo 'full_name' en Firestore
-  final String email; // Corresponde al campo 'email' en Firestore
-  final String phoneNumber; // Corresponde al campo 'phone_number' en Firestore
-  final String? profilePictureUrl; // Corresponde al campo 'profile_picture_url' en Firestore
-  final DateTime dateOfBirth; // ¡Cambiado a DateTime para mejor manejo!
-  final DateTime createdAt; // Nuevo campo para la fecha de creación en Firestore
-  final DateTime updatedAt; // Nuevo campo para la fecha de última actualización en Firestore
+  final String uid; 
+  final String username; 
+  final String email; 
+  final String phoneNumber; 
+  final String? profilePictureUrl; 
+  final DateTime dateOfBirth; 
+  final DateTime createdAt; 
+  final DateTime updatedAt; 
 
   const PatientModel({
     required this.uid,
@@ -72,9 +71,9 @@ class PatientModel{
       "email": email,
       "phone_number": phoneNumber,
       "profile_picture_url": profilePictureUrl,
-      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], // Almacenar solo la fecha como String "YYYY-MM-DD"
-      "created_at": Timestamp.fromDate(createdAt), // Guardar como Timestamp de Firestore
-      "updated_at": Timestamp.fromDate(updatedAt), // Guardar como Timestamp de Firestore
+      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0], 
+      "created_at": Timestamp.fromDate(createdAt), 
+      "updated_at": Timestamp.fromDate(updatedAt), 
     };
   }
 
