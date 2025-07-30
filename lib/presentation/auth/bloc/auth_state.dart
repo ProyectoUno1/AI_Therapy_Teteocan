@@ -26,17 +26,17 @@ class AuthState extends Equatable {
   final PatientModel? patient;
   final PsychologistModel? psychologist;
 
-  // --- GETTERS AÑADIDOS/VERIFICADOS ---
+  
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
   bool get isLoading => status == AuthStatus.loading;
-  bool get isError => status == AuthStatus.error; // ¡Este es el que te faltaba!
-  bool get isSuccess => status == AuthStatus.success; // ¡Este también!
+  bool get isError => status == AuthStatus.error; 
+  bool get isSuccess => status == AuthStatus.success;
   bool get isUnknown => status == AuthStatus.unknown;
 
   bool get isAuthenticatedPatient => status == AuthStatus.authenticated && userRole == UserRole.patient && patient != null;
   bool get isAuthenticatedPsychologist => status == AuthStatus.authenticated && userRole == UserRole.psychologist && psychologist != null;
-  // ------------------------------------
+
 
   const AuthState({
     this.status = AuthStatus.unknown,
@@ -46,7 +46,6 @@ class AuthState extends Equatable {
     this.psychologist,
   });
 
-  // Constructores convenientes (ya los tienes, pero los incluyo por completitud)
   const AuthState.authenticated({
     required this.userRole,
     this.patient,

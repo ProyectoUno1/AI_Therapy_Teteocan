@@ -8,7 +8,7 @@ import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:developer'; // Para logs más estructurados, si prefieres sobre print
+import 'dart:developer'; 
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource authRemoteDataSource;
@@ -95,7 +95,7 @@ class AuthRepositoryImpl implements AuthRepository {
         dateOfBirth: dateOfBirth,
         createdAt: now,
         updatedAt: now,
-        role: 'patient', // Asegúrate de que el rol se guarde en el modelo
+        role: 'patient', 
       );
 
       await userRemoteDataSource.createPatient(
@@ -107,22 +107,21 @@ class AuthRepositoryImpl implements AuthRepository {
         profilePictureUrl: patient.profilePictureUrl,
         role: patient.role,
 
-        // No olvides pasar el rol si tu `createPatient` lo necesita o lo deriva
+        
       );
       log(
         '✅ Repo: Registro de paciente y datos de Firestore exitoso.',
         name: 'AuthRepositoryImpl',
       );
 
-      // Después de un registro exitoso, desautenticar inmediatamente
-      // Esto asegura que el usuario vaya a la pantalla de login, no al home.
-      await signOut(); // <--- ¡MANTENER ESTA LÍNEA!
+    
+      await signOut(); 
       log(
         '✅ Repo: Usuario desautenticado después del registro de paciente.',
         name: 'AuthRepositoryImpl',
       );
 
-      return patient; // Retornamos el modelo aunque desautentiquemos, por si se necesita.
+      return patient;
     } on FirebaseAuthException catch (e) {
       log(
         '❌ Repo: FirebaseAuthException en registro de paciente: ${e.code} - ${e.message}',
@@ -196,22 +195,21 @@ class AuthRepositoryImpl implements AuthRepository {
         profilePictureUrl: psychologist.profilePictureUrl,
         role: psychologist.role,
 
-        // No olvides pasar el rol si tu `createPsychologist` lo necesita o lo deriva
+        
       );
       log(
         '✅ Repo: Registro de psicólogo y datos de Firestore exitoso.',
         name: 'AuthRepositoryImpl',
       );
 
-      // Después de un registro exitoso, desautenticar inmediatamente
-      // Esto asegura que el usuario vaya a la pantalla de login, no al home.
-      await signOut(); // <--- ¡MANTENER ESTA LÍNEA!
+      
+      await signOut(); 
       log(
         '✅ Repo: Usuario desautenticado después del registro de psicólogo.',
         name: 'AuthRepositoryImpl',
       );
 
-      return psychologist; // Retornamos el modelo aunque desautentiquemos, por si se necesita.
+      return psychologist; 
     } on FirebaseAuthException catch (e) {
       log(
         '❌ Repo: FirebaseAuthException en registro de psicólogo: ${e.code} - ${e.message}',
@@ -244,7 +242,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: 'AuthRepositoryImpl',
       );
 
-      // Si el usuario de Firebase es nulo, simplemente emitimos null.
+      
       if (fbUser == null) {
         log(
           'DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.',
@@ -253,21 +251,16 @@ class AuthRepositoryImpl implements AuthRepository {
         return null;
       }
 
-      // --- CAMBIO CLAVE AQUÍ: Validar consistencia ---
-      // Si recibimos un `fbUser` (que viene del stream de Firebase Auth)
-      // pero el `_firebaseAuth.currentUser` actual es nulo O es un UID diferente,
-      // significa que ya se ha desautenticado o ha cambiado el usuario,
-      // y esta emisión del stream es una "remanencia" o algo ya no relevante.
-      // En este escenario, debemos ignorar y emitir null.
+      
       final currentUser = _firebaseAuth.currentUser;
       if (currentUser == null || currentUser.uid != fbUser.uid) {
         log(
           '⚠️ DEBUG: Repo authStateChanges - El usuario ${fbUser.uid} recibido del stream YA NO es el current user (${currentUser?.uid ?? 'null'}). Ignorando carga de perfil y emitiendo null.',
           name: 'AuthRepositoryImpl',
         );
-        return null; // ¡Ignoramos esta emisión!
+        return null; 
       }
-      // ---------------------------------------------
+      
 
       try {
         final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
@@ -278,13 +271,12 @@ class AuthRepositoryImpl implements AuthRepository {
           );
           return userModel;
         } else {
-          // Si el perfil no se encuentra para un usuario autenticado de Firebase Auth,
-          // significa una inconsistencia de datos. Forzamos un cierre de sesión.
+          
           log(
             '🔴 DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist. Forzando signOut.',
             name: 'AuthRepositoryImpl',
           );
-          await signOut(); // Llama al signOut de tu repositorio para limpiar.
+          await signOut(); 
           return null;
         }
       } on AppException catch (e) {
@@ -292,14 +284,14 @@ class AuthRepositoryImpl implements AuthRepository {
           '🔴 Error al obtener datos de usuario para authStateChanges (AppException): $e',
           name: 'AuthRepositoryImpl',
         );
-        await signOut(); // Desautentica si hay un error al cargar el perfil
+        await signOut(); 
         return null;
       } catch (e) {
         log(
           '🔴 Error inesperado al obtener datos de usuario para authStateChanges: $e',
           name: 'AuthRepositoryImpl',
         );
-        await signOut(); // Desautentica si hay un error inesperado
+        await signOut(); 
         return null;
       }
     });
@@ -313,7 +305,7 @@ class AuthRepositoryImpl implements AuthRepository {
     );
     try {
       await authRemoteDataSource
-          .signOut(); // Esta es la llamada clave a Firebase Auth
+          .signOut(); 
       log(
         '✅ Sesión cerrada exitosamente en Firebase.',
         name: 'AuthRepositoryImpl',
