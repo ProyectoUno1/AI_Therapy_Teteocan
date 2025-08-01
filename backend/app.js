@@ -1,4 +1,4 @@
-// C:\Users\Aby15\OneDrive\Escritorio\AI_Therapy_Teteocan\backend\app.js
+// \AI_Therapy_Teteocan\backend\app.js
 
 import express from 'express';
 import cors from 'cors';
