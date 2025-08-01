@@ -1,4 +1,4 @@
-// C:\Users\Aby15\OneDrive\Escritorio\AI_Therapy_Teteocan\backend\firebase-admin.js
+//AI_Therapy_Teteocan\backend\firebase-admin.js
 
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
@@ -14,8 +14,7 @@ const USE_EMULATORS_FLAG = process.env.USE_EMULATORS === 'true';
 
 const SHOULD_USE_EMULATORS = IS_DEVELOPMENT_ENV || USE_EMULATORS_FLAG;
 
-// --- Define tu Project ID de Firebase aquí ---
-// Puedes encontrarlo en la Consola de Firebase -> Configuración del proyecto
+
 // Es el ID de tu proyecto real, aunque estemos usando emuladores.
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'tu-project-id-aqui'; // <-- ¡IMPORTANTE: Reemplaza con tu Project ID real!
 
@@ -29,7 +28,7 @@ if (!admin.apps.length) {
         // Inicializa Firebase Admin SDK con el Project ID
         // Esto le dice a GoogleAuth a qué proyecto "simulado" se debe asociar.
         admin.initializeApp({
-            projectId: FIREBASE_PROJECT_ID, // <-- ¡PASAMOS EL PROJECT ID AQUÍ!
+            projectId: FIREBASE_PROJECT_ID, 
         });
         console.log(`✅ Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`);
 
@@ -38,7 +37,7 @@ if (!admin.apps.length) {
         const serviceAccount = require('./serviceAccountKey.json');
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
-            projectId: FIREBASE_PROJECT_ID, // También es buena práctica incluirlo aquí
+            projectId: FIREBASE_PROJECT_ID, 
         });
         console.log('✅ Firebase Admin SDK inicializado para CLOUD.');
     }

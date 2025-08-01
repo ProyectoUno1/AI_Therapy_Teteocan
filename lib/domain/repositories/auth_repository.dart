@@ -38,7 +38,6 @@ abstract class AuthRepository {
     String? phone,
   });
 
-  // ¡ESTE ES EL MÉTODO QUE FALTABA!
   // Permite obtener los datos de un paciente por su UID.
   Future<PatientModel> getPatientData(String uid);
 

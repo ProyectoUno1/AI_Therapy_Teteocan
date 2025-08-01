@@ -19,10 +19,9 @@ class PatientHomeScreen extends StatefulWidget {
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
 
-  // Creamos la lista de widgets en el estado para poder pasar funciones del estado
+  
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
-    // Aquí es donde pasamos la función de retorno de llamada al ChatListScreen
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
     const Center(
       child: Text(
@@ -41,7 +40,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     });
   }
 
-  // Nueva función para navegar a la pantalla de psicólogos
+  // función para navegar a la pantalla de psicólogos
   void _goToPsychologistsScreen() {
     setState(() {
       _selectedIndex = 2; // El índice 2 corresponde a la pestaña de 'Psicólogos'

@@ -2,13 +2,6 @@
 
 import express from 'express';
 import cors from 'cors';
-// No necesitas dotenv.config() aquí si ya lo haces en server.js o en firebase-admin.js
-// import dotenv from 'dotenv';
-// dotenv.config(); // Solo si es el primer lugar donde cargas variables de entorno
-
-
-
-// --- Importa tus Routers usando sintaxis ES y con extensión .js ---
 import aiRoutes from './routes/aiRoutes.js';
 import patientsRoutes from './routes/patients.js';
 import psychologistsRoutes from './routes/psychologists.js';
@@ -23,22 +16,20 @@ app.use(cors());
 app.use(express.json()); // Para interpretar cuerpos de petición JSON
 
 // --- Middleware de Autenticación Firebase (Adaptado para Desarrollo) ---
-// Este middleware es CRÍTICO para asegurar quién hace la petición.
-// 'admin' ya estará inicializado gracias a la importación de 'firebase-admin.js'
+
 app.use(async (req, res, next) => {
     // La variable 'idToken' y la lógica de 'if (!idToken)' está correcta
     const idToken = req.headers.authorization?.split('Bearer ')[1];
 
     if (!idToken) {
-        console.warn('⚠️ No se proporcionó token de autorización. Usando userId de PRUEBA para desarrollo.');
+        console.warn('⚠️No se proporcionó token de autorización. Usando userId de PRUEBA para desarrollo.');
         req.userId = 'test_dev_user_id';
         return next();
     }
 
     try {
-        // --- ¡CORRECCIÓN CLAVE AQUÍ! ---
-        // Usa la instancia 'auth' que importaste directamente
-        const decodedToken = await auth.verifyIdToken(idToken); // <-- ¡Cambia 'admin.auth()' a 'auth'!
+        
+        const decodedToken = await auth.verifyIdToken(idToken); 
         req.userId = decodedToken.uid;
         console.log(`👤 Usuario autenticado (Firebase): ${req.userId}`);
         next();

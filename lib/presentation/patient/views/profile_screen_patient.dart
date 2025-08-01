@@ -48,20 +48,17 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   authState.patient != null) {
                 userName = authState.patient!.username;
                 userEmail = authState.patient!.email;
-                // Aquí puedes obtener la URL de la imagen si tu modelo de paciente la incluye.
-                // profileImageUrl = authState.patient!.profileImageUrl ?? 'https://picsum.photos/seed/768/600';
               }
 
               return Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // El problema ocurre en este Row anidado
                   SizedBox(
                     width:
-                        250, // <-- O usa double.infinity si quieres que ocupe el espacio disponible
+                        250, 
                     child: Row(
-                      mainAxisSize: MainAxisSize.min, // <-- CORRECCIÓN
+                      mainAxisSize: MainAxisSize.min, 
                       children: [
                         Container(
                           width: 56,
@@ -75,9 +72,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                             ),
                           ),
                         ),
-                        // Nombre y Email
                         Expanded(
-                          // <-- Envuelve el Padding en Expanded para que se ajuste
                           child: Padding(
                             padding: const EdgeInsetsDirectional.fromSTEB(
                               12,
@@ -136,7 +131,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             },
           ),
 
-          // El resto de la pantalla se mantiene igual
           const SizedBox(height: 24),
           Text(
             'Account',
@@ -499,7 +493,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
   final _formKey = GlobalKey<FormState>();
-  // Inicialización directa y única de los controladores
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -509,12 +502,9 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   @override
   void initState() {
     super.initState();
-    // Inicializamos los controladores con los datos del estado actual
-    // para que la información del paciente aparezca al cargar la pantalla.
     final authState = BlocProvider.of<AuthBloc>(context).state;
     if (authState.isAuthenticatedPatient && authState.patient != null) {
       _nameController.text = authState.patient!.username ?? '';
-      // Formateamos la fecha para mostrar solo la parte de la fecha
       _dobController.text = authState.patient!.dateOfBirth != null
           ? DateFormat('yyyy-MM-dd').format(authState.patient!.dateOfBirth!)
           : '';
@@ -555,7 +545,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     }
   }
 
-  // Nuevo método para mostrar el DatePicker
   Future<void> _showDatePicker() async {
     DateTime initialDate = DateTime.now();
     try {
@@ -585,7 +574,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        // Mostramos mensajes de éxito o error
         if (state.isSuccess) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -607,8 +595,6 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
         }
       },
       builder: (context, state) {
-        // Mostramos un indicador de carga mientras los datos se actualizan.
-        // Se envuelve en un Scaffold para evitar la pantalla negra.
         if (state.isLoading) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -761,7 +747,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     String label, {
     bool isEditable = true,
     int maxLines = 1,
-    VoidCallback? onTap, // Nuevo parámetro para el evento onTap
+    VoidCallback? onTap, 
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -779,7 +765,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
           const SizedBox(height: 4),
           TextFormField(
             controller: controller,
-            readOnly: onTap != null || !isEditable, // Evita que se abra el teclado si hay un onTap
+            readOnly: onTap != null || !isEditable, 
             maxLines: maxLines,
             onTap: onTap,
             style: TextStyle(

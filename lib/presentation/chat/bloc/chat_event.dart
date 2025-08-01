@@ -1,7 +1,7 @@
 // lib/presentation/chat/bloc/chat_event.dart
 import 'package:equatable/equatable.dart';
 
-// Clase abstracta base para todos los eventos del chat
+// Clase base para todos los eventos del chat
 abstract class ChatEvent extends Equatable {
   const ChatEvent();
   @override
@@ -35,14 +35,10 @@ class MessageReceivedEvent extends ChatEvent {
 }
 
 // Evento para controlar el indicador de "escribiendo..." de la IA
-// Unifica StartTypingEvent y StopTypingEvent en uno solo.
-class SetTypingStatusEvent extends ChatEvent { // <-- Asegúrate de que esta clase exista
-  final bool isTyping; // <-- Y que tenga esta propiedad
-  const SetTypingStatusEvent({required this.isTyping}); // <-- Y este constructor
+class SetTypingStatusEvent extends ChatEvent { 
+  final bool isTyping; 
+  const SetTypingStatusEvent({required this.isTyping}); 
   @override
   List<Object?> get props => [isTyping];
 }
 
-// Elimina o comenta las siguientes líneas si existen para evitar conflictos:
-// class StartTypingEvent extends ChatEvent { const StartTypingEvent(); }
-// class StopTypingEvent extends ChatEvent { const StopTypingEvent(); }

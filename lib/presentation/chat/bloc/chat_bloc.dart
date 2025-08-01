@@ -46,14 +46,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     try {
       const String currentChatId = 'ai-chat';
 
-      // Creating the user's message
       final newMessage = MessageModel(
         id: _uuid.v4(),
-        // Check this line and the next in your actual file
-        content: event.message, // Ensure 'content' is the correct parameter name
-        isUser: true, // <--- Add this line for the user's message!
+        content: event.message, 
+        isUser: true, 
         timestamp: DateTime.now(),
-        // senderId: 'user', // If you have senderId in MessageModel, include it here
       );
 
       final updatedMessages = List<MessageModel>.from(state.messages)..add(newMessage);
@@ -62,14 +59,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
       final aiResponseContent = await _chatRepository.sendAIMessage(currentChatId, event.message);
 
-      // Creating Aurora's message
       final aiMessage = MessageModel(
         id: _uuid.v4(),
-        // Check this line and the next in your actual file
-        content: aiResponseContent, // Ensure 'content' is the correct parameter name
-        isUser: false, // <--- Add this line for the AI's message!
+        content: aiResponseContent, 
+        isUser: false, 
         timestamp: DateTime.now(),
-        // senderId: 'aurora', // If you have senderId in MessageModel, include it here
+
       );
 
       emit(state.copyWith(

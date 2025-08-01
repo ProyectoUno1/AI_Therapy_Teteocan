@@ -1,11 +1,11 @@
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/data/models/message_model.dart'; // Asegúrate de que este import sea correcto
+import 'package:ai_therapy_teteocan/data/models/message_model.dart'; 
 
 // Define los posibles estados del chat
 enum ChatStatus {
   initial,
   loading,
-  loaded, // <-- ¡Asegúrate de que 'loaded' esté aquí!
+  loaded, 
   sending,
   error,
 }

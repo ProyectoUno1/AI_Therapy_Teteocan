@@ -32,7 +32,6 @@ abstract class UserRemoteDataSource {
     required String role,
   });
   
-  // ¡Este es el nuevo método que debes añadir!
   Future<void> updatePatientData({
     required String uid,
     String? username,
@@ -48,8 +47,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   final FirebaseFirestore _firestore;
 
   UserRemoteDataSourceImpl(this._firestore);
-  
-  // ... (otros métodos como getPatientData, getPsychologistData, createPatient, etc.) ...
   
   @override
   Future<void> updatePatientData({
@@ -70,7 +67,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
       if (profilePictureUrl != null) updateData['profilePictureUrl'] = profilePictureUrl;
 
-      // El método `update` solo modifica los campos que existen en el mapa `updateData`.
       await docRef.update(updateData);
     } on FirebaseException catch (e) {
       throw FetchDataException('Error de Firestore al actualizar datos: ${e.message}');

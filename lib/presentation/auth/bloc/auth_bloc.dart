@@ -114,14 +114,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  // --- El nuevo handler para la actualización de información ---
   Future<void> _onUpdatePatientInfoRequested(
     UpdatePatientInfoRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // Asegúrate de tener una manera de obtener el usuario actual, por ejemplo, del estado.
+    
     if (state.isAuthenticatedPatient) {
-      final user = state.patient!; // Usamos `state.patient!` ya que sabemos que existe
+      final user = state.patient!; 
       
       emit(const AuthState.loading());
       try {
@@ -132,24 +131,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           phone: event.phone,
         );
         
-        // Vuelve a cargar los datos del usuario para reflejar los cambios
         final updatedPatient = await _authRepository.getPatientData(user.uid);
-        
-        // Emitimos un estado de éxito
         emit(const AuthState.success(errorMessage: 'Perfil actualizado exitosamente.'));
-        
-        // Luego emitimos el estado autenticado con los nuevos datos
         emit(AuthState.authenticated(userRole: UserRole.patient, patient: updatedPatient));
-        
       } on AppException catch (e) {
-        // Corrección: Usar el constructor `AuthState.error` y pasar el mensaje
         emit(AuthState.error(errorMessage: e.message));
       } catch (e) {
-        // Corrección: Usar el constructor `AuthState.error`
         emit(const AuthState.error(errorMessage: 'Ocurrió un error inesperado al actualizar el perfil.'));
       }
     } else {
-      // Corrección: Usar el constructor `AuthState.error`
       emit(const AuthState.error(errorMessage: 'No tienes permiso para actualizar este perfil.'));
     }
   }

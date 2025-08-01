@@ -1,14 +1,9 @@
 // backend/routes/patients.js
 
-import express from 'express'; // Usa import para express
+import express from 'express'; 
 const router = express.Router();
+import verifyFirebaseToken from '../middlewares/auth_middleware.js';
 
-// Importa el middleware de autenticación
-// Asegúrate de que 'auth_middleware.js' también use 'export default' o 'export { ... }'
-// Y la ruta es relativa desde 'routes/' a 'middlewares/'
-import verifyFirebaseToken from '../middlewares/auth_middleware.js'; // <-- ¡CORREGIDO!
-
-// Importa 'admin' desde tu archivo de configuración de Firebase Admin
 
 
 
@@ -16,9 +11,9 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
         console.log('Datos recibidos para registro de paciente:', req.body);
         const { uid, username, email, phoneNumber, dateOfBirth, profilePictureUrl } = req.body;
-        const firebaseUser = req.firebaseUser; // Asume que verifyFirebaseToken adjunta esto
+        const firebaseUser = req.firebaseUser; 
 
-        if (!firebaseUser || firebaseUser.uid !== uid) { // Añadido check para firebaseUser
+        if (!firebaseUser || firebaseUser.uid !== uid) { 
             return res.status(403).json({ error: 'UID mismatch or no authenticated user' });
         }
 
@@ -53,7 +48,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
+        const uid = req.firebaseUser.uid; 
         const patientRef = db.collection('patients').doc(uid);
         const doc = await patientRef.get();
 
@@ -70,7 +65,7 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
+        const uid = req.firebaseUser.uid; 
         const { username, email, phoneNumber, profilePictureUrl } = req.body;
 
         const patientRef = db.collection('patients').doc(uid);
@@ -111,7 +106,6 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
 
-        // Construir un objeto de actualización con solo los campos que se enviaron
         const updateData = {};
         if (username !== undefined) updateData.username = username;
         if (email !== undefined) updateData.email = email;
@@ -121,8 +115,8 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
 
         updateData.updated_at = admin.firestore.FieldValue.serverTimestamp();
 
-        // Solo actualizar si hay algo que actualizar
-        if (Object.keys(updateData).length > 1) { // El >1 es por `updated_at`
+        
+        if (Object.keys(updateData).length > 1) { 
             await patientRef.update(updateData);
         }
 

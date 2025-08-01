@@ -1,23 +1,17 @@
 // backend/routes/psychologists.js
 
-import express from 'express'; // Usa import para express
+import express from 'express'; 
 const router = express.Router();
+import verifyFirebaseToken from '../middlewares/auth_middleware.js'; 
 
-// Importa el middleware de autenticación
-// Asegúrate de que 'auth_middleware.js' también use 'export default' o 'export { ... }'
-// Y la ruta es relativa desde 'routes/' a 'middlewares/'
-import verifyFirebaseToken from '../middlewares/auth_middleware.js'; // <-- ¡CORREGIDO!
-
-// Importa 'admin' desde tu archivo de configuración de Firebase Admin
-// Basado en tu confirmación anterior, firebase-admin.js está directamente en la carpeta 'backend/'
 
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid, username, email, phoneNumber, professional_license, dateOfBirth, profilePictureUrl } = req.body;
-        const firebaseUser = req.firebaseUser; // Asume que verifyFirebaseToken adjunta esto
+        const firebaseUser = req.firebaseUser; 
 
-        if (!firebaseUser || firebaseUser.uid !== uid) { // Añadido check para firebaseUser
+        if (!firebaseUser || firebaseUser.uid !== uid) { 
             return res.status(403).json({ error: 'UID mismatch or no authenticated user' });
         }
 
@@ -53,7 +47,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
+        const uid = req.firebaseUser.uid; 
         const psychologistRef = db.collection('psychologists').doc(uid);
         const doc = await psychologistRef.get();
 
@@ -70,7 +64,7 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
+        const uid = req.firebaseUser.uid; 
         const { username, email, phoneNumber, professional_license, profilePictureUrl } = req.body;
 
         const psychologistRef = db.collection('psychologists').doc(uid);

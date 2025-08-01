@@ -2,14 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
-import 'package:intl/intl.dart'; // <--- ¡Importa esta librería!
-
-// lib/presentation/chat/widgets/message_bubble.dart
-// ... (imports) ...
+import 'package:intl/intl.dart'; 
 
 class MessageBubble extends StatelessWidget {
   final MessageModel message;
-  final bool isMe; // <-- SIEMPRE true = YO, false = OTRO/IA
+  final bool isMe; 
 
   const MessageBubble({super.key, required this.message, required this.isMe});
 
@@ -18,12 +15,12 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
-        mainAxisAlignment: isMe // Si isMe es true, a la derecha. Si es false, a la izquierda.
+        mainAxisAlignment: isMe 
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isMe) ...[ // Si NO soy yo (es decir, es Aurora), muestro avatar de IA.
+          if (!isMe) ...[
             CircleAvatar(
               backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
               radius: 16,
@@ -39,7 +36,7 @@ class MessageBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe // Si isMe es true, color de acento. Si es false, color claro.
+                color: isMe 
                     ? AppConstants.lightAccentColor
                     : AppConstants.lightAccentColor.withOpacity(0.1),
                 borderRadius: BorderRadius.only(
@@ -75,7 +72,7 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-          if (isMe) const SizedBox(width: 24), // Si soy yo, espacio a la derecha.
+          if (isMe) const SizedBox(width: 24), 
         ],
       ),
     );

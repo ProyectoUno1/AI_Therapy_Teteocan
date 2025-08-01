@@ -1,12 +1,10 @@
 // backend/routes/services/chatService.js
 
-// --- Importaciones ---
-// Importa 'db' (la instancia de Firestore) desde tu configuración central.
-// Importa 'admin' para poder usar 'admin.firestore.FieldValue.serverTimestamp()'.
+
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin'; 
 
-// Importa la función para obtener respuestas de Gemini
+// Importacion de la función para obtener respuestas de Gemini
 import { getGeminiChatResponse } from './geminiService.js';
 
 
@@ -23,10 +21,9 @@ async function getOrCreateAIChatId(userId) {
     // --- Obtener el nombre del usuario ---
     let userName = 'allí'; // Valor por defecto si no se encuentra el nombre
     try {
-        // Asegúrate de que tu colección de pacientes tenga documentos con el ID del usuario
-        const userDoc = await db.collection('patients').doc(userId).get(); // Asume que los nombres están en 'patients'
         
-        // --- CORRECCIÓN AQUÍ: Usar 'name' en ambos lugares ---
+        const userDoc = await db.collection('patients').doc(userId).get(); 
+        
         if (userDoc.exists && userDoc.data() && userDoc.data().username) {
             userName = userDoc.data().username.split(' ')[0]; // Toma solo el primer nombre
         } else {
@@ -35,7 +32,7 @@ async function getOrCreateAIChatId(userId) {
     } catch (error) {
         console.error(`[Firestore] Error al intentar obtener el nombre del usuario ${userId}:`, error);
     }
-    // --- FIN Obtener el nombre del usuario ---
+    
 
 
     if (!doc.exists) {
@@ -50,7 +47,6 @@ async function getOrCreateAIChatId(userId) {
         const messagesCollection = chatRef.collection('messages');
         const defaultAuroraMessage = {
             senderId: 'aurora',
-            // --- ¡MENSAJE PERSONALIZADO AQUÍ! ---
             content: `¡Hola ${userName}! Soy Aurora, tu asistente de terapia. Estoy aquí para escucharte y apoyarte. ¿Cómo te sientes hoy? ✨`,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
@@ -80,7 +76,7 @@ async function processUserMessage(userId, messageContent) {
     const userMessageData = {
         senderId: userId,
         content: messageContent,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(), // Usa 'admin' aquí
+        timestamp: admin.firestore.FieldValue.serverTimestamp(), 
         isAI: false,
         type: 'text',
     };
@@ -99,7 +95,7 @@ async function processUserMessage(userId, messageContent) {
 
     // 3. Instrucción del sistema para Aurora (tu prompt de IA)
     const systemInstruction = {
-        isAI: false, // Simula que es una instrucción inicial del "usuario"
+        isAI: false, 
         content: `
         Eres "Aurora", un asistente de terapia de inteligencia artificial. Tu propósito es ofrecer apoyo emocional, herramientas de afrontamiento, perspectivas útiles y un espacio seguro para que los usuarios exploren sus pensamientos y sentimientos.
 
@@ -170,7 +166,7 @@ async function processUserMessage(userId, messageContent) {
         const aiMessageData = {
             senderId: 'aurora',
             content: aiResponseContent,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(), // Usa 'admin' aquí
+            timestamp: admin.firestore.FieldValue.serverTimestamp(), 
             isAI: true,
             type: 'text',
         };
@@ -200,10 +196,10 @@ async function loadChatMessages(chatId) {
             id: doc.id,
             senderId: data.senderId,
             content: data.content,
-            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(), // Manejo de nulos para timestamp
-            isAI: data.isAI || false, // Provee un valor por defecto si es nulo/indefinido
-            type: data.type || 'text', // Provee un valor por defecto si es nulo/indefinido
-            attachmentUrl: data.attachmentUrl || null, // Provee un valor por defecto si es nulo/indefinido
+            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(), 
+            isAI: data.isAI || false, 
+            type: data.type || 'text', 
+            attachmentUrl: data.attachmentUrl || null, 
         };
     });
     console.log(`[Firestore] ${messages.length} mensajes cargados para chat: ${chatId}`);
@@ -211,7 +207,6 @@ async function loadChatMessages(chatId) {
 }
 
 
-// --- Exporta las funciones para que puedan ser usadas en tus rutas ---
 export {
     getOrCreateAIChatId,
     processUserMessage,
