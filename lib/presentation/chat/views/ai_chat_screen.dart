@@ -34,7 +34,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     if (_messageController.text.trim().isEmpty) return;
 
     context.read<ChatBloc>().add(
-      SendMessageEvent(message: _messageController.text.trim()),
+      SendMessageEvent( _messageController.text.trim()),
     );
 
     _messageController.clear();
@@ -137,7 +137,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       final message = state.messages[index];
                       return MessageBubble(
                         message: message,
-                        isMe: !message.isAI,
+                        isMe: message.isUser,
                       );
                     },
                   );

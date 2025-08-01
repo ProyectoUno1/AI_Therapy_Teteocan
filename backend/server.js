@@ -1,8 +1,7 @@
 /*server.js tiene el proposito de iniciar el servidor web con Express.js*/
 
-const app = require('./app');
-const dotenv = require('dotenv');
-
+import app from './app.js'; // Usa import, y añade .js a las importaciones locales
+import dotenv from 'dotenv'; 
 
 // Cargar variables de entorno desde .env
 dotenv.config();

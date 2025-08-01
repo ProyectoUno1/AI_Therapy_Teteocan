@@ -4,7 +4,13 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/ai_chat_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
-  const ChatListScreen({super.key});
+  // 1. Agrega el callback al constructor
+  final VoidCallback onGoToPsychologists;
+  
+  const ChatListScreen({
+    super.key,
+    required this.onGoToPsychologists, // Hace que el callback sea obligatorio
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +56,7 @@ class ChatListScreen extends StatelessWidget {
           ),
           Expanded(
             child: TabBarView(
-              children: [_buildAIChatList(), _buildPsychologistsChatList()],
+              children: [_buildAIChatList(context), _buildPsychologistsChatList()],
             ),
           ),
         ],
@@ -58,12 +64,12 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAIChatList() {
+  Widget _buildAIChatList(BuildContext context) {
     return Container(
       color: Colors.white,
       child: Column(
         children: [
-          _buildAIChatCard(),
+          _buildAIChatCard(context),
           const Divider(height: 1),
           Expanded(
             child: Center(
@@ -102,58 +108,53 @@ class ChatListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAIChatCard() {
-    return Builder(
-      builder: (context) {
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
+  Widget _buildAIChatCard(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
+      leading: CircleAvatar(
+        backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
+        child: Icon(Icons.psychology, color: AppConstants.lightAccentColor),
+      ),
+      title: const Text(
+        'Aurora AI',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Poppins',
+        ),
+      ),
+      subtitle: const Text(
+        'Tu asistente terapéutico 24/7',
+        style: TextStyle(fontFamily: 'Poppins'),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppConstants.lightAccentColor.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Activo',
+          style: TextStyle(
+            color: AppConstants.lightAccentColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+            fontFamily: 'Poppins',
           ),
-          leading: CircleAvatar(
-            backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
-            child: Icon(Icons.psychology, color: AppConstants.lightAccentColor),
-          ),
-          title: const Text(
-            'Aurora AI',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          subtitle: const Text(
-            'Tu asistente terapéutico 24/7',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppConstants.lightAccentColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'Activo',
-              style: TextStyle(
-                color: AppConstants.lightAccentColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AIChatScreen()),
-            );
-          },
+        ),
+      ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AIChatScreen()),
         );
       },
     );
   }
 
   Widget _buildPsychologistsChatList() {
-    // Por ahora, mostraremos un mensaje temporal
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -180,7 +181,8 @@ class ChatListScreen extends StatelessWidget {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              // Navegar a la lista de psicólogos
+              // 2. Llama al callback para cambiar de pestaña en el padre
+              onGoToPsychologists(); 
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstants.lightAccentColor,

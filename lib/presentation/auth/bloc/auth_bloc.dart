@@ -10,7 +10,7 @@ import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; // Asegúrate de que esta ruta sea correcta
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
@@ -24,15 +24,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignInUseCase signInUseCase,
     required RegisterUserUseCase registerUserUseCase,
   }) : _authRepository = authRepository,
-       _signInUseCase = signInUseCase,
-       _registerUserUseCase = registerUserUseCase,
-       super(const AuthState.unknown()) { 
+        _signInUseCase = signInUseCase,
+        _registerUserUseCase = registerUserUseCase,
+        super(const AuthState.unknown()) {
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
     on<AuthRegisterPsychologistRequested>(_onAuthRegisterPsychologistRequested);
     on<AuthSignOutRequested>(_onAuthSignOutRequested);
     on<AuthStatusChanged>(_onAuthStatusChanged);
-    on<AuthStarted>(_onAuthStarted); 
+    on<AuthStarted>(_onAuthStarted);
+    // Nuevo handler para el evento de actualización
+    on<UpdatePatientInfoRequested>(_onUpdatePatientInfoRequested);
 
     log('🔵 AuthBloc: Inicializando _userSubscription para authStateChanges.', name: 'AuthBloc');
     _userSubscription = _authRepository.authStateChanges.listen((userProfile) {
@@ -50,12 +52,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         log('🔴 AuthBloc Subscription: userProfile es de tipo inesperado: ${userProfile.runtimeType}. Forzando cierre de sesión.', name: 'AuthBloc');
         add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Perfil de usuario inesperado. Sesión cerrada.'));
-        _authRepository.signOut(); 
+        _authRepository.signOut();
       }
     });
   }
 
-  
   Future<void> _onAuthStarted(
     AuthStarted event,
     Emitter<AuthState> emit,
@@ -66,7 +67,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
     log('🚨DEBUG AUTHBLOC: Inicia procesamiento de _onAuthStatusChanged para evento: ${event.status}', name: 'AuthBloc');
     log('🔵 AuthBloc Event: AuthStatusChanged recibido. Nuevo estado: ${event.status}, Rol: ${event.userRole}, Perfil: ${event.userProfile?.runtimeType}, Mensaje Error: ${event.errorMessage}', name: 'AuthBloc');
-
     
     AuthState newState;
 
@@ -106,11 +106,51 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         break;
     }
 
-    if (state != newState) { 
+    if (state != newState) {
       emit(newState);
       log('✅ AuthBloc Emitió: Nuevo estado: ${newState.status}. Detalle: ${newState.userRole}, Patient: ${newState.patient != null}, Psychologist: ${newState.psychologist != null}, Error: ${newState.errorMessage}', name: 'AuthBloc');
     } else {
       log('🟡 AuthBloc NO EMITIÓ: Nuevo estado es idéntico al actual (${newState.status}). Equatable funcionó.', name: 'AuthBloc');
+    }
+  }
+
+  // --- El nuevo handler para la actualización de información ---
+  Future<void> _onUpdatePatientInfoRequested(
+    UpdatePatientInfoRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    // Asegúrate de tener una manera de obtener el usuario actual, por ejemplo, del estado.
+    if (state.isAuthenticatedPatient) {
+      final user = state.patient!; // Usamos `state.patient!` ya que sabemos que existe
+      
+      emit(const AuthState.loading());
+      try {
+        await _authRepository.updatePatientInfo(
+          userId: user.uid,
+          name: event.name,
+          dob: event.dob,
+          phone: event.phone,
+        );
+        
+        // Vuelve a cargar los datos del usuario para reflejar los cambios
+        final updatedPatient = await _authRepository.getPatientData(user.uid);
+        
+        // Emitimos un estado de éxito
+        emit(const AuthState.success(errorMessage: 'Perfil actualizado exitosamente.'));
+        
+        // Luego emitimos el estado autenticado con los nuevos datos
+        emit(AuthState.authenticated(userRole: UserRole.patient, patient: updatedPatient));
+        
+      } on AppException catch (e) {
+        // Corrección: Usar el constructor `AuthState.error` y pasar el mensaje
+        emit(AuthState.error(errorMessage: e.message));
+      } catch (e) {
+        // Corrección: Usar el constructor `AuthState.error`
+        emit(const AuthState.error(errorMessage: 'Ocurrió un error inesperado al actualizar el perfil.'));
+      }
+    } else {
+      // Corrección: Usar el constructor `AuthState.error`
+      emit(const AuthState.error(errorMessage: 'No tienes permiso para actualizar este perfil.'));
     }
   }
 
@@ -119,7 +159,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     log('🔵 AuthBloc Event: AuthSignInRequested para ${event.email}', name: 'AuthBloc');
-    emit(const AuthState.loading()); 
+    emit(const AuthState.loading());
 
     try {
       await _signInUseCase(email: event.email, password: event.password);
@@ -127,10 +167,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       
     } on AppException catch (e) {
       log('🔴 AuthBloc Event: Error de AppException al iniciar sesión: ${e.message}', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: e.message)); 
+      emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
       log('🔴 AuthBloc Event: Error inesperado al iniciar sesión: $e', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: 'Error inesperado al iniciar sesión: $e')); 
+      emit(AuthState.error(errorMessage: 'Error inesperado al iniciar sesión: $e'));
     }
   }
 
@@ -167,7 +207,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     log('🔵 AuthBloc Event: AuthRegisterPsychologistRequested para ${event.email}', name: 'AuthBloc');
-    emit(const AuthState.loading()); 
+    emit(const AuthState.loading());
 
     try {
       await _registerUserUseCase.registerPsychologist(
@@ -195,17 +235,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     log('🔵 AuthBloc Event: AuthSignOutRequested recibido.', name: 'AuthBloc');
-    emit(const AuthState.loading()); 
+    emit(const AuthState.loading());
     try {
       await _authRepository.signOut();
       log('🟢 AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).', name: 'AuthBloc');
-      
+
     } on AppException catch (e) {
       log('🔴 AuthBloc Event: Error de AppException al cerrar sesión: ${e.message}', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: e.message)); 
+      emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
       log('🔴 AuthBloc Event: Error inesperado al cerrar sesión: $e', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: 'Error inesperado al cerrar sesión: $e')); 
+      emit(AuthState.error(errorMessage: 'Error inesperado al cerrar sesión: $e'));
     }
   }
 

@@ -1,72 +1,22 @@
-import 'dart:async';
+// lib/presentation/chat/bloc/chat_bloc.dart
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/data/models/message_model.dart';
+import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_event.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_state.dart';
+import 'package:ai_therapy_teteocan/data/models/message_model.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:uuid/uuid.dart';
+
+const Uuid _uuid = Uuid();
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
-  // TODO: Inyectar el repositorio de chat cuando lo creemos
-  // final ChatRepository _chatRepository;
+  final ChatRepository _chatRepository;
 
-  ChatBloc() : super(const ChatState()) {
-    on<SendMessageEvent>(_onSendMessage);
+  ChatBloc(this._chatRepository) : super(const ChatState()) {
     on<LoadMessagesEvent>(_onLoadMessages);
-    on<MessageReceivedEvent>(_onMessageReceived);
-    on<StartTypingEvent>(_onStartTyping);
-    on<StopTypingEvent>(_onStopTyping);
-    on<ClearChatEvent>(_onClearChat);
-  }
-
-  Future<void> _onSendMessage(
-    SendMessageEvent event,
-    Emitter<ChatState> emit,
-  ) async {
-    try {
-      final newMessage = MessageModel(
-        id: DateTime.now().toString(),
-        senderId: 'user', // TODO: Obtener el ID real del usuario
-        content: event.message,
-        timestamp: DateTime.now(),
-        isAI: event.isAI,
-      );
-
-      final updatedMessages = [...state.messages, newMessage];
-      emit(
-        state.copyWith(messages: updatedMessages, status: ChatStatus.success),
-      );
-
-      // Si es un mensaje para la AI, simular respuesta
-      if (!event.isAI) {
-        emit(state.copyWith(isTyping: true));
-
-        // Simular delay de respuesta (esto se reemplazará con la llamada real a la API)
-        await Future.delayed(const Duration(seconds: 1));
-
-        final aiResponse = MessageModel(
-          id: DateTime.now().toString(),
-          senderId: 'aurora',
-          content: 'Estoy aquí para escucharte. ¿Quieres hablar más sobre eso?',
-          timestamp: DateTime.now(),
-          isAI: true,
-        );
-
-        final messagesWithAiResponse = [...updatedMessages, aiResponse];
-        emit(
-          state.copyWith(
-            messages: messagesWithAiResponse,
-            isTyping: false,
-            status: ChatStatus.success,
-          ),
-        );
-      }
-    } catch (e) {
-      emit(
-        state.copyWith(
-          status: ChatStatus.error,
-          errorMessage: 'Error al enviar el mensaje: $e',
-        ),
-      );
-    }
+    on<SendMessageEvent>(_onSendMessage);
+    on<SetTypingStatusEvent>(_onSetTypingStatus);
   }
 
   Future<void> _onLoadMessages(
@@ -75,44 +25,72 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async {
     emit(state.copyWith(status: ChatStatus.loading));
     try {
-      // TODO: Implementar carga de mensajes desde el repositorio
-      // final messages = await _chatRepository.getMessages(event.chatId);
-      // emit(state.copyWith(
-      //   messages: messages,
-      //   status: ChatStatus.success,
-      // ));
+      final messages = await _chatRepository.loadMessages(event.chatId);
+      emit(state.copyWith(
+        status: ChatStatus.loaded,
+        messages: messages,
+      ));
     } catch (e) {
-      emit(
-        state.copyWith(
-          status: ChatStatus.error,
-          errorMessage: 'Error al cargar los mensajes: $e',
-        ),
-      );
+      emit(state.copyWith(
+        status: ChatStatus.error,
+        errorMessage: e.toString(),
+      ));
     }
   }
 
-  void _onMessageReceived(MessageReceivedEvent event, Emitter<ChatState> emit) {
-    final newMessage = MessageModel(
-      id: DateTime.now().toString(),
-      senderId: event.isAI ? 'aurora' : 'other',
-      content: event.message,
-      timestamp: event.timestamp,
-      isAI: event.isAI,
-    );
+  Future<void> _onSendMessage(
+    SendMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    emit(state.copyWith(status: ChatStatus.sending));
+    try {
+      const String currentChatId = 'ai-chat';
 
-    final updatedMessages = [...state.messages, newMessage];
-    emit(state.copyWith(messages: updatedMessages, status: ChatStatus.success));
+      // Creating the user's message
+      final newMessage = MessageModel(
+        id: _uuid.v4(),
+        // Check this line and the next in your actual file
+        content: event.message, // Ensure 'content' is the correct parameter name
+        isUser: true, // <--- Add this line for the user's message!
+        timestamp: DateTime.now(),
+        // senderId: 'user', // If you have senderId in MessageModel, include it here
+      );
+
+      final updatedMessages = List<MessageModel>.from(state.messages)..add(newMessage);
+      emit(state.copyWith(messages: updatedMessages));
+      emit(state.copyWith(isTyping: true));
+
+      final aiResponseContent = await _chatRepository.sendAIMessage(currentChatId, event.message);
+
+      // Creating Aurora's message
+      final aiMessage = MessageModel(
+        id: _uuid.v4(),
+        // Check this line and the next in your actual file
+        content: aiResponseContent, // Ensure 'content' is the correct parameter name
+        isUser: false, // <--- Add this line for the AI's message!
+        timestamp: DateTime.now(),
+        // senderId: 'aurora', // If you have senderId in MessageModel, include it here
+      );
+
+      emit(state.copyWith(
+        status: ChatStatus.loaded,
+        messages: List<MessageModel>.from(state.messages)..add(aiMessage),
+      ));
+      emit(state.copyWith(isTyping: false));
+
+    } catch (e) {
+      emit(state.copyWith(
+        status: ChatStatus.error,
+        errorMessage: e.toString(),
+      ));
+      emit(state.copyWith(isTyping: false));
+    }
   }
 
-  void _onStartTyping(StartTypingEvent event, Emitter<ChatState> emit) {
-    emit(state.copyWith(isTyping: true));
-  }
-
-  void _onStopTyping(StopTypingEvent event, Emitter<ChatState> emit) {
-    emit(state.copyWith(isTyping: false));
-  }
-
-  void _onClearChat(ClearChatEvent event, Emitter<ChatState> emit) {
-    emit(const ChatState());
+  void _onSetTypingStatus(
+    SetTypingStatusEvent event,
+    Emitter<ChatState> emit,
+  ) {
+    emit(state.copyWith(isTyping: event.isTyping));
   }
 }

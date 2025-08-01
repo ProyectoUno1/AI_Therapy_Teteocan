@@ -1,17 +1,24 @@
 // backend/routes/psychologists.js
-const express = require('express');
+
+import express from 'express'; // Usa import para express
 const router = express.Router();
-const verifyFirebaseToken = require('../middlewares/auth_middleware');
-const admin = require('../firebase-admin'); // Importa Firebase Admin
-const db = admin.firestore(); // Obtén la instancia de Firestore
+
+// Importa el middleware de autenticación
+// Asegúrate de que 'auth_middleware.js' también use 'export default' o 'export { ... }'
+// Y la ruta es relativa desde 'routes/' a 'middlewares/'
+import verifyFirebaseToken from '../middlewares/auth_middleware.js'; // <-- ¡CORREGIDO!
+
+// Importa 'admin' desde tu archivo de configuración de Firebase Admin
+// Basado en tu confirmación anterior, firebase-admin.js está directamente en la carpeta 'backend/'
+
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid, username, email, phoneNumber, professional_license, dateOfBirth, profilePictureUrl } = req.body;
-        const firebaseUser = req.firebaseUser;
+        const firebaseUser = req.firebaseUser; // Asume que verifyFirebaseToken adjunta esto
 
-        if (firebaseUser.uid !== uid) {
-            return res.status(403).json({ error: 'UID mismatch' });
+        if (!firebaseUser || firebaseUser.uid !== uid) { // Añadido check para firebaseUser
+            return res.status(403).json({ error: 'UID mismatch or no authenticated user' });
         }
 
         const psychologistRef = db.collection('psychologists').doc(uid);
@@ -28,7 +35,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             phone_number: phoneNumber,
             professional_license: professional_license,
             date_of_birth: dateOfBirth,
-            profile_picture_url: profilePictureUrl || null, 
+            profile_picture_url: profilePictureUrl || null,
             created_at: admin.firestore.FieldValue.serverTimestamp(),
         };
 
@@ -36,7 +43,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 
         res.status(201).json({
             message: 'Psicólogo registrado exitosamente',
-            psychologist: { id: uid, ...psychologistData }, 
+            psychologist: { id: uid, ...psychologistData },
         });
     } catch (error) {
         console.error('Error al registrar psicólogo en Firestore:', error);
@@ -46,7 +53,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
 
 router.get('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid;
+        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
         const psychologistRef = db.collection('psychologists').doc(uid);
         const doc = await psychologistRef.get();
 
@@ -63,7 +70,7 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid;
+        const uid = req.firebaseUser.uid; // Asume que verifyFirebaseToken adjunta esto
         const { username, email, phoneNumber, professional_license, profilePictureUrl } = req.body;
 
         const psychologistRef = db.collection('psychologists').doc(uid);
@@ -93,4 +100,4 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

@@ -1,6 +1,7 @@
 // lib/presentation/auth/bloc/auth_event.dart
+
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; 
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
@@ -67,18 +68,36 @@ class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
 }
 
+// -----------------------------------------------------------
+// ¡NUEVO EVENTO PARA ACTUALIZAR LA INFORMACIÓN DEL PACIENTE!
+// -----------------------------------------------------------
+class UpdatePatientInfoRequested extends AuthEvent {
+  final String? name;
+  final String? dob;
+  final String? phone;
+
+  const UpdatePatientInfoRequested({
+    this.name,
+    this.dob,
+    this.phone,
+  });
+
+  @override
+  List<Object?> get props => [name, dob, phone];
+}
+
 
 class AuthStatusChanged extends AuthEvent {
   final AuthStatus status;
-  final dynamic? userProfile; 
-  final UserRole userRole; 
-  final String? errorMessage; 
+  final dynamic? userProfile;
+  final UserRole userRole;
+  final String? errorMessage;
 
   const AuthStatusChanged(
     this.status,
     this.userProfile, {
     required this.userRole,
-    this.errorMessage, 
+    this.errorMessage,
   });
 
   @override

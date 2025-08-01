@@ -36,10 +36,13 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
     final message = MessageModel(
       id: DateTime.now().toString(),
-      senderId: 'user',
+      // Si tu MessageModel tiene senderId como required, déjalo. Si no, quítalo.
+      // Basado en MessageModel anterior, solo id, content, isUser son required.
+      // Si necesitas senderId para la lógica interna, podrías añadirlo al MessageModel como opcional.
+      // senderId: 'user', // <--- Considera si este es necesario en MessageModel
       content: _messageController.text.trim(),
       timestamp: DateTime.now(),
-      isAI: false,
+      isUser: true, // <--- ¡CAMBIA 'isAI: false' por 'isUser: true'!
     );
 
     setState(() {
@@ -155,7 +158,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   final message = _messages[index];
                   return MessageBubble(
                     message: message,
-                    isMe: message.senderId == 'user',
+                    isMe: message.isUser, 
                   );
                 },
               ),
