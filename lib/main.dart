@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Necesario para obtener el token de Firebase Auth
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
@@ -20,7 +20,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
-
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart'; // Importa tu ChatRepository
 
 import 'firebase_options.dart';
 
@@ -37,6 +37,7 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
+  // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
       AuthRemoteDataSourceImpl(firebaseAuth: FirebaseAuth.instance);
   final UserRemoteDataSourceImpl userRemoteDataSource =
@@ -52,18 +53,44 @@ void main() async {
     authRepository,
   );
 
+  // --- Inicialización del Repositorio de Chat ---
+  final ChatRepository chatRepository = ChatRepository();
+
+  // --- Configuración del Listener de Autenticación para el Token del ChatRepository ---
+  // Esto asegura que el ChatRepository siempre tenga el token JWT del usuario actual
+  // para enviarlo a tu backend, que lo usará para autenticar las peticiones.
+  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+    if (user != null) {
+      final idToken = await user.getIdToken();
+      chatRepository.setAuthToken(idToken);
+      log('🔑 Token de Firebase Auth actualizado en ChatRepository para ${user.uid}');
+    } else {
+      chatRepository.setAuthToken(null); // Limpia el token si el usuario cierra sesión
+      log('❌ Usuario desautenticado, token de Firebase Auth limpiado del ChatRepository.');
+    }
+  });
+
+
   runApp(
     MultiBlocProvider(
       providers: [
+        // Proveedor para HomeContentCubit
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
+
+        // Proveedor para AuthBloc
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
             authRepository: authRepository,
             signInUseCase: signInUseCase,
             registerUserUseCase: registerUserUseCase,
-          )..add(const AuthStarted()),
+          )..add(const AuthStarted()), // Dispara el evento inicial de autenticación
         ),
-        BlocProvider<ChatBloc>(create: (context) => ChatBloc()),
+
+        // Proveedor para ChatBloc
+        // ¡Aquí es donde le pasamos la instancia de chatRepository!
+        BlocProvider<ChatBloc>(
+          create: (context) => ChatBloc(chatRepository),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -127,7 +154,7 @@ class MyApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardThemeData( 
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         color: Colors.white,
@@ -331,9 +358,7 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: const AuthWrapper(),
-      //home: PatientHomeScreen(),
-
+      home: const AuthWrapper(), // Tu AuthWrapper maneja la navegación inicial
     );
   }
 }

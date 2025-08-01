@@ -1,51 +1,38 @@
 // lib/data/models/message_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:equatable/equatable.dart';
 
 class MessageModel {
   final String id;
-  final String senderId;
   final String content;
-  final DateTime timestamp;
-  final bool isAI;
-  final String? attachmentUrl;
-  final MessageType type;
+  final bool isUser;
+  final DateTime? timestamp;
 
-  const MessageModel({
+  MessageModel({
     required this.id,
-    required this.senderId,
     required this.content,
-    required this.timestamp,
-    this.isAI = false,
-    this.attachmentUrl,
-    this.type = MessageType.text,
+    required this.isUser,
+    this.timestamp,
   });
-
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
-      id: json['id'] as String,
-      senderId: json['senderId'] as String,
-      content: json['content'] as String,
-      timestamp: (json['timestamp'] as Timestamp).toDate(),
-      isAI: json['isAI'] as bool? ?? false,
-      attachmentUrl: json['attachmentUrl'] as String?,
-      type: MessageType.values.firstWhere(
-        (e) => e.toString() == 'MessageType.${json['type']}',
-        orElse: () => MessageType.text,
-      ),
+      id: json['id'] as String? ?? '',
+      content: json['text'] as String,
+      isUser:
+          json['isUser'] as bool? ??
+          false, // isUser es TRUE para mensajes del usuario, FALSE para IA
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'senderId': senderId,
-      'content': content,
-      'timestamp': Timestamp.fromDate(timestamp),
-      'isAI': isAI,
-      'attachmentUrl': attachmentUrl,
-      'type': type.toString().split('.').last,
+      'content': content, // <--- And here
+      'isUser': isUser,
+      'timestamp': timestamp?.toIso8601String(),
     };
   }
 }
-
-enum MessageType { text, image, audio, video, file }

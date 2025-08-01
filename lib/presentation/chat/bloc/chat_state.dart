@@ -1,35 +1,43 @@
 import 'package:equatable/equatable.dart';
-import 'package:ai_therapy_teteocan/data/models/message_model.dart';
+import 'package:ai_therapy_teteocan/data/models/message_model.dart'; 
 
-enum ChatStatus { initial, loading, success, error, sending }
+// Define los posibles estados del chat
+enum ChatStatus {
+  initial,
+  loading,
+  loaded, 
+  sending,
+  error,
+}
 
 class ChatState extends Equatable {
-  final List<MessageModel> messages;
   final ChatStatus status;
+  final List<MessageModel> messages;
   final String? errorMessage;
-  final bool isTyping;
+  final bool isTyping; // Para el indicador de "Aurora está escribiendo..."
 
   const ChatState({
-    this.messages = const [],
     this.status = ChatStatus.initial,
+    this.messages = const [],
     this.errorMessage,
-    this.isTyping = false,
+    this.isTyping = false, // Valor inicial por defecto
   });
 
+  // Método copyWith para crear nuevas instancias del estado inmutable
   ChatState copyWith({
-    List<MessageModel>? messages,
     ChatStatus? status,
+    List<MessageModel>? messages,
     String? errorMessage,
     bool? isTyping,
   }) {
     return ChatState(
-      messages: messages ?? this.messages,
       status: status ?? this.status,
-      errorMessage: errorMessage,
+      messages: messages ?? this.messages,
+      errorMessage: errorMessage ?? this.errorMessage,
       isTyping: isTyping ?? this.isTyping,
     );
   }
 
   @override
-  List<Object?> get props => [messages, status, errorMessage, isTyping];
+  List<Object?> get props => [status, messages, errorMessage, isTyping];
 }

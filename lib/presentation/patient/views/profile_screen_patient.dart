@@ -4,106 +4,113 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; 
-import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart'; 
-import 'package:image_picker/image_picker.dart'; 
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
-
-
-
+import 'package:intl/intl.dart';
 
 class ProfileScreenPatient extends StatefulWidget {
-
   const ProfileScreenPatient({super.key});
   @override
   _ProfileScreenPatientState createState() => _ProfileScreenPatientState();
-  
 }
 
 class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
+  void _onLogoutPressed() {
+    context.read<AuthBloc>().add(const AuthSignOutRequested());
+  }
+
   // Colores de tu paleta
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
-  final Color warningColor = AppConstants
-      .warningColor; 
-      
+  final Color warningColor = AppConstants.warningColor;
 
   @override
   Widget build(BuildContext context) {
-
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
-        mainAxisSize:
-            MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 30),  
-          
+          const SizedBox(height: 30),
+
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
-              String userName =
-                  'Alan Rodriguez';
-              String userEmail = 'Alan16@gmail.com'; 
+              String userName = 'Cargando...';
+              String userEmail = '';
               String profileImageUrl =
-                  'https://picsum.photos/seed/768/600';
-             
+                  'https://picsum.photos/seed/768/600'; // Imagen de placeholder
+
+              if (authState.status == AuthStatus.authenticated &&
+                  authState.patient != null) {
+                userName = authState.patient!.username;
+                userEmail = authState.patient!.email;
+              }
 
               return Row(
                 mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween, 
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  
-                  Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Container(
-                        width: 56, 
-                        height: 56, 
-                        clipBehavior: Clip.antiAlias,
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                      ),
-                      // Nombre y Email
-                      Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          12,
-                          0,
-                          0,
-                          0,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              userName,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight
-                                        .bold, 
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge?.color,
-                                  ),
+                  SizedBox(
+                    width:
+                        250, 
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, 
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            image: DecorationImage(
+                              image: NetworkImage(profileImageUrl),
+                              fit: BoxFit.cover,
                             ),
-                            Text(
-                              userEmail,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).hintColor, 
-                                    fontSize: 14,
-                                  ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              12,
+                              0,
+                              0,
+                              0,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.color,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  userEmail,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(context).hintColor,
+                                        fontSize: 14,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  
                   IconButton(
                     icon: Icon(
                       Icons.arrow_forward_ios,
@@ -123,14 +130,12 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               );
             },
           ),
-          const SizedBox(height: 24), 
-          
+
+          const SizedBox(height: 24),
           Text(
-            'Account', 
+            'Account',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(
-                context,
-              ).textTheme.bodySmall?.color, 
+              color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -138,27 +143,20 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).cardColor, 
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Theme.of(
-                  context,
-                ).dividerColor.withOpacity(0.5), 
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
               ),
             ),
             child: Column(
               children: [
-              
                 ProfileListItem(
-                  icon:
-                      Icons.military_tech_outlined, 
-                  text:
-                      'Suscripción', 
+                  icon: Icons.military_tech_outlined,
+                  text: 'Suscripción',
                   secondaryText: 'Aurora Premium',
                   onTap: () {
-                    
+                    // Lógica para la suscripción
                   },
                 ),
                 Divider(
@@ -167,11 +165,11 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
                 ProfileListItem(
-                  icon: Icons.credit_card_outlined, 
+                  icon: Icons.credit_card_outlined,
                   text: 'Pagos',
                   secondaryText: 'N/A',
                   onTap: () {
-                   //logica para pagos
+                    // Lógica para pagos
                   },
                 ),
               ],
@@ -179,9 +177,8 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           ),
           const SizedBox(height: 24),
 
-          
           Text(
-            'Notifications', 
+            'Notifications',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
@@ -200,7 +197,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             child: Column(
               children: [
                 _buildNotificationToggle(
-                  'Notificaciones Pop-up', 
+                  'Notificaciones Pop-up',
                   Icons.notifications_none,
                   true,
                   (value) {
@@ -215,7 +212,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
                 _buildNotificationToggle(
-                  'Notificaciones por Email', 
+                  'Notificaciones por Email',
                   Icons.mail_outline,
                   true,
                   (value) {
@@ -231,9 +228,8 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
           ),
           const SizedBox(height: 24),
 
-         
           Text(
-            'Other', 
+            'Other',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Theme.of(context).textTheme.bodySmall?.color,
               fontWeight: FontWeight.bold,
@@ -252,16 +248,15 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             child: Column(
               children: [
                 ProfileListItem(
-                  icon: Icons
-                      .settings_outlined, 
-                  text: 'Configuración', 
+                  icon: Icons.settings_outlined,
+                  text: 'Configuración',
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => SettingsScreenPatient(),
                       ),
-                    ); 
+                    );
                   },
                 ),
                 Divider(
@@ -271,9 +266,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ),
                 ProfileListItem(
                   icon: Icons.contact_support_outlined,
-                  text: 'Contactanos', 
+                  text: 'Contáctanos',
                   onTap: () {
-                    /* Lógica para Contactanos */
+                    /* Lógica para Contáctanos */
                   },
                 ),
                 Divider(
@@ -283,10 +278,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ),
                 ProfileListItem(
                   icon: Icons.privacy_tip_outlined,
-                  text:
-                      'Politicas de Privacidad',
+                  text: 'Politicas de Privacidad',
                   onTap: () {
-                    /* Lógica para Politicas de Privacidad */
+                    /* Lógica para Políticas de Privacidad */
                   },
                 ),
               ],
@@ -355,8 +349,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  Widget _buildSectionContainer(
-    BuildContext context, {
+  Widget _buildSectionContainer({
     required String title,
     required List<Widget> children,
   }) {
@@ -389,7 +382,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
- 
   Widget _buildNotificationToggle(
     String title,
     IconData icon,
@@ -443,7 +435,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 
-  // Diálogo de confirmación para cerrar sesión
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -489,12 +480,11 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 }
-
-
 class PersonalInfoScreenPatient extends StatefulWidget {
+  const PersonalInfoScreenPatient({super.key});
+
   @override
-  _PersonalInfoScreenPatientState createState() =>
-      _PersonalInfoScreenPatientState();
+  _PersonalInfoScreenPatientState createState() => _PersonalInfoScreenPatientState();
 }
 
 class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
@@ -502,37 +492,34 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
-  // Controladores para los campos de texto
-  final TextEditingController _nameController = TextEditingController(
-    text: 'Usuario 123',
-  );
-  final TextEditingController _dobController = TextEditingController(
-    text: '00/00/0000',
-  );
-  final TextEditingController _phoneController = TextEditingController(
-    text: '1234567890',
-  );
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
-  // Variable para la imagen de perfil seleccionada localmente
   File? _profileImageFile;
 
   @override
   void initState() {
     super.initState();
-    _trySignOut();
-
-  }
-  // Nueva función para intentar cerrar sesión
-  Future<void> _trySignOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      print('✅ Sesión de Firebase cerrada exitosamente al iniciar RegisterPatientScreen.');
-    } catch (e) {
-      print('⚠️ Error al intentar cerrar sesión de Firebase: $e');
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    if (authState.isAuthenticatedPatient && authState.patient != null) {
+      _nameController.text = authState.patient!.username ?? '';
+      _dobController.text = authState.patient!.dateOfBirth != null
+          ? DateFormat('yyyy-MM-dd').format(authState.patient!.dateOfBirth!)
+          : '';
+      _phoneController.text = authState.patient!.phoneNumber ?? '';
     }
   }
 
-  // Método para seleccionar una foto de la galería
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _dobController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     try {
@@ -558,127 +545,199 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     }
   }
 
+  Future<void> _showDatePicker() async {
+    DateTime initialDate = DateTime.now();
+    try {
+      final authState = BlocProvider.of<AuthBloc>(context).state;
+      if (authState.isAuthenticatedPatient && authState.patient != null && authState.patient!.dateOfBirth != null) {
+        initialDate = authState.patient!.dateOfBirth!;
+      }
+    } catch (e) {
+      // Si hay un error al obtener la fecha, se usa la fecha actual por defecto.
+    }
+
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _dobController.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Información Personal',
-          style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
-        ),
-        backgroundColor: accentColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state.isSuccess) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage ?? 'Perfil actualizado con éxito'),
+                backgroundColor: Colors.green,
+              ),
+            );
+        } else if (state.isError) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage ?? 'Error al actualizar el perfil'),
+                backgroundColor: Colors.red,
+              ),
+            );
+        }
+      },
+      builder: (context, state) {
+        if (state.isLoading) {
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // Construimos el Scaffold solo cuando los datos del paciente están disponibles
+        if (!state.isAuthenticatedPatient || state.patient == null) {
+          return const Center(child: Text('Error: Usuario no autenticado o datos no disponibles.'));
+        }
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: const Text(
+              'Información Personal',
+              style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+            ),
+            backgroundColor: accentColor,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
+                  Center(
+                    child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: lightAccentColor,
-                          backgroundImage: _profileImageFile != null
-                              ? FileImage(_profileImageFile!)
-                              : null,
-                          child: _profileImageFile == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 60,
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: lightAccentColor,
+                                backgroundImage: _profileImageFile != null
+                                    ? FileImage(_profileImageFile!)
+                                    : null,
+                                child: _profileImageFile == null
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: primaryColor,
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  size: 18,
                                   color: Colors.white,
-                                )
-                              : null,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: primaryColor,
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 18,
-                            color: Colors.white,
+                        const SizedBox(height: 10),
+                        Text(
+                          'Toca para cambiar foto',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).hintColor,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 30),
                   Text(
-                    'Toca para cambiar foto', 
+                    'INFORMACIÓN PERSONAL',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context).hintColor,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                      letterSpacing: 0.8,
                       fontFamily: 'Poppins',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildInputFieldWithLabel(context, _nameController, 'Nombre'),
+                  _buildInputFieldWithLabel(
+                    context,
+                    _dobController,
+                    'Fecha de nacimiento',
+                    onTap: _showDatePicker, // Pasamos el método para abrir el DatePicker
+                  ),
+                  _buildInputFieldWithLabel(
+                    context,
+                    _phoneController,
+                    'Número de teléfono',
+                  ),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_formKey.currentState != null && _formKey.currentState!.validate()) {
+                          context.read<AuthBloc>().add(
+                                UpdatePatientInfoRequested(
+                                  name: _nameController.text,
+                                  dob: _dobController.text,
+                                  phone: _phoneController.text,
+                                ),
+                              );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 15,
+                        ),
+                      ),
+                      child: const Text(
+                        'Guardar Cambios',
+                        style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            Text(
-              'INFORMACIÓN PERSONAL',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                letterSpacing: 0.8,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildInputFieldWithLabel(context, _nameController, 'Nombre'),
-            _buildInputFieldWithLabel(
-              context,
-              _dobController,
-              'Fecha de nacimiento',
-            ),
-            _buildInputFieldWithLabel(
-              context,
-              _phoneController,
-              'Número de teléfono',
-            ),
-            const SizedBox(height: 40),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Guardando cambios...')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
-                ),
-                child: const Text(
-                  'Guardar Cambios',
-                  style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -688,6 +747,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     String label, {
     bool isEditable = true,
     int maxLines = 1,
+    VoidCallback? onTap, 
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -705,8 +765,9 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
           const SizedBox(height: 4),
           TextFormField(
             controller: controller,
-            readOnly: !isEditable,
+            readOnly: onTap != null || !isEditable, 
             maxLines: maxLines,
+            onTap: onTap,
             style: TextStyle(
               fontSize: 16,
               color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -717,67 +778,25 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
               contentPadding: const EdgeInsets.symmetric(
                 vertical: 12.0,
                 horizontal: 10.0,
-              ), 
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
                   color: Theme.of(context).dividerColor,
                   width: 1,
-                ), 
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: primaryColor, width: 2),
               ),
               filled: true,
-              fillColor: Theme.of(
-                context,
-              ).cardColor,
+              fillColor: Theme.of(context).cardColor,
             ),
           ),
         ],
       ),
     );
-  }
-
-  void _showHelpDialog(BuildContext context, String section, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            'Duda Sección $section',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Text(message, style: const TextStyle(fontFamily: 'Poppins')),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Entendido',
-                style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _dobController.dispose();
-    _phoneController.dispose();
-    super.dispose();
   }
 }
 
@@ -793,14 +812,12 @@ class _NotificationsScreenPatientState
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
-  bool _receiveNotifications = true; 
+  bool _receiveNotifications = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Notificaciones',
@@ -932,9 +949,7 @@ class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, 
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Configuración',
@@ -965,249 +980,51 @@ class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
               ),
             ),
             const SizedBox(height: 10),
-            _buildThemeOption('Tema del sistema', 'system', context),
-            _buildThemeOption('Tema claro', 'light', context),
-            _buildThemeOption('Tema oscuro', 'dark', context),
-            const SizedBox(height: 20),
-            Text(
-              'Elige cómo quieres que se vea la aplicación. El tema del sistema se ajustará automáticamente según la configuración de tu dispositivo.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                fontFamily: 'Poppins',
-              ),
-            ),
+            _buildThemeOption('Tema del sistema', 'system', Icons.sync),
+            _buildThemeOption('Tema Claro', 'light', Icons.wb_sunny_outlined),
+            _buildThemeOption('Tema Oscuro', 'dark', Icons.nightlight_round),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildThemeOption(
-    String title,
-    String themeValue,
-    BuildContext context,
-  ) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedTheme = themeValue;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Simulando cambio de tema a: $title')),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: themeValue,
-              groupValue: _selectedTheme,
-              onChanged: (String? value) {
-                setState(() {
-                  _selectedTheme = value!;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Simulando cambio de tema a: $title')),
-                );
-              },
-              activeColor: primaryColor,
-            ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showHelpDialog(BuildContext context, String section, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+  Widget _buildThemeOption(String title, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.5),
           ),
+        ),
+        child: RadioListTile<String>(
           title: Text(
-            'Duda Sección $section',
-            style: const TextStyle(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
               fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
             ),
           ),
-          content: Text(message, style: const TextStyle(fontFamily: 'Poppins')),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Entendido',
-                style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class LanguageScreenPatient extends StatefulWidget {
-  @override
-  _LanguageScreenPatientState createState() => _LanguageScreenPatientState();
-}
-
-class _LanguageScreenPatientState extends State<LanguageScreenPatient> {
-  final Color primaryColor = AppConstants.primaryColor;
-  final Color accentColor = AppConstants.accentColor;
-  final Color lightAccentColor = AppConstants.lightAccentColor;
-
-  String _selectedLanguage = 'es'; 
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, 
-      appBar: AppBar(
-        title: const Text(
-          'Idioma',
-          style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
-        ),
-        backgroundColor: accentColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
+          secondary: Icon(icon, color: primaryColor),
+          value: value,
+          groupValue: _selectedTheme,
+          onChanged: (String? newValue) {
+            setState(() {
+              if (newValue != null) {
+                _selectedTheme = newValue;
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Tema seleccionado: $title')),
+            );
           },
+          activeColor: accentColor,
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Text(
-              'IDIOMA',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                letterSpacing: 0.8,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildLanguageOption('Español', 'es', context),
-            _buildLanguageOption('Inglés', 'en', context),
-            const SizedBox(height: 20),
-            Text(
-              'Selecciona el idioma de la aplicación para una mejor experiencia de usuario.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption(
-    String title,
-    String langCode,
-    BuildContext context,
-  ) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedLanguage = langCode;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Simulando cambio de idioma a: $title')),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: langCode,
-              groupValue: _selectedLanguage,
-              onChanged: (String? value) {
-                setState(() {
-                  _selectedLanguage = value!;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Simulando cambio de idioma a: $title'),
-                  ),
-                );
-              },
-              activeColor: primaryColor,
-            ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showHelpDialog(BuildContext context, String section, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            'Duda Sección $section',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Text(message, style: const TextStyle(fontFamily: 'Poppins')),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Entendido',
-                style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 }

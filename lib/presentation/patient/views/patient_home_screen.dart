@@ -1,3 +1,5 @@
+// lib/presentation/patient/views/patient_home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -17,24 +19,31 @@ class PatientHomeScreen extends StatefulWidget {
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
 
-  List<Widget> _getWidgetOptions(BuildContext context) {
-    return <Widget>[
-      const PatientHomeContent(),
-      const ChatListScreen(),
-      const Center(
-        child: Text(
-          'Psicólogos disponibles para el Paciente',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
-        ),
+  
+  late final List<Widget> _widgetOptions = <Widget>[
+    const PatientHomeContent(),
+    ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
+    const Center(
+      child: Text(
+        'Psicólogos disponibles para el Paciente',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
       ),
-      ProfileScreenPatient(),
-    ];
-  }
+    ),
+    ProfileScreenPatient(),
+  ];
 
+  // Función para cambiar el índice de la barra de navegación
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+    });
+  }
+
+  // función para navegar a la pantalla de psicólogos
+  void _goToPsychologistsScreen() {
+    setState(() {
+      _selectedIndex = 2; // El índice 2 corresponde a la pestaña de 'Psicólogos'
     });
   }
 
@@ -45,8 +54,6 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     if (authState.patient != null) {
       userName = authState.patient!.username;
     }
-
-    final List<Widget> widgetOptions = _getWidgetOptions(context);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -74,7 +81,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           ),
         ],
       ),
-      body: widgetOptions[_selectedIndex],
+      body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,

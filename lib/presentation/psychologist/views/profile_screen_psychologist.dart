@@ -4,15 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart'; // Make sure this import is present
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
-// You'll likely need to import these screens as well:
-// import 'package:ai_therapy_teteocan/presentation/psychologist/views/personal_info_screen_psychologist.dart';
-// import 'package:ai_therapy_teteocan/presentation/psychologist/views/notifications_screen_psychologist.dart';
-// import 'package:ai_therapy_teteocan/presentation/psychologist/views/appearance_screen_psychologist.dart';
-// import 'package:ai_therapy_teteocan/presentation/psychologist/views/language_screen_psychologist.dart';
-// import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_screen_psychologist.dart';
+
 
 
 class ProfileScreenPsychologist extends StatefulWidget {
@@ -23,10 +18,9 @@ class ProfileScreenPsychologist extends StatefulWidget {
 
 
 class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
-  // The username is now obtained from the AuthBloc
-  // String _userName = 'Psicólogo'; // No longer needed as local state
-  void _onLogoutPressed() { // Or whatever method or widget callback you're using
-    context.read<AuthBloc>().add(const AuthSignOutRequested()); // This line is correct
+
+  void _onLogoutPressed() { 
+    context.read<AuthBloc>().add(const AuthSignOutRequested()); 
   }
 
   // Your color palette

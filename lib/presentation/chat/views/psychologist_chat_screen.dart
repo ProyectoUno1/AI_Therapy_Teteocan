@@ -36,10 +36,9 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
     final message = MessageModel(
       id: DateTime.now().toString(),
-      senderId: 'user',
       content: _messageController.text.trim(),
       timestamp: DateTime.now(),
-      isAI: false,
+      isUser: true, 
     );
 
     setState(() {
@@ -155,7 +154,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   final message = _messages[index];
                   return MessageBubble(
                     message: message,
-                    isMe: message.senderId == 'user',
+                    isMe: message.isUser, 
                   );
                 },
               ),

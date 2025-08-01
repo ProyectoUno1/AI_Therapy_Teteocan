@@ -6,11 +6,10 @@ import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 
 
-
 abstract class UserRemoteDataSource {
   Future<PatientModel> getPatientData(String uid);
   Future<PsychologistModel> getPsychologistData(String uid);
- 
+  
 
   Future<PatientModel> createPatient({
     required String uid,
@@ -20,7 +19,6 @@ abstract class UserRemoteDataSource {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
-    
   });
 
   Future<PsychologistModel> createPsychologist({
@@ -33,13 +31,49 @@ abstract class UserRemoteDataSource {
     String? profilePictureUrl,
     required String role,
   });
+  
+  Future<void> updatePatientData({
+    required String uid,
+    String? username,
+    String? dateOfBirth,
+    String? phoneNumber,
+    String? profilePictureUrl,
+  });
 
   Future<dynamic> getUserData(String uid);
 }
+
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   final FirebaseFirestore _firestore;
 
   UserRemoteDataSourceImpl(this._firestore);
+  
+  @override
+  Future<void> updatePatientData({
+    required String uid,
+    String? username,
+    String? dateOfBirth,
+    String? phoneNumber,
+    String? profilePictureUrl,
+  }) async {
+    try {
+      final docRef = _firestore.collection('patients').doc(uid);
+      final Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (username != null) updateData['username'] = username;
+      if (dateOfBirth != null) updateData['dateOfBirth'] = dateOfBirth;
+      if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
+      if (profilePictureUrl != null) updateData['profilePictureUrl'] = profilePictureUrl;
+
+      await docRef.update(updateData);
+    } on FirebaseException catch (e) {
+      throw FetchDataException('Error de Firestore al actualizar datos: ${e.message}');
+    } catch (e) {
+      throw FetchDataException('Error inesperado al actualizar datos de paciente: $e');
+    }
+  }
 
   @override
   Future<PatientModel> getPatientData(String uid) async {
@@ -96,7 +130,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
-    
   }) async {
     try {
       final now = DateTime.now();
@@ -110,7 +143,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
         createdAt: now,
         updatedAt: now,
         role:role,
-        
       );
 
       await _firestore
@@ -135,7 +167,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
-    
   }) async {
     try {
       final now = DateTime.now();
@@ -149,7 +180,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
         profilePictureUrl: profilePictureUrl,
         createdAt: now,
         updatedAt: now,
-        
       );
 
       await _firestore

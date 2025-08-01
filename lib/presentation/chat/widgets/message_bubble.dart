@@ -1,10 +1,12 @@
+// lib/presentation/chat/widgets/message_bubble.dart
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
+import 'package:intl/intl.dart'; 
 
 class MessageBubble extends StatelessWidget {
   final MessageModel message;
-  final bool isMe;
+  final bool isMe; 
 
   const MessageBubble({super.key, required this.message, required this.isMe});
 
@@ -13,23 +15,19 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
-        mainAxisAlignment: isMe
+        mainAxisAlignment: isMe 
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMe) ...[
             CircleAvatar(
-              backgroundColor: message.isAI
-                  ? AppConstants.lightAccentColor.withOpacity(0.2)
-                  : Colors.grey[200],
+              backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
               radius: 16,
               child: Icon(
-                message.isAI ? Icons.psychology : Icons.person,
+                Icons.psychology, // Icono de Aurora
                 size: 20,
-                color: message.isAI
-                    ? AppConstants.lightAccentColor
-                    : Colors.grey[600],
+                color: AppConstants.lightAccentColor,
               ),
             ),
             const SizedBox(width: 8),
@@ -38,11 +36,9 @@ class MessageBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe
+                color: isMe 
                     ? AppConstants.lightAccentColor
-                    : message.isAI
-                    ? AppConstants.lightAccentColor.withOpacity(0.1)
-                    : Colors.grey[200],
+                    : AppConstants.lightAccentColor.withOpacity(0.1),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -63,7 +59,7 @@ class MessageBubble extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatTime(message.timestamp),
+                    DateFormat('hh:mm a').format(message.timestamp ?? DateTime.now()),
                     style: TextStyle(
                       color: isMe
                           ? Colors.white.withOpacity(0.7)
@@ -76,13 +72,9 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-          if (isMe) const SizedBox(width: 24),
+          if (isMe) const SizedBox(width: 24), 
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 }
