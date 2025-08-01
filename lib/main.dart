@@ -20,7 +20,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
-import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart'; // Importa tu ChatRepository
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart'; 
 
 import 'firebase_options.dart';
 
@@ -56,9 +56,7 @@ void main() async {
   // --- Inicialización del Repositorio de Chat ---
   final ChatRepository chatRepository = ChatRepository();
 
-  // --- Configuración del Listener de Autenticación para el Token del ChatRepository ---
-  // Esto asegura que el ChatRepository siempre tenga el token JWT del usuario actual
-  // para enviarlo a tu backend, que lo usará para autenticar las peticiones.
+  
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
       final idToken = await user.getIdToken();
@@ -87,7 +85,7 @@ void main() async {
         ),
 
         // Proveedor para ChatBloc
-        // ¡Aquí es donde le pasamos la instancia de chatRepository!
+       
         BlocProvider<ChatBloc>(
           create: (context) => ChatBloc(chatRepository),
         ),
@@ -358,7 +356,7 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: const AuthWrapper(), // Tu AuthWrapper maneja la navegación inicial
+      home: const AuthWrapper(), // AuthWrapper maneja la navegación inicial
     );
   }
 }

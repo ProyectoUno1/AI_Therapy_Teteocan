@@ -18,7 +18,6 @@ app.use(express.json()); // Para interpretar cuerpos de petición JSON
 // --- Middleware de Autenticación Firebase (Adaptado para Desarrollo) ---
 
 app.use(async (req, res, next) => {
-    // La variable 'idToken' y la lógica de 'if (!idToken)' está correcta
     const idToken = req.headers.authorization?.split('Bearer ')[1];
 
     if (!idToken) {

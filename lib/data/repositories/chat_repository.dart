@@ -1,26 +1,18 @@
 // lib/data/repositories/chat_repository.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http; // Asegúrate de haber añadido http a pubspec.yaml
+import 'package:http/http.dart' as http; 
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
-import 'package:flutter/foundation.dart'; // Para `kDebugMode`
+import 'package:flutter/foundation.dart'; 
 
 class ChatRepository {
-  // Asegúrate de que esta URL apunte a tu backend de Node.js
-  // Si usas un emulador de Android, '10.0.2.2' es la IP para 'localhost' de tu máquina.
-  // Si usas iOS Simulator, 'localhost' funciona.
-  // Si estás en un dispositivo físico, necesitarás la IP de tu máquina en la red local.
-  static const String _baseUrl = 'http://10.0.2.2:3000/api'; // O 'http://localhost:3000/api' para iOS/desktop
+  static const String _baseUrl = 'http://10.0.2.2:3000/api'; // O 'http://localhost:3000/api' 
 
-  // TODO: Gestionar el token de autenticación de Firebase
-  // En una aplicación real, obtendrías el token de Firebase Auth del usuario loggeado.
-  // Este token se enviará en los encabezados 'Authorization' a tu backend.
-  String? _authToken; // Aquí almacenarías el token JWT de Firebase.
+  
+  String? _authToken; 
 
-  // Constructor para inyectar token o dependencias si es necesario.
-  // Por ahora, lo dejamos simple.
+ 
   ChatRepository();
 
-  // Método para establecer el token de autenticación (lo llamarías después de que el usuario inicie sesión)
   void setAuthToken(String? token) {
     _authToken = token;
   }
@@ -36,7 +28,7 @@ class ChatRepository {
     return headers;
   }
 
-  // --- Comunicación con Backend ---
+
 
   // Obtiene el ID del chat de IA para el usuario actual o lo crea
   Future<String> getAIChatId() async {
@@ -65,7 +57,7 @@ class ChatRepository {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/ai/chat'),
-        headers: _getHeaders(), // Envía el token de auth
+        headers: _getHeaders(), 
         body: jsonEncode({
           'chatId': chatId,
           'message': message,
@@ -109,5 +101,5 @@ class ChatRepository {
     }
   }
 
-  // TODO: Añadir métodos para WebSockets si los implementas en el backend para mensajes en tiempo real.
+
 }
