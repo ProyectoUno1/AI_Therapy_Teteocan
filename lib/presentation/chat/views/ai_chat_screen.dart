@@ -66,7 +66,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
+              backgroundColor: AppConstants.lightAccentColor,
               child: Icon(
                 Icons.psychology,
                 color: AppConstants.lightAccentColor,
@@ -101,7 +101,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
           IconButton(
             icon: Icon(Icons.more_vert, color: Colors.grey[700]),
             onPressed: () {
-              // Mostrar opciones adicionales
+              // opciones adicionales
             },
           ),
         ],
@@ -159,7 +159,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppConstants.lightAccentColor.withOpacity(0.1),
+                          color: AppConstants.lightAccentColor,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(

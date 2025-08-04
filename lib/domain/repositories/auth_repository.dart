@@ -6,7 +6,7 @@ import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 abstract class AuthRepository {
   // Un stream para escuchar los cambios en el estado de autenticación.
-  Stream<dynamic?> get authStateChanges;
+  Stream<dynamic> get authStateChanges;
 
   // Método para iniciar sesión con email y contraseña.
   Future<void> signIn({required String email, required String password});

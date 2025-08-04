@@ -89,7 +89,7 @@ class UpdatePatientInfoRequested extends AuthEvent {
 
 class AuthStatusChanged extends AuthEvent {
   final AuthStatus status;
-  final dynamic? userProfile;
+  final dynamic userProfile;
   final UserRole userRole;
   final String? errorMessage;
 

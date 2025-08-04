@@ -260,7 +260,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Stream<dynamic?> get authStateChanges {
+  Stream<dynamic> get authStateChanges {
     return authRemoteDataSource.authStateChanges.asyncMap((fbUser) async {
       log(
         'DEBUG: Repo authStateChanges - Firebase User: ${fbUser?.uid ?? 'null'}',

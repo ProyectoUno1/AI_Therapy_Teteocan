@@ -105,7 +105,6 @@ class AuthState extends Equatable {
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       userRole: userRole ?? this.userRole,
-      // La lógica de copyWith para nullables es más segura así:
       patient: patient == null ? null : (patient is PatientModel ? patient : this.patient),
       psychologist: psychologist == null ? null : (psychologist is PsychologistModel ? psychologist : this.psychologist),
     );

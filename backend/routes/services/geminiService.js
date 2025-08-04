@@ -20,7 +20,7 @@ async function getGeminiChatResponse(messages) {
     try {
         const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
         const chat = model.startChat({
-            // Mapear los mensajes existentes al formato de Gemini
+            // mapea los mensajes existentes al formato de Gemini
             // Gemini espera [{ role: 'user', parts: [{ text: '...' }] }, { role: 'model', parts: [{ text: '...' }] }]
             history: messages.map(msg => ({
                 role: msg.isAI ? 'model' : 'user', // 'model' es para la IA, 'user' para el usuario
@@ -32,7 +32,7 @@ async function getGeminiChatResponse(messages) {
             },
         });
 
-        // El último mensaje en el array es el nuevo mensaje del usuario
+        // el ultimo mensaje en el array es el nuevo mensaje del usuario
         const lastUserMessage = messages[messages.length - 1].content;
 
         console.log(`[Gemini] Enviando mensaje a Gemini: "${lastUserMessage}"`);
