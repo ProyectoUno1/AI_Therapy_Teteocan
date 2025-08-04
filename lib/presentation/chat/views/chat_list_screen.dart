@@ -115,7 +115,7 @@ class ChatListScreen extends StatelessWidget {
         vertical: 8,
       ),
       leading: CircleAvatar(
-        backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
+        backgroundColor: AppConstants.lightAccentColor,
         child: Icon(Icons.psychology, color: AppConstants.lightAccentColor),
       ),
       title: const Text(

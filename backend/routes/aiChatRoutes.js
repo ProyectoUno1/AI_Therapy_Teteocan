@@ -23,7 +23,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
 
         res.status(200).json({ aiMessage: aiResponseContent });
     } catch (error) {
-        console.error('❌ Error en /api/chats/ai-chat/messages (POST):', error);
+        console.error('Error en /api/chats/ai-chat/messages (POST):', error);
         res.status(500).json({ error: 'Error interno del servidor al enviar mensaje de chat.' });
     }
 });
@@ -53,7 +53,7 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
 
         res.status(200).json(formattedMessages);
     } catch (error) {
-        console.error('❌ Error en /api/chats/ai-chat/messages (GET):', error);
+        console.error('Error en /api/chats/ai-chat/messages (GET):', error);
         res.status(500).json({ error: 'Error interno del servidor al cargar el historial de chat.' });
     }
 });

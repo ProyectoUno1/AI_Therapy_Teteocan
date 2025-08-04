@@ -1,6 +1,4 @@
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
-import 'package:ai_therapy_teteocan/data/models/patient_model.dart'; // O el tipo base de usuario que manejes
-import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 class SignInUseCase {
   final AuthRepository _authRepository;

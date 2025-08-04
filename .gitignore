@@ -72,3 +72,5 @@ backend/package-lock.json
 firebase.json
 .firebaserc
 serviceAccountKey.json
+
+key.properties

@@ -1,6 +1,6 @@
 // lib/data/models/psychologist_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ai_therapy_teteocan/domain/entities/psychologist_entity.dart';
+
 
 
 class PsychologistModel {

@@ -88,12 +88,12 @@ async function processUserMessage(userId, messageContent) {
     const history = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-            isAI: data.isAI, // Necesitamos esto para mapear a 'user' o 'model'
+            isAI: data.isAI, 
             content: data.content,
         };
     });
 
-    // 3. Instrucción del sistema para Aurora (tu prompt de IA)
+    // 3. Instrucción del sistema para Aurora 
     const systemInstruction = {
         isAI: false, 
         content: `

@@ -10,11 +10,6 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // O la ruta correcta a tu LoginScreen // O la ruta correcta a tu LoginScreen
 
-// Firebase 
-import 'package:firebase_auth/firebase_auth.dart';
-
-
-
 
 class RegisterPatientScreen extends StatefulWidget {
   const RegisterPatientScreen({super.key});
@@ -43,10 +38,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  UserCredential? _userCredential;
-
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  
 
   // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;

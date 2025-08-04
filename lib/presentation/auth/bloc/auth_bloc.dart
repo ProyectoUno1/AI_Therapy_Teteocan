@@ -17,7 +17,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInUseCase _signInUseCase;
   final RegisterUserUseCase _registerUserUseCase;
 
-  late StreamSubscription<dynamic?> _userSubscription;
+  late StreamSubscription<dynamic> _userSubscription;
 
   AuthBloc({
     required AuthRepository authRepository,
