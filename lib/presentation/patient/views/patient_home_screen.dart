@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen_tab.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -19,17 +19,10 @@ class PatientHomeScreen extends StatefulWidget {
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
 
-  
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
-    const Center(
-      child: Text(
-        'Psicólogos disponibles para el Paciente',
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 18, fontFamily: 'Poppins'),
-      ),
-    ),
+    const PsychologistsListScreenTab(),
     ProfileScreenPatient(),
   ];
 
@@ -43,7 +36,8 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
   // función para navegar a la pantalla de psicólogos
   void _goToPsychologistsScreen() {
     setState(() {
-      _selectedIndex = 2; // El índice 2 corresponde a la pestaña de 'Psicólogos'
+      _selectedIndex =
+          2; // El índice 2 corresponde a la pestaña de 'Psicólogos'
     });
   }
 
