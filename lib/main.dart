@@ -1,3 +1,4 @@
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Necesario para obtener el token de Firebase Auth
@@ -20,7 +21,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
-import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart'; 
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 
 import 'firebase_options.dart';
 
@@ -56,18 +57,22 @@ void main() async {
   // --- Inicialización del Repositorio de Chat ---
   final ChatRepository chatRepository = ChatRepository();
 
-  
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
       final idToken = await user.getIdToken();
       chatRepository.setAuthToken(idToken);
-      log('🔑 Token de Firebase Auth actualizado en ChatRepository para ${user.uid}');
+      log(
+        '🔑 Token de Firebase Auth actualizado en ChatRepository para ${user.uid}',
+      );
     } else {
-      chatRepository.setAuthToken(null); // Limpia el token si el usuario cierra sesión
-      log('❌ Usuario desautenticado, token de Firebase Auth limpiado del ChatRepository.');
+      chatRepository.setAuthToken(
+        null,
+      ); // Limpia el token si el usuario cierra sesión
+      log(
+        '❌ Usuario desautenticado, token de Firebase Auth limpiado del ChatRepository.',
+      );
     }
   });
-
 
   runApp(
     MultiBlocProvider(
@@ -77,18 +82,18 @@ void main() async {
 
         // Proveedor para AuthBloc
         BlocProvider<AuthBloc>(
-          create: (context) => AuthBloc(
-            authRepository: authRepository,
-            signInUseCase: signInUseCase,
-            registerUserUseCase: registerUserUseCase,
-          )..add(const AuthStarted()), // Dispara el evento inicial de autenticación
+          create: (context) =>
+              AuthBloc(
+                authRepository: authRepository,
+                signInUseCase: signInUseCase,
+                registerUserUseCase: registerUserUseCase,
+              )..add(
+                const AuthStarted(),
+              ), // Dispara el evento inicial de autenticación
         ),
 
         // Proveedor para ChatBloc
-       
-        BlocProvider<ChatBloc>(
-          create: (context) => ChatBloc(chatRepository),
-        ),
+        BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
       ],
       child: const MyApp(),
     ),
@@ -152,7 +157,7 @@ class MyApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
-      cardTheme: CardThemeData( 
+      cardTheme: CardThemeData(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         color: Colors.white,
@@ -356,7 +361,8 @@ class MyApp extends StatelessWidget {
       darkTheme: _darkTheme(),
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
-      home: const AuthWrapper(), // AuthWrapper maneja la navegación inicial
+      home:
+          const PatientHomeScreen(), // AuthWrapper maneja la navegación inicial
     );
   }
 }
