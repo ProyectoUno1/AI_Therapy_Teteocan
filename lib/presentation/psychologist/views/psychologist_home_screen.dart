@@ -2,14 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_chat_list_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_management_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   @override
@@ -47,16 +46,21 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 
     return Scaffold(
-      backgroundColor: AppConstants.lightGreyBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppConstants.lightGreyBackground,
-        elevation: 0,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: Theme.of(context).appBarTheme.elevation ?? 0,
         leading: IconButton(
-          icon: const Icon(Icons.settings, color: Colors.black),
+          icon: Icon(
+            Icons.settings,
+            color: Theme.of(context).appBarTheme.iconTheme?.color,
+          ),
           onPressed: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Configuración')));
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ThemeSettingsScreen(),
+              ),
+            );
           },
         ),
         centerTitle: true,
@@ -65,8 +69,8 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
           children: [
             Text(
               'Hello, $userName',
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: Theme.of(context).appBarTheme.titleTextStyle?.color,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 fontFamily: 'Poppins',
@@ -78,7 +82,10 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            icon: Icon(
+              Icons.notifications_none,
+              color: Theme.of(context).appBarTheme.iconTheme?.color,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Ver notificaciones')),
@@ -91,17 +98,24 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
       body: widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppConstants.lightGreyBackground,
-        selectedItemColor: AppConstants.secondaryColor,
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Poppins',
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.normal,
-          fontFamily: 'Poppins',
-        ),
+        backgroundColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.unselectedItemColor,
+        selectedLabelStyle:
+            Theme.of(context).bottomNavigationBarTheme.selectedLabelStyle ??
+            const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+        unselectedLabelStyle:
+            Theme.of(context).bottomNavigationBarTheme.unselectedLabelStyle ??
+            const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontFamily: 'Poppins',
+            ),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),

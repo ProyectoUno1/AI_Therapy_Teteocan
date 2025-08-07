@@ -18,10 +18,16 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.d
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+
+// Importaciones para el tema
+import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
+import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 
 import 'firebase_options.dart';
 
@@ -52,10 +58,11 @@ void main() async {
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
-  );
-
-  // --- Inicialización del Repositorio de Chat ---
+  ); // --- Inicialización del Repositorio de Chat ---
   final ChatRepository chatRepository = ChatRepository();
+
+  // --- Inicialización del Servicio de Tema ---
+  final ThemeService themeService = ThemeService();
 
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
@@ -94,6 +101,9 @@ void main() async {
 
         // Proveedor para ChatBloc
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
+
+        // Proveedor para ThemeCubit
+        BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
       ],
       child: const MyApp(),
     ),
@@ -116,280 +126,145 @@ Future<void> _connectToFirebaseEmulator() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // --- Temas de la aplicación (Claro y Oscuro) ---
+  // --- Temas de la aplicación usando FlexColorScheme ---
   ThemeData _lightTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Poppins',
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.primaryColor,
-        brightness: Brightness.light,
-        primary: AppConstants.primaryColor,
-        secondary: AppConstants.accentColor,
-        surface: Colors.white,
-        background: const Color(0xFFF8F9FA),
-        error: AppConstants.errorColor,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: Colors.black87,
-        onBackground: Colors.black87,
-        onError: Colors.white,
+    final lightColorScheme = FlexColorScheme.light(scheme: FlexScheme.tealM3);
+
+    return FlexThemeData.light(
+      scheme: FlexScheme.tealM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 7,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 10,
+        blendOnColors: false,
+        useTextTheme: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        bottomNavigationBarElevation: 0,
+        navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
+        navigationBarUnselectedLabelSchemeColor: SchemeColor.onSurfaceVariant,
+        navigationBarIndicatorSchemeColor: SchemeColor.secondaryContainer,
+        navigationBarBackgroundSchemeColor: SchemeColor.surface,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-      textTheme: _poppinsTextTheme(Brightness.light),
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      swapLegacyOnMaterial3: true,
+      fontFamily: 'Poppins',
+    ).copyWith(
+      // Configuración específica para AppBar
       appBarTheme: AppBarTheme(
-        backgroundColor: AppConstants.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
         centerTitle: true,
-        titleTextStyle: const TextStyle(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: lightColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: lightColorScheme.onSurface,
+        titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: lightColorScheme.onSurface,
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: lightColorScheme.onSurface),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.primaryColor,
-          foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w500,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
-        surfaceTintColor: Colors.transparent,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppConstants.primaryColor),
-        ),
-        hintStyle: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'),
-        labelStyle: TextStyle(color: Colors.grey[700], fontFamily: 'Poppins'),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      ),
-      dividerColor: Colors.grey[300],
+      // Configuración específica para BottomNavigationBar
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: Colors.white,
-        selectedItemColor: AppConstants.primaryColor,
+        backgroundColor: lightColorScheme.surface,
+        selectedItemColor: lightColorScheme.primary,
         unselectedItemColor: Colors.grey[600],
+        elevation: 0,
         type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.normal,
+        ),
       ),
+      // Configuración de scaffold
+      scaffoldBackgroundColor: lightColorScheme.surface,
     );
   }
 
   ThemeData _darkTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Poppins',
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.primaryColor,
-        brightness: Brightness.dark,
-        primary: AppConstants.lightAccentColor,
-        secondary: AppConstants.accentColor,
-        surface: const Color(0xFF1E1E1E),
-        background: const Color(0xFF121212),
-        error: const Color(0xFFCF6679),
-        onPrimary: Colors.black,
-        onSecondary: Colors.white,
-        onSurface: Colors.white,
-        onBackground: Colors.white,
-        onError: Colors.black,
+    final darkColorScheme = FlexColorScheme.dark(scheme: FlexScheme.tealM3);
+
+    return FlexThemeData.dark(
+      scheme: FlexScheme.tealM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 13,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 20,
+        useTextTheme: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        bottomNavigationBarElevation: 0,
+        navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
+        navigationBarUnselectedLabelSchemeColor: SchemeColor.onSurfaceVariant,
+        navigationBarIndicatorSchemeColor: SchemeColor.secondaryContainer,
+        navigationBarBackgroundSchemeColor: SchemeColor.surface,
       ),
-      scaffoldBackgroundColor: const Color(0xFF121212),
-      textTheme: _poppinsTextTheme(Brightness.dark),
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      swapLegacyOnMaterial3: true,
+      fontFamily: 'Poppins',
+    ).copyWith(
+      // Configuración específica para AppBar en modo oscuro
       appBarTheme: AppBarTheme(
-        backgroundColor: const Color(0xFF1E1E1E),
-        foregroundColor: Colors.white,
-        elevation: 0,
         centerTitle: true,
-        titleTextStyle: const TextStyle(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: darkColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: darkColorScheme.onSurface,
+        titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: darkColorScheme.onSurface,
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: darkColorScheme.onSurface),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.lightAccentColor,
-          foregroundColor: Colors.black,
-          textStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w500,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFF1E1E1E),
-        surfaceTintColor: Colors.transparent,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFF2D2D2D),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[600]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[600]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppConstants.lightAccentColor),
-        ),
-        hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Poppins'),
-        labelStyle: TextStyle(color: Colors.grey[300], fontFamily: 'Poppins'),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      ),
-      dividerColor: Colors.grey[700],
+      // Configuración específica para BottomNavigationBar en modo oscuro
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: const Color(0xFF1E1E1E),
-        selectedItemColor: AppConstants.lightAccentColor,
+        backgroundColor: darkColorScheme.surface,
+        selectedItemColor: darkColorScheme.primary,
         unselectedItemColor: Colors.grey[400],
+        elevation: 0,
         type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.normal,
+        ),
       ),
-    );
-  }
-
-  TextTheme _poppinsTextTheme(Brightness brightness) {
-    Color textColor = brightness == Brightness.light
-        ? Colors.black87
-        : Colors.white;
-    Color mutedTextColor = brightness == Brightness.light
-        ? Colors.grey[600]!
-        : Colors.grey[400]!;
-    Color subtleTextColor = brightness == Brightness.light
-        ? Colors.grey[500]!
-        : Colors.grey[500]!;
-
-    return TextTheme(
-      displayLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w300,
-        color: textColor,
-      ),
-      displayMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      displaySmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      headlineLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w600,
-        color: textColor,
-      ),
-      headlineMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      headlineSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      titleLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w600,
-        color: textColor,
-      ),
-      titleMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      titleSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      bodyLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      bodyMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      bodySmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: mutedTextColor,
-      ),
-      labelLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      labelMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: mutedTextColor,
-      ),
-      labelSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: subtleTextColor,
-      ),
+      // Configuración de scaffold en modo oscuro
+      scaffoldBackgroundColor: darkColorScheme.surface,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: AppConstants.appName,
-      theme: _lightTheme(),
-      darkTheme: _darkTheme(),
-      themeMode: ThemeMode.system,
-      navigatorKey: navigatorKey,
-      home:
-          PsychologistHomeScreen(), // AuthWrapper maneja la navegación inicial
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: AppConstants.appName,
+          theme: _lightTheme(),
+          darkTheme: _darkTheme(),
+          themeMode: themeState.selectedTheme.themeMode,
+          navigatorKey: navigatorKey,
+          home:
+              PsychologistHomeScreen(), // AuthWrapper maneja la navegación inicial
+        );
+      },
     );
   }
 }

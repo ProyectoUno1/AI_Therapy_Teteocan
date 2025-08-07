@@ -28,7 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildORDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
+        Expanded(
+          child: Divider(thickness: 1, color: Theme.of(context).dividerColor),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: Text(
@@ -36,12 +38,16 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.6),
               fontFamily: 'Poppins',
             ),
           ),
         ),
-        Expanded(child: Divider(thickness: 1, color: Colors.grey.shade400)),
+        Expanded(
+          child: Divider(thickness: 1, color: Theme.of(context).dividerColor),
+        ),
       ],
     );
   }
@@ -84,12 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Image.asset(AppConstants.logoAuroraPath),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Bienvenido!',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.color,
                         fontFamily: 'Poppins',
                       ),
                     ),
@@ -122,9 +130,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   validator: InputValidators.validateEmail,
                                   filled: true,
-                                  fillColor: Color(0xFF82c4c3),
+                                  fillColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
                                   borderRadius: 16,
-                                  placeholderColor: Colors.white,
+                                  placeholderColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                 ),
                                 const SizedBox(height: 16),
                                 CustomTextField(
@@ -139,16 +151,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                   },
                                   validator: InputValidators.validatePassword,
                                   filled: true,
-                                  fillColor: Color(0xFF82c4c3),
+                                  fillColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
                                   borderRadius: 16,
-                                  placeholderColor: Colors.white,
+                                  placeholderColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                 ),
                                 const SizedBox(height: 12),
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: GestureDetector(
                                     onTap: () {
-                                      // Acción para recuperar contraseña 
+                                      // Acción para recuperar contraseña
                                     },
                                     child: Text(
                                       '¿Olvidaste tu contraseña? Recuperar contraseña',
@@ -177,8 +193,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                             state.errorMessage ??
                                                 'Error desconocido',
                                           ),
-                                          backgroundColor:
-                                              AppConstants.errorColor,
+                                          backgroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.error,
                                           behavior: SnackBarBehavior.floating,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
@@ -193,7 +210,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       // Cuando el usuario es un paciente autenticado
                                       Navigator.of(context).pushReplacement(
                                         MaterialPageRoute(
-                                         
                                           builder: (context) =>
                                               PatientHomeScreen(),
                                         ),
@@ -203,7 +219,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       // Cuando el usuario es un psicólogo autenticado
                                       Navigator.of(context).pushReplacement(
                                         MaterialPageRoute(
-                                          
                                           builder: (context) =>
                                               PsychologistHomeScreen(),
                                         ),
@@ -237,14 +252,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   ).showSnackBar(
                                                     SnackBar(
                                                       content: Row(
-                                                        children: const [
+                                                        children: [
                                                           Icon(
                                                             Icons
                                                                 .warning_amber_rounded,
-                                                            color: Colors.white,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onError,
                                                           ),
-                                                          SizedBox(width: 8),
-                                                          Expanded(
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          const Expanded(
                                                             child: Text(
                                                               'Por favor completa todos los campos correctamente.',
                                                             ),
@@ -288,10 +310,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                         child: Ink(
                                           decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
+                                            gradient: LinearGradient(
                                               colors: [
-                                                Color(0xFF82c4c3),
-                                                Color(0xFF5ca0ac),
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.primaryContainer,
                                               ],
                                               begin: Alignment.topLeft,
                                               end: Alignment.bottomRight,
@@ -304,16 +330,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                             child:
                                                 state.status ==
                                                     AuthStatus.loading
-                                                ? const CircularProgressIndicator(
-                                                    color: Colors.white,
+                                                ? CircularProgressIndicator(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
                                                   )
-                                                : const Text(
+                                                : Text(
                                                     'Iniciar Sesión',
                                                     style: TextStyle(
                                                       fontSize: 18,
                                                       fontWeight:
                                                           FontWeight.w600,
-                                                      color: Colors.white,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
                                                       fontFamily: 'Poppins',
                                                     ),
                                                   ),

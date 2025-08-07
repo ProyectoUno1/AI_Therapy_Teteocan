@@ -150,16 +150,20 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: i <= _currentStep
-                          ? AppConstants.primaryColor
-                          : Colors.grey[300],
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.3),
                     ),
                     child: Center(
                       child: Text(
                         '${i + 1}',
                         style: TextStyle(
                           color: i <= _currentStep
-                              ? Colors.white
-                              : Colors.grey[600],
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.6),
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Poppins',
                         ),
@@ -171,8 +175,10 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
                       child: Container(
                         height: 2,
                         color: i < _currentStep
-                            ? AppConstants.primaryColor
-                            : Colors.grey[300],
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(
+                                context,
+                              ).colorScheme.outline.withOpacity(0.3),
                       ),
                     ),
                 ],
