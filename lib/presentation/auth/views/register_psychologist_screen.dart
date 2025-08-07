@@ -8,11 +8,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // B
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
-
-// Firebase 
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
 
 class RegisterPsychologistScreen extends StatefulWidget {
   @override
@@ -42,28 +38,10 @@ class _RegisterPsychologistScreenState
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  UserCredential? _userCredential;
-
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
- 
   // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;
 
   final TextEditingController _birthDateController = TextEditingController();
-
-  Future<void> _selectBirthDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _birthDate ?? DateTime(2000, 1, 1),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null && picked != _birthDate) {
-      setState(() {
-        _birthDate = picked;
-      });
-    }
-  }
 
   // Valida que se haya elegido una fecha
   String? validateBirthDate(String? value) {
@@ -84,8 +62,6 @@ class _RegisterPsychologistScreenState
     }
     return null; // válido
   }
-
-  
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +175,12 @@ class _RegisterPsychologistScreenState
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.85),
+                          color: const Color.fromARGB(
+                            255,
+                            255,
+                            255,
+                            255,
+                          ).withOpacity(0.85),
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: currentStep == 1
@@ -324,7 +305,6 @@ class _RegisterPsychologistScreenState
           ),
 
           const SizedBox(height: 24),
-
         ],
       ),
     );
@@ -510,15 +490,19 @@ class _RegisterPsychologistScreenState
               if (state.status == AuthStatus.success) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Registro exitoso!'),
+                    content: Text(
+                      'Registro exitoso! Ahora completa tu perfil profesional',
+                    ),
                     backgroundColor: Colors.green,
                   ),
-                ); 
+                );
                 if (!context.mounted) return;
 
-                // Redirige al LoginScreen
+                // Redirige a la configuración profesional
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) =>  LoginScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => ProfessionalInfoSetupScreen(),
+                  ),
                 );
               }
             },
@@ -537,11 +521,11 @@ class _RegisterPsychologistScreenState
                                 username: _usernameController.text.trim(),
                                 email: _emailController.text.trim(),
                                 phoneNumber: _phoneController.text.trim(),
-                                professionalLicense: _professionalIdController.text
+                                professionalLicense: _professionalIdController
+                                    .text
                                     .trim(),
                                 password: _passwordController.text.trim(),
                                 dateOfBirth: _birthDate!,
-                                
                               ),
                             );
                           }

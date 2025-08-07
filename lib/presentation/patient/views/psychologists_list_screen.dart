@@ -30,6 +30,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
   ];
 
   // Datos de ejemplo de psicólogos
+  // TODO: Reemplazar con datos reales del backend/Firebase
   final List<PsychologistModel> _psychologists = [
     PsychologistModel.example(
       id: 'p1',
@@ -43,6 +44,10 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
           'Especialista en terapia cognitivo-conductual con 10 años de experiencia.',
       hourlyRate: 80.0,
       schedule: 'Lun-Vie 9:00-18:00',
+      professionalTitle: 'Psicóloga Clínica',
+      yearsExperience: 10,
+      education: 'Maestría en Psicología Clínica - Universidad Nacional',
+      certifications: 'Certificación en Terapia Cognitivo-Conductual',
     ),
     PsychologistModel.example(
       id: 'p2',

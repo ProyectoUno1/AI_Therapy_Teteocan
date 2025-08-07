@@ -1,4 +1,4 @@
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Necesario para obtener el token de Firebase Auth
@@ -123,18 +123,25 @@ class MyApp extends StatelessWidget {
       fontFamily: 'Poppins',
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.accentColor,
+        seedColor: AppConstants.primaryColor,
         brightness: Brightness.light,
-        primary: AppConstants.accentColor,
-        secondary: const Color(0xFF81C784),
-        surface: const Color(0xFFFAFAFA),
+        primary: AppConstants.primaryColor,
+        secondary: AppConstants.accentColor,
+        surface: Colors.white,
+        background: const Color(0xFFF8F9FA),
         error: AppConstants.errorColor,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Colors.black87,
+        onBackground: Colors.black87,
+        onError: Colors.white,
       ),
+      scaffoldBackgroundColor: const Color(0xFFF8F9FA),
       textTheme: _poppinsTextTheme(Brightness.light),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppConstants.accentColor,
+        backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
-        elevation: 2,
+        elevation: 0,
         centerTitle: true,
         titleTextStyle: const TextStyle(
           fontFamily: 'Poppins',
@@ -142,10 +149,11 @@ class MyApp extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.accentColor,
+          backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
@@ -158,35 +166,39 @@ class MyApp extends StatelessWidget {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 3,
+        elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         color: Colors.white,
+        surfaceTintColor: Colors.transparent,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppConstants.lightAccentColor,
+        fillColor: Colors.grey[100],
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppConstants.primaryColor),
         ),
-        hintStyle: const TextStyle(
-          color: Colors.white70,
-          fontFamily: 'Poppins',
-        ),
-        prefixIconColor: Colors.white,
+        hintStyle: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'),
+        labelStyle: TextStyle(color: Colors.grey[700], fontFamily: 'Poppins'),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
-        errorStyle: const TextStyle(height: 0, fontSize: 0),
+      ),
+      dividerColor: Colors.grey[300],
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: AppConstants.primaryColor,
+        unselectedItemColor: Colors.grey[600],
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
@@ -197,30 +209,38 @@ class MyApp extends StatelessWidget {
       fontFamily: 'Poppins',
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.accentColor,
+        seedColor: AppConstants.primaryColor,
         brightness: Brightness.dark,
         primary: AppConstants.lightAccentColor,
-        secondary: const Color(0xFFA5D6A7),
+        secondary: AppConstants.accentColor,
         surface: const Color(0xFF1E1E1E),
-        error: const Color(0xFFEF9A9A),
+        background: const Color(0xFF121212),
+        error: const Color(0xFFCF6679),
+        onPrimary: Colors.black,
+        onSecondary: Colors.white,
+        onSurface: Colors.white,
+        onBackground: Colors.white,
+        onError: Colors.black,
       ),
+      scaffoldBackgroundColor: const Color(0xFF121212),
       textTheme: _poppinsTextTheme(Brightness.dark),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF2D2D2D),
-        foregroundColor: AppConstants.lightAccentColor,
-        elevation: 2,
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: AppConstants.lightAccentColor,
+          color: Colors.white,
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.lightAccentColor,
-          foregroundColor: const Color(0xFF1E1E1E),
+          foregroundColor: Colors.black,
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
             fontWeight: FontWeight.w500,
@@ -232,35 +252,39 @@ class MyApp extends StatelessWidget {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 3,
+        elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFF2D2D2D),
+        color: const Color(0xFF1E1E1E),
+        surfaceTintColor: Colors.transparent,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppConstants.accentColor,
+        fillColor: const Color(0xFF2D2D2D),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[600]!),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[600]!),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppConstants.lightAccentColor),
         ),
-        hintStyle: const TextStyle(
-          color: Colors.white70,
-          fontFamily: 'Poppins',
-        ),
-        prefixIconColor: Colors.white,
+        hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Poppins'),
+        labelStyle: TextStyle(color: Colors.grey[300], fontFamily: 'Poppins'),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
-        errorStyle: const TextStyle(height: 0, fontSize: 0),
+      ),
+      dividerColor: Colors.grey[700],
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: const Color(0xFF1E1E1E),
+        selectedItemColor: AppConstants.lightAccentColor,
+        unselectedItemColor: Colors.grey[400],
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
@@ -270,8 +294,11 @@ class MyApp extends StatelessWidget {
         ? Colors.black87
         : Colors.white;
     Color mutedTextColor = brightness == Brightness.light
-        ? Colors.black54
+        ? Colors.grey[600]!
         : Colors.grey[400]!;
+    Color subtleTextColor = brightness == Brightness.light
+        ? Colors.grey[500]!
+        : Colors.grey[500]!;
 
     return TextTheme(
       displayLarge: TextStyle(
@@ -291,12 +318,12 @@ class MyApp extends StatelessWidget {
       ),
       headlineLarge: TextStyle(
         fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w600,
         color: textColor,
       ),
       headlineMedium: TextStyle(
         fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w500,
         color: textColor,
       ),
       headlineSmall: TextStyle(
@@ -306,7 +333,7 @@ class MyApp extends StatelessWidget {
       ),
       titleLarge: TextStyle(
         fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
         color: textColor,
       ),
       titleMedium: TextStyle(
@@ -347,7 +374,7 @@ class MyApp extends StatelessWidget {
       labelSmall: TextStyle(
         fontFamily: 'Poppins',
         fontWeight: FontWeight.w500,
-        color: mutedTextColor,
+        color: subtleTextColor,
       ),
     );
   }
@@ -362,7 +389,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
       home:
-          const PatientHomeScreen(), // AuthWrapper maneja la navegación inicial
+          PsychologistHomeScreen(), // AuthWrapper maneja la navegación inicial
     );
   }
 }

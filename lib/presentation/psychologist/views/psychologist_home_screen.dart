@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart'; 
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_content.dart';
-
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_chat_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_management_screen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
-
   @override
   _PsychologistHomeScreenState createState() => _PsychologistHomeScreenState();
 }
@@ -22,28 +22,8 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   List<Widget> _getWidgetOptions(BuildContext context) {
     return <Widget>[
       const PsychologistHomeContent(),
-      Center(
-        child: Text(
-          'Chats con Pacientes',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
-      Center(
-        child: Text(
-          'Herramientas para Psicólogos',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
+      const PsychologistChatListScreen(),
+      const PatientManagementScreen(),
       ProfileScreenPsychologist(),
     ];
   }
@@ -57,16 +37,12 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   @override
   Widget build(BuildContext context) {
     String userName = 'Psicólogo';
-    String? profilePictureUrl;
 
     final authState = context.watch<AuthBloc>().state;
 
-  
-    if (authState.isAuthenticatedPsychologist) { 
-      userName = authState.psychologist!.username; 
-      profilePictureUrl = authState.psychologist!.profilePictureUrl;
+    if (authState.isAuthenticatedPsychologist) {
+      userName = authState.psychologist!.username;
     }
-   
 
     final List<Widget> widgetOptions = _getWidgetOptions(context);
 
@@ -78,9 +54,9 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
         leading: IconButton(
           icon: const Icon(Icons.settings, color: Colors.black),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Configuración')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Configuración')));
           },
         ),
         centerTitle: true,
@@ -97,10 +73,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              '👋',
-              style: TextStyle(fontSize: 18),
-            ),
+            const Text('👋', style: TextStyle(fontSize: 18)),
           ],
         ),
         actions: [
