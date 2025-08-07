@@ -65,8 +65,8 @@ class CustomTextField extends StatelessWidget {
       // Contenedor que aplica color de fondo y bordes redondeados
       decoration: BoxDecoration(
         color: filled
-            ? fillColor ?? Colors.white  // si está relleno usa fillColor o blanco
-            : AppConstants.lightAccentColor, // si no, color claro definido en constantes
+            ? fillColor ?? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: TextFormField(
@@ -75,7 +75,9 @@ class CustomTextField extends StatelessWidget {
         obscureText: obscureText,
         maxLines: 1,
         style: TextStyle(
-          color: filled ? Colors.black87 : Colors.white, // color del texto según fondo
+          color: filled
+              ? Theme.of(context).textTheme.bodyMedium?.color
+              : Theme.of(context).colorScheme.onSurface,
           fontFamily: 'Poppins',
         ),
         validator: validator,
@@ -87,14 +89,15 @@ class CustomTextField extends StatelessWidget {
             color: placeholderColor ?? Colors.black, // color del placeholder
             fontFamily: 'Poppins',
           ),
-          prefixIcon: Icon(icon, color: filled ?  Colors.white: Colors.white),
+          prefixIcon: Icon(icon, color: filled ? Colors.white : Colors.white),
           suffixIcon: toggleVisibility != null
               ? IconButton(
                   icon: Icon(
                     obscureText ? Icons.visibility_off : Icons.visibility,
                     color: filled ? Colors.white : Colors.white,
                   ),
-                  onPressed: toggleVisibility, // botón para mostrar/ocultar texto
+                  onPressed:
+                      toggleVisibility, // botón para mostrar/ocultar texto
                 )
               : null,
           filled: filled,
@@ -105,24 +108,35 @@ class CustomTextField extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(borderRadius),
-            borderSide: BorderSide(color: AppConstants.accentColor, width: 2), // borde cuando está enfocado
+            borderSide: BorderSide(
+              color: AppConstants.accentColor,
+              width: 2,
+            ), // borde cuando está enfocado
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(borderRadius),
-            borderSide: const BorderSide(color: Colors.red, width: 2), // borde en caso de error
+            borderSide: const BorderSide(
+              color: Colors.red,
+              width: 2,
+            ), // borde en caso de error
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(borderRadius),
-            borderSide: const BorderSide(color: Colors.red, width: 2), // borde en error cuando está enfocado
+            borderSide: const BorderSide(
+              color: Colors.red,
+              width: 2,
+            ), // borde en error cuando está enfocado
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
-          errorStyle: const TextStyle(fontSize: 12, color: Colors.red), // estilo para texto de error
+          errorStyle: const TextStyle(
+            fontSize: 12,
+            color: Colors.red,
+          ), // estilo para texto de error
         ),
       ),
     );
   }
 }
-

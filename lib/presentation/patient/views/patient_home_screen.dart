@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
@@ -50,15 +49,15 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         centerTitle: false,
         title: Text(
           'Buen dia, $userName 👋',
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.headlineMedium?.color,
             fontSize: 18,
             fontWeight: FontWeight.w600,
             fontFamily: 'Poppins',
@@ -66,7 +65,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            icon: Icon(
+              Icons.notifications_none,
+              color: Theme.of(context).iconTheme.color,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Ver notificaciones')),
@@ -78,9 +80,15 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
       body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppConstants.lightAccentColor,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'Poppins',

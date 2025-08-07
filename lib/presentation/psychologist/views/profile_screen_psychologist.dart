@@ -18,11 +18,7 @@ class ProfileScreenPsychologist extends StatefulWidget {
 }
 
 class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
-  // Colores de tu paleta
-  final Color primaryColor = AppConstants.primaryColor;
-  final Color accentColor = AppConstants.accentColor;
-  final Color lightAccentColor = AppConstants.lightAccentColor;
-  final Color warningColor = AppConstants.warningColor;
+  // Los colores ahora se obtienen del tema dinámicamente
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +61,9 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: lightAccentColor.withOpacity(0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                           ),
                           child: profileImageUrl != null
                               ? Image.network(
@@ -75,14 +73,18 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                                     return Icon(
                                       Icons.person,
                                       size: 30,
-                                      color: lightAccentColor,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimaryContainer,
                                     );
                                   },
                                 )
                               : Icon(
                                   Icons.person,
                                   size: 30,
-                                  color: lightAccentColor,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                 ),
                         ),
                         Expanded(
@@ -112,7 +114,9 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                                   professionalTitle,
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
-                                        color: lightAccentColor,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -548,7 +552,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: AppConstants.primaryColor,
+        activeColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }

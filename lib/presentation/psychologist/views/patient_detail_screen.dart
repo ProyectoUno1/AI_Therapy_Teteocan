@@ -74,8 +74,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundColor: AppConstants.lightAccentColor
-                          .withOpacity(0.3),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
                       backgroundImage: _patient.profilePictureUrl != null
                           ? NetworkImage(_patient.profilePictureUrl!)
                           : null,
@@ -87,7 +88,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 32,
-                                color: AppConstants.primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             )
                           : null,

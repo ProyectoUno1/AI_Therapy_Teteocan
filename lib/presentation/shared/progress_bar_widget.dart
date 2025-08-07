@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 
 class ProgressBarWidget extends StatelessWidget {
   final String stepText;
@@ -31,7 +30,7 @@ class ProgressBarWidget extends StatelessWidget {
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -41,7 +40,7 @@ class ProgressBarWidget extends StatelessWidget {
               child: Container(
                 height: 8,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -51,9 +50,11 @@ class ProgressBarWidget extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           stepText,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Colors.black54,
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.color?.withOpacity(0.6),
             fontFamily: 'Poppins',
           ),
         ),
