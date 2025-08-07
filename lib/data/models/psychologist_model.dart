@@ -18,8 +18,16 @@ class PsychologistModel {
   final double? rating;
   final bool isAvailable;
   final String? description;
-  final double? hourlyRate;
+  final double? hourlyRate; // Será manejado por el admin
   final String? schedule;
+
+  // Campos adicionales para perfil profesional completo
+  final String? professionalTitle;
+  final int? yearsExperience;
+  final String? education;
+  final String? certifications;
+  final List<String>? subSpecialties;
+  final Map<String, String>? availability; // Para horarios detallados
 
   const PsychologistModel({
     required this.uid,
@@ -38,6 +46,12 @@ class PsychologistModel {
     this.description,
     this.hourlyRate,
     this.schedule,
+    this.professionalTitle,
+    this.yearsExperience,
+    this.education,
+    this.certifications,
+    this.subSpecialties,
+    this.availability,
   });
 
   // Constructor conveniente para crear datos de ejemplo
@@ -52,6 +66,12 @@ class PsychologistModel {
     this.description,
     this.hourlyRate,
     this.schedule,
+    this.professionalTitle,
+    this.yearsExperience,
+    this.education,
+    this.certifications,
+    this.subSpecialties,
+    this.availability,
   }) : uid = id,
        phoneNumber = '',
        professionalLicense = '',
@@ -98,6 +118,20 @@ class PsychologistModel {
       createdAt: createdAtTimestamp.toDate(),
       updatedAt: updatedAtTimestamp.toDate(),
       role: data['role'] as String,
+      specialty: data['specialty'] as String?,
+      rating: (data['rating'] as num?)?.toDouble(),
+      isAvailable: data['is_available'] as bool? ?? false,
+      description: data['description'] as String?,
+      hourlyRate: (data['hourly_rate'] as num?)?.toDouble(),
+      schedule: data['schedule'] as String?,
+      professionalTitle: data['professional_title'] as String?,
+      yearsExperience: data['years_experience'] as int?,
+      education: data['education'] as String?,
+      certifications: data['certifications'] as String?,
+      subSpecialties: (data['sub_specialties'] as List<dynamic>?)
+          ?.cast<String>(),
+      availability: (data['availability'] as Map<String, dynamic>?)
+          ?.cast<String, String>(),
     );
   }
 
@@ -112,6 +146,18 @@ class PsychologistModel {
       "created_at": Timestamp.fromDate(createdAt),
       "updated_at": Timestamp.fromDate(updatedAt),
       "role": role,
+      "specialty": specialty,
+      "rating": rating,
+      "is_available": isAvailable,
+      "description": description,
+      "hourly_rate": hourlyRate,
+      "schedule": schedule,
+      "professional_title": professionalTitle,
+      "years_experience": yearsExperience,
+      "education": education,
+      "certifications": certifications,
+      "sub_specialties": subSpecialties,
+      "availability": availability,
     };
   }
 
