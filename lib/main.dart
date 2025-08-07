@@ -362,7 +362,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       navigatorKey: navigatorKey,
       home:
-          const PatientHomeScreen(), // AuthWrapper maneja la navegación inicial
+           const PatientHomeScreen(), // AuthWrapper maneja la navegación inicial
     );
   }
 }
