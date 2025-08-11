@@ -22,8 +22,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   @override
-  Future<PatientModel> getPatientData(String uid) {
+  Future<PatientModel?> getPatientData(String uid) {
     return userRemoteDataSource.getPatientData(uid);
+  }
+
+  @override
+  Future<PsychologistModel?> getPsychologistData(String uid) {
+    return userRemoteDataSource.getPsychologistData(uid);
   }
 
   @override
@@ -33,38 +38,38 @@ class AuthRepositoryImpl implements AuthRepository {
     String? dob,
     String? phone,
   }) async {
-    log('🚀 Repo: Iniciando actualización de datos para el paciente $userId', name: 'AuthRepositoryImpl');
+    log(' Repo: Iniciando actualización de datos para el paciente $userId',
+        name: 'AuthRepositoryImpl');
     try {
-      // Llamar al método en userRemoteDataSource para actualizar los datos en Firestore
       await userRemoteDataSource.updatePatientData(
         uid: userId,
         username: name,
         dateOfBirth: dob,
         phoneNumber: phone,
       );
-      log('✅ Repo: Datos del paciente $userId actualizados exitosamente en Firestore.', name: 'AuthRepositoryImpl');
+      log(' Repo: Datos del paciente $userId actualizados exitosamente en Firestore.',
+          name: 'AuthRepositoryImpl');
     } on AppException {
-      // Si la excepción ya es de la capa de datos, la relanzamos
       rethrow;
     } catch (e) {
-      log('❌ Repo: Error genérico al actualizar datos del paciente: $e', name: 'AuthRepositoryImpl');
-      // Envolvemos cualquier otro error en una excepción de la app
+      log(' Repo: Error genérico al actualizar datos del paciente: $e',
+          name: 'AuthRepositoryImpl');
       throw AuthException('Error inesperado al actualizar perfil: $e');
     }
   }
 
   @override
   Future<void> signIn({required String email, required String password}) async {
-    log('🚀 Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
+    log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
     try {
       await authRemoteDataSource.signIn(email: email, password: password);
       log(
-        '✅ Repo: Inicio de sesión en Firebase exitoso.',
+        ' Repo: Inicio de sesión en Firebase exitoso.',
         name: 'AuthRepositoryImpl',
       );
     } on FirebaseAuthException catch (e) {
       log(
-        '❌ Repo: FirebaseAuthException: ${e.code} - ${e.message}',
+        ' Repo: FirebaseAuthException: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
       );
       if (e.code == 'user-not-found') {
@@ -78,12 +83,13 @@ class AuthRepositoryImpl implements AuthRepository {
           'Credenciales inválidas. Verifica tu email y contraseña.',
         );
       }
-      throw AuthException('Error de autenticación: ${e.message ?? e.code}');
+      throw AuthException(
+          'Error de autenticación: ${e.message ?? e.code}');
     } on AppException {
       rethrow;
     } catch (e) {
       log(
-        '❌ Repo: Error genérico al iniciar sesión: $e',
+        ' Repo: Error genérico al iniciar sesión: $e',
         name: 'AuthRepositoryImpl',
       );
       throw FetchDataException(
@@ -101,7 +107,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required DateTime dateOfBirth,
   }) async {
     log(
-      '🚀 Repo: Iniciando registro de paciente para $email',
+      ' Repo: Iniciando registro de paciente para $email',
       name: 'AuthRepositoryImpl',
     );
     try {
@@ -139,20 +145,20 @@ class AuthRepositoryImpl implements AuthRepository {
         role: patient.role,
       );
       log(
-        '✅ Repo: Registro de paciente y datos de Firestore exitoso.',
+        ' Repo: Registro de paciente y datos de Firestore exitoso.',
         name: 'AuthRepositoryImpl',
       );
 
       await signOut();
       log(
-        '✅ Repo: Usuario desautenticado después del registro de paciente.',
+        ' Repo: Usuario desautenticado después del registro de paciente.',
         name: 'AuthRepositoryImpl',
       );
 
       return patient;
     } on FirebaseAuthException catch (e) {
       log(
-        '❌ Repo: FirebaseAuthException en registro de paciente: ${e.code} - ${e.message}',
+        ' Repo: FirebaseAuthException en registro de paciente: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
       );
       if (e.code == 'email-already-in-use') {
@@ -167,7 +173,7 @@ class AuthRepositoryImpl implements AuthRepository {
       rethrow;
     } catch (e) {
       log(
-        '🚨 ERROR CAPTURADO en AuthRepositoryImpl.registerPatient: $e',
+        ' ERROR CAPTURADO en AuthRepositoryImpl.registerPatient: $e',
         name: 'AuthRepositoryImpl',
       );
       throw FetchDataException('Error inesperado al registrar paciente: $e');
@@ -182,9 +188,10 @@ class AuthRepositoryImpl implements AuthRepository {
     required String phoneNumber,
     required String professionalLicense,
     required DateTime dateOfBirth,
+    String? profilePictureUrl,
   }) async {
     log(
-      '🚀 Repo: Iniciando registro de psicólogo para $email',
+      ' Repo: Iniciando registro de psicólogo para $email',
       name: 'AuthRepositoryImpl',
     );
     try {
@@ -208,6 +215,7 @@ class AuthRepositoryImpl implements AuthRepository {
         phoneNumber: phoneNumber,
         professionalLicense: professionalLicense,
         dateOfBirth: dateOfBirth,
+        profilePictureUrl: profilePictureUrl,
         createdAt: now,
         updatedAt: now,
         role: 'psychologist',
@@ -217,27 +225,27 @@ class AuthRepositoryImpl implements AuthRepository {
         uid: psychologist.uid,
         username: psychologist.username,
         email: psychologist.email,
-        phoneNumber: psychologist.phoneNumber,
-        professionalLicense: psychologist.professionalLicense,
-        dateOfBirth: psychologist.dateOfBirth,
+        phoneNumber: psychologist.phoneNumber ?? '', 
+        professionalLicense: psychologist.professionalLicense ?? '',
+        dateOfBirth: psychologist.dateOfBirth!,
         profilePictureUrl: psychologist.profilePictureUrl,
         role: psychologist.role,
       );
       log(
-        '✅ Repo: Registro de psicólogo y datos de Firestore exitoso.',
+        ' Repo: Registro de psicólogo y datos de Firestore exitoso.',
         name: 'AuthRepositoryImpl',
       );
 
       await signOut();
       log(
-        '✅ Repo: Usuario desautenticado después del registro de psicólogo.',
+        ' Repo: Usuario desautenticado después del registro de psicólogo.',
         name: 'AuthRepositoryImpl',
       );
 
       return psychologist;
     } on FirebaseAuthException catch (e) {
       log(
-        '❌ Repo: FirebaseAuthException en registro de psicólogo: ${e.code} - ${e.message}',
+        ' Repo: FirebaseAuthException en registro de psicólogo: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
       );
       if (e.code == 'email-already-in-use') {
@@ -252,7 +260,7 @@ class AuthRepositoryImpl implements AuthRepository {
       rethrow;
     } catch (e) {
       log(
-        '🚨 ERROR CAPTURADO en AuthRepositoryImpl.registerPsychologist: $e',
+        ' ERROR CAPTURADO en AuthRepositoryImpl.registerPsychologist: $e',
         name: 'AuthRepositoryImpl',
       );
       throw FetchDataException('Error inesperado al registrar psicólogo: $e');
@@ -267,7 +275,6 @@ class AuthRepositoryImpl implements AuthRepository {
         name: 'AuthRepositoryImpl',
       );
 
-
       if (fbUser == null) {
         log(
           'DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.',
@@ -279,7 +286,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final currentUser = _firebaseAuth.currentUser;
       if (currentUser == null || currentUser.uid != fbUser.uid) {
         log(
-          '⚠️ DEBUG: Repo authStateChanges - El usuario ${fbUser.uid} recibido del stream YA NO es el current user (${currentUser?.uid ?? 'null'}). Ignorando carga de perfil y emitiendo null.',
+          ' DEBUG: Repo authStateChanges - El usuario ${fbUser.uid} recibido del stream YA NO es el current user (${currentUser?.uid ?? 'null'}). Ignorando carga de perfil y emitiendo null.',
           name: 'AuthRepositoryImpl',
         );
         return null;
@@ -289,14 +296,13 @@ class AuthRepositoryImpl implements AuthRepository {
         final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
         if (userModel != null) {
           log(
-            '✅ DEBUG: Repo authStateChanges - Perfil de usuario (tipo: ${userModel.runtimeType}) cargado para UID: ${fbUser.uid}',
+            ' DEBUG: Repo authStateChanges - Perfil de usuario (tipo: ${userModel.runtimeType}) cargado para UID: ${fbUser.uid}',
             name: 'AuthRepositoryImpl',
           );
           return userModel;
         } else {
-
           log(
-            '🔴 DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist. Forzando signOut.',
+            ' DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist. Forzando signOut.',
             name: 'AuthRepositoryImpl',
           );
           await signOut();
@@ -304,14 +310,14 @@ class AuthRepositoryImpl implements AuthRepository {
         }
       } on AppException catch (e) {
         log(
-          '🔴 Error al obtener datos de usuario para authStateChanges (AppException): $e',
+          ' Error al obtener datos de usuario para authStateChanges (AppException): ${e.message ?? 'Unknown error'}',
           name: 'AuthRepositoryImpl',
         );
         await signOut();
         return null;
       } catch (e) {
         log(
-          '🔴 Error inesperado al obtener datos de usuario para authStateChanges: $e',
+          ' Error inesperado al obtener datos de usuario para authStateChanges: $e',
           name: 'AuthRepositoryImpl',
         );
         await signOut();
@@ -323,25 +329,24 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signOut() async {
     log(
-      '🔴 ¡ALERT! Se llamó a signOut() desde AuthRepositoryImpl.',
+      ' ¡ALERT! Se llamó a signOut() desde AuthRepositoryImpl.',
       name: 'AuthRepositoryImpl',
     );
     try {
-      await authRemoteDataSource
-          .signOut();
+      await authRemoteDataSource.signOut();
       log(
-        '✅ Sesión cerrada exitosamente en Firebase.',
+        ' Sesión cerrada exitosamente en Firebase.',
         name: 'AuthRepositoryImpl',
       );
     } on AppException catch (e) {
       log(
-        '🔴 Error de AppException al cerrar sesión en AuthRepositoryImpl: ${e.message}',
+        ' Error de AppException al cerrar sesión en AuthRepositoryImpl: ${e.message ?? 'Unknown error'}',
         name: 'AuthRepositoryImpl',
       );
       rethrow;
     } catch (e) {
       log(
-        '🔴 Error inesperado al cerrar sesión en AuthRepositoryImpl: $e',
+        ' Error inesperado al cerrar sesión en AuthRepositoryImpl: $e',
         name: 'AuthRepositoryImpl',
       );
       rethrow;

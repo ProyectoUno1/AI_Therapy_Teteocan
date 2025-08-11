@@ -3,8 +3,58 @@ import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
+class PsychologistPatient {
+  final String id;
+  final String name;
+  final String? imageUrl;
+  final String latestMessage;
+  final String lastSeen;
+  final bool isOnline;
+
+  const PsychologistPatient({
+    required this.id,
+    required this.name,
+    this.imageUrl,
+    this.latestMessage = '',
+    this.lastSeen = '',
+    this.isOnline = false,
+  });
+}
+
+class Session {
+  final String id;
+  final DateTime time;
+  final PsychologistPatient patient;
+  final String type;
+  final int durationMinutes;
+
+  Session({
+    required this.id,
+    required this.time,
+    required this.patient,
+    required this.type,
+    required this.durationMinutes,
+  });
+}
+
+class PsychologistArticleSummary {
+  final String id;
+  final String title;
+  final String imageUrl;
+  final DateTime date;
+
+  PsychologistArticleSummary({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.date,
+  });
+}
+
 class PsychologistHomeContent extends StatelessWidget {
   const PsychologistHomeContent({super.key}); 
+
+  
 
   @override
   Widget build(BuildContext context) {

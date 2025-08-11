@@ -1,10 +1,16 @@
+// lib/main.dart
+
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Necesario para obtener el token de Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 
 // Importaciones de las capas de la arquitectura limpia
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -14,6 +20,7 @@ import 'package:ai_therapy_teteocan/data/repositories/auth_repository_impl.dart'
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
+import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
@@ -22,6 +29,9 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
+import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -44,6 +54,9 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
+  // --- Inicialización de la base de datos de zonas horarias ---
+  tzdata.initializeTimeZones();
+
   // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
       AuthRemoteDataSourceImpl(firebaseAuth: FirebaseAuth.instance);
@@ -58,11 +71,10 @@ void main() async {
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
-  ); // --- Inicialización del Repositorio de Chat ---
+  ); 
   final ChatRepository chatRepository = ChatRepository();
-
-  // --- Inicialización del Servicio de Tema ---
   final ThemeService themeService = ThemeService();
+  final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
@@ -84,10 +96,7 @@ void main() async {
   runApp(
     MultiBlocProvider(
       providers: [
-        // Proveedor para HomeContentCubit
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
-
-        // Proveedor para AuthBloc
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthBloc(
@@ -95,15 +104,16 @@ void main() async {
                 signInUseCase: signInUseCase,
                 registerUserUseCase: registerUserUseCase,
               )..add(
-                const AuthStarted(),
-              ), // Dispara el evento inicial de autenticación
+                  const AuthStarted(),
+                ), 
         ),
-
-        // Proveedor para ChatBloc
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
-
-        // Proveedor para ThemeCubit
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
+        BlocProvider<PsychologistInfoBloc>(
+          create: (context) => PsychologistInfoBloc(
+            psychologistRepository: PsychologistRepositoryImpl(psychologistRemoteDataSource),
+          ),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -123,13 +133,56 @@ Future<void> _connectToFirebaseEmulator() async {
 }
 
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Establece el estado inicial en línea si el usuario ya está autenticado
+    _updateOnlineStatus(true);
+  }
+
+  @override
+  void dispose() {
+    // Al cerrar la app, establece el estado a fuera de línea
+    _updateOnlineStatus(false);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // El usuario volvió a la aplicación, lo ponemos en línea
+      _updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused) {
+      // El usuario salió de la aplicación, lo ponemos fuera de línea
+      _updateOnlineStatus(false);
+    }
+  }
+
+  void _updateOnlineStatus(bool isOnline) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      userRef.set(
+        {'isOnline': isOnline, 'lastActive': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      ).catchError((error) => log('Error al actualizar el estado de conexión: $error'));
+    }
+  }
 
   // --- Temas de la aplicación usando FlexColorScheme ---
   ThemeData _lightTheme() {
     final lightColorScheme = FlexColorScheme.light(scheme: FlexScheme.tealM3);
-
     return FlexThemeData.light(
       scheme: FlexScheme.tealM3,
       surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
@@ -152,7 +205,6 @@ class MyApp extends StatelessWidget {
       swapLegacyOnMaterial3: true,
       fontFamily: 'Poppins',
     ).copyWith(
-      // Configuración específica para AppBar
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -168,7 +220,6 @@ class MyApp extends StatelessWidget {
         ),
         iconTheme: IconThemeData(color: lightColorScheme.onSurface),
       ),
-      // Configuración específica para BottomNavigationBar
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: lightColorScheme.surface,
         selectedItemColor: lightColorScheme.primary,
@@ -184,14 +235,12 @@ class MyApp extends StatelessWidget {
           fontWeight: FontWeight.normal,
         ),
       ),
-      // Configuración de scaffold
       scaffoldBackgroundColor: lightColorScheme.surface,
     );
   }
 
   ThemeData _darkTheme() {
     final darkColorScheme = FlexColorScheme.dark(scheme: FlexScheme.tealM3);
-
     return FlexThemeData.dark(
       scheme: FlexScheme.tealM3,
       surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
@@ -213,7 +262,6 @@ class MyApp extends StatelessWidget {
       swapLegacyOnMaterial3: true,
       fontFamily: 'Poppins',
     ).copyWith(
-      // Configuración específica para AppBar en modo oscuro
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -229,7 +277,6 @@ class MyApp extends StatelessWidget {
         ),
         iconTheme: IconThemeData(color: darkColorScheme.onSurface),
       ),
-      // Configuración específica para BottomNavigationBar en modo oscuro
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: darkColorScheme.surface,
         selectedItemColor: darkColorScheme.primary,
@@ -245,7 +292,6 @@ class MyApp extends StatelessWidget {
           fontWeight: FontWeight.normal,
         ),
       ),
-      // Configuración de scaffold en modo oscuro
       scaffoldBackgroundColor: darkColorScheme.surface,
     );
   }
@@ -261,8 +307,9 @@ class MyApp extends StatelessWidget {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home:
-              PsychologistHomeScreen(), // AuthWrapper maneja la navegación inicial
+          home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
+              //const PsychologistHomeScreen(),
+              //const PsychologistChatListScreen(),
         );
       },
     );

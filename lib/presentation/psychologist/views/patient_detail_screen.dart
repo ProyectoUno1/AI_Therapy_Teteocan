@@ -340,7 +340,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }
 
   Widget _buildHistoryTab() {
-    // TODO: Implementar historial real desde el backend
+    // Implementar historial real desde el backend
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(

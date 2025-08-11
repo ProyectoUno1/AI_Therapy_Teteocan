@@ -6,7 +6,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen_tab.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -21,7 +21,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
-    const PsychologistsListScreenTab(),
+    const PsychologistsListScreen(),
     ProfileScreenPatient(),
   ];
 

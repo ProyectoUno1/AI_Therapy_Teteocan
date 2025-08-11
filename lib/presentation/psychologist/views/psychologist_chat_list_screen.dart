@@ -6,6 +6,12 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_chat_screen.dart';
+import 'package:ai_therapy_teteocan/data/models/patient_chat_item.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_event.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_state.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
 
 class PsychologistChatListScreen extends StatefulWidget {
   const PsychologistChatListScreen({super.key});
@@ -18,77 +24,27 @@ class PsychologistChatListScreen extends StatefulWidget {
 class _PsychologistChatListScreenState
     extends State<PsychologistChatListScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<PatientChatItem> _filteredPatients = [];
-  List<PatientChatItem> _allPatients = [];
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadPatients();
-    _searchController.addListener(_filterPatients);
+    _searchController.addListener(() {
+      final query = _searchController.text.toLowerCase();
+      BlocProvider.of<ChatListBloc>(context).add(SearchChats(query));
+    });
+
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    if (authState.isAuthenticatedPsychologist) {
+      _currentUserId = authState.psychologist!.uid;
+      BlocProvider.of<ChatListBloc>(context).add(LoadChats(_currentUserId!));
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _loadPatients() {
-    // TODO: Cargar pacientes reales desde el backend
-    _allPatients = [
-      PatientChatItem(
-        id: '1',
-        name: 'María González',
-        lastMessage: 'Hola doctor, ¿cómo está?',
-        lastMessageTime: DateTime.now().subtract(const Duration(minutes: 5)),
-        profileImageUrl: 'https://via.placeholder.com/60',
-        isOnline: true,
-        unreadCount: 2,
-        isTyping: false,
-      ),
-      PatientChatItem(
-        id: '2',
-        name: 'Carlos Rodríguez',
-        lastMessage: 'Gracias por la sesión de hoy',
-        lastMessageTime: DateTime.now().subtract(const Duration(hours: 2)),
-        profileImageUrl: 'https://via.placeholder.com/60',
-        isOnline: false,
-        unreadCount: 0,
-        isTyping: false,
-      ),
-      PatientChatItem(
-        id: '3',
-        name: 'Ana Martínez',
-        lastMessage: 'Me siento mucho mejor después de nuestras conversaciones',
-        lastMessageTime: DateTime.now().subtract(const Duration(hours: 4)),
-        profileImageUrl: 'https://via.placeholder.com/60',
-        isOnline: true,
-        unreadCount: 1,
-        isTyping: true,
-      ),
-      PatientChatItem(
-        id: '4',
-        name: 'Luis Fernández',
-        lastMessage: 'Nos vemos la próxima semana',
-        lastMessageTime: DateTime.now().subtract(const Duration(days: 1)),
-        profileImageUrl: 'https://via.placeholder.com/60',
-        isOnline: false,
-        unreadCount: 0,
-        isTyping: false,
-      ),
-    ];
-    _filteredPatients = List.from(_allPatients);
-  }
-
-  void _filterPatients() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredPatients = _allPatients.where((patient) {
-        return patient.name.toLowerCase().contains(query) ||
-            patient.lastMessage.toLowerCase().contains(query);
-      }).toList();
-    });
   }
 
   String _formatTime(DateTime time) {
@@ -108,69 +64,91 @@ class _PsychologistChatListScreenState
 
   @override
   Widget build(BuildContext context) {
-    return _buildPatientsChat();
-  }
-
-  Widget _buildPatientsChat() {
     return Column(
       children: [
-        // Barra de búsqueda
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Theme.of(context).cardColor,
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Buscar pacientes...',
-              hintStyle: TextStyle(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-                fontFamily: 'Poppins',
-              ),
-              prefixIcon: Icon(
-                Icons.search,
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-              filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.light
-                  ? Colors.grey[100]
-                  : Colors.grey[800],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 15,
-              ),
-            ),
-          ),
-        ),
-
-        // Lista de pacientes
-        Expanded(
-          child: _filteredPatients.isEmpty
-              ? _buildEmptyState()
-              : Container(
-                  color: Theme.of(context).cardColor,
-                  child: ListView.separated(
-                    itemCount: _filteredPatients.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Theme.of(context).dividerColor.withOpacity(0.3),
-                    ),
-                    itemBuilder: (context, index) {
-                      final patient = _filteredPatients[index];
-                      return _buildPatientChatTile(patient);
-                    },
-                  ),
-                ),
-        ),
+        _buildSearchBar(context),
+        Expanded(child: _buildChatList(context)),
       ],
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildSearchBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Theme.of(context).cardColor,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Buscar pacientes...',
+          hintStyle: TextStyle(
+            color: Theme.of(context).textTheme.bodySmall?.color,
+            fontFamily: 'Poppins',
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.light
+              ? Colors.grey[100]
+              : Colors.grey[800],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 15,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatList(BuildContext context) {
+    return BlocBuilder<ChatListBloc, ChatListState>(
+      builder: (context, state) {
+        if (state is ChatListLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is ChatListError) {
+          return Center(child: Text('Error: ${state.message}'));
+        }
+
+        if (state is ChatListLoaded) {
+          final isSearching = _searchController.text.isNotEmpty;
+          
+          final chatsToShow = isSearching ? state.filteredChats : state.chats;
+
+          if (chatsToShow.isEmpty) {
+            return _buildEmptyState(isFiltered: isSearching);
+          }
+
+          return Container(
+            color: Theme.of(context).cardColor,
+            child: ListView.separated(
+              itemCount: chatsToShow.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).dividerColor.withOpacity(0.3),
+              ),
+              itemBuilder: (context, index) {
+                final patient = chatsToShow[index];
+                return _buildPatientChatTile(patient);
+              },
+            ),
+          );
+        }
+
+        return _buildEmptyState(isFiltered: false);
+      },
+    );
+  }
+
+
+  Widget _buildEmptyState({required bool isFiltered}) {
     return Container(
       color: Theme.of(context).cardColor,
       child: Center(
@@ -180,7 +158,7 @@ class _PsychologistChatListScreenState
             Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              _searchController.text.isNotEmpty
+              isFiltered
                   ? 'No se encontraron pacientes'
                   : 'No tienes chats activos',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -192,7 +170,7 @@ class _PsychologistChatListScreenState
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                _searchController.text.isNotEmpty
+                isFiltered
                     ? 'Intenta con otro término de búsqueda'
                     : 'Los pacientes aparecerán aquí cuando inicien conversaciones',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -316,41 +294,20 @@ class _PsychologistChatListScreenState
         ],
       ),
       onTap: () {
-        Navigator.push(
-          context,
+        Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => PatientChatScreen(
-              patientId: patient.id,
-              patientName: patient.name,
-              patientImageUrl: patient.profileImageUrl,
-              isPatientOnline: patient.isOnline,
+            builder: (context) => BlocProvider<ChatBloc>(
+              create: (context) => ChatBloc(),
+              child: PatientChatScreen(
+                patientId: patient.id,
+                patientName: patient.name,
+                patientImageUrl: patient.profileImageUrl,
+                isPatientOnline: patient.isOnline,
+              ),
             ),
           ),
         );
       },
     );
   }
-}
-
-// Modelo para representar un chat con un paciente
-class PatientChatItem {
-  final String id;
-  final String name;
-  final String lastMessage;
-  final DateTime lastMessageTime;
-  final String profileImageUrl;
-  final bool isOnline;
-  final int unreadCount;
-  final bool isTyping;
-
-  PatientChatItem({
-    required this.id,
-    required this.name,
-    required this.lastMessage,
-    required this.lastMessageTime,
-    required this.profileImageUrl,
-    required this.isOnline,
-    required this.unreadCount,
-    required this.isTyping,
-  });
 }

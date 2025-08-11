@@ -19,7 +19,7 @@ class AuthWrapper extends StatelessWidget {
       listener: (context, state) {
         if (state.isError && state.errorMessage != null) {
           log(
-            '🔴 AuthWrapper Listener: Error de autenticación: ${state.errorMessage}',
+            ' AuthWrapper Listener: Error de autenticación: ${state.errorMessage}',
             name: 'AuthWrapper',
           );
           ScaffoldMessenger.of(
@@ -28,21 +28,21 @@ class AuthWrapper extends StatelessWidget {
         }
         if (!state.isAuthenticated) {
           log(
-            '🔴 AuthWrapper Listener: Usuario no autenticado, debería mostrar LoginScreen',
+            ' AuthWrapper Listener: Usuario no autenticado, debería mostrar LoginScreen',
             name: 'AuthWrapper',
           );
         }
       },
       builder: (context, state) {
         log(
-          '🟢 AuthWrapper Builder: Estado actual del AuthBloc: ${state.status}',
+          ' AuthWrapper Builder: Estado actual del AuthBloc: ${state.status}',
           name: 'AuthWrapper',
         );
 
         if (state.isUnknown || state.isLoading) {
           
           log(
-            '🟢 AuthWrapper Builder: Mostrando SplashScreen.',
+            ' AuthWrapper Builder: Mostrando SplashScreen.',
             name: 'AuthWrapper',
           );
           return const SplashScreen();
@@ -50,20 +50,20 @@ class AuthWrapper extends StatelessWidget {
           
           if (state.isAuthenticatedPatient) {
             log(
-              '🟢 AuthWrapper Builder: Mostrando PatientHomeScreen.',
+              ' AuthWrapper Builder: Mostrando PatientHomeScreen.',
               name: 'AuthWrapper',
             );
             return PatientHomeScreen();
           } else if (state.isAuthenticatedPsychologist) {
             log(
-              '🟢 AuthWrapper Builder: Mostrando PsychologistHomeScreen.',
+              ' AuthWrapper Builder: Mostrando PsychologistHomeScreen.',
               name: 'AuthWrapper',
             );
             return PsychologistHomeScreen();
           } else {
            
             log(
-              '🔴 AuthWrapper Builder: Estado autenticado sin rol definido. Volviendo a LoginScreen.',
+              ' AuthWrapper Builder: Estado autenticado sin rol definido. Volviendo a LoginScreen.',
               name: 'AuthWrapper',
             );
             return const LoginScreen();
@@ -71,7 +71,7 @@ class AuthWrapper extends StatelessWidget {
         } else {
          
           log(
-            '🟢 AuthWrapper Builder: Mostrando LoginScreen.',
+            ' AuthWrapper Builder: Mostrando LoginScreen.',
             name: 'AuthWrapper',
           );
           return const LoginScreen();

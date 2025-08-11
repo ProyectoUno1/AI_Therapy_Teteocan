@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 
 class PsychologistChatScreen extends StatefulWidget {
+  final String psychologistUid;
   final String psychologistName;
   final String psychologistImageUrl;
 
   const PsychologistChatScreen({
     super.key,
+    required this.psychologistUid,
     required this.psychologistName,
     required this.psychologistImageUrl,
   });
@@ -17,12 +21,24 @@ class PsychologistChatScreen extends StatefulWidget {
   State<PsychologistChatScreen> createState() => _PsychologistChatScreenState();
 }
 
+bool _isOnline = true;
+String _lastSeen = 'En línea';
+
 class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<MessageModel> _messages = [];
-  bool _isOnline = true;
-  String _lastSeen = 'En línea';
+
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+  late final String _chatId;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentUserUid = _auth.currentUser!.uid;
+    final uids = [currentUserUid, widget.psychologistUid]..sort();
+    _chatId = uids.join('_');
+  }
 
   @override
   void dispose() {
@@ -31,20 +47,39 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final message = MessageModel(
-      id: DateTime.now().toString(),
-      content: _messageController.text.trim(),
-      timestamp: DateTime.now(),
-      isUser: true, 
-    );
+    final messageContent = _messageController.text.trim();
+    _messageController.clear();
 
-    setState(() {
-      _messages.add(message);
-      _messageController.clear();
+    final currentUserUid = _auth.currentUser!.uid;
+
+    //  Paso 1: Guarda el mensaje en la subcolección de mensajes.
+    final messageDocRef = _firestore
+        .collection('chats')
+        .doc(_chatId)
+        .collection('messages')
+        .doc();
+
+    await messageDocRef.set({
+      'senderId': currentUserUid,
+      'content': messageContent,
+      'timestamp': FieldValue.serverTimestamp(),
     });
+
+    //  Paso 2: Actualiza el documento de resumen en la colección 'chats'.
+    // Esto es lo que nos permitirá listar los chats.
+    await _firestore.collection('chats').doc(_chatId).set(
+      {
+        'participants': [currentUserUid, widget.psychologistUid],
+        'lastMessage': messageContent,
+        'lastTimestamp': FieldValue.serverTimestamp(),
+      },
+      SetOptions(
+        merge: true,
+      ), // Usamos merge: true para no sobrescribir otros campos si los hubiera.
+    );
 
     _scrollToBottom();
   }
@@ -146,15 +181,47 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
           Expanded(
             child: Container(
               color: Colors.grey[50],
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  return MessageBubble(
-                    message: message,
-                    isMe: message.isUser, 
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('chats')
+                    .doc(_chatId)
+                    .collection('messages')
+                    .orderBy('timestamp', descending: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text('Inicia una conversación...'),
+                    );
+                  }
+
+                  final messages = snapshot.data!.docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final timestamp = data['timestamp'] as Timestamp?;
+                    return MessageModel(
+                      id: doc.id,
+                      content: data['content'],
+
+                      timestamp: timestamp?.toDate() ?? DateTime.now(),
+                      isUser: data['senderId'] == _auth.currentUser!.uid,
+                    );
+                  }).toList();
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(top: 16, bottom: 16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      return MessageBubble(
+                        message: message,
+                        isMe: message.isUser,
+                      );
+                    },
                   );
                 },
               ),

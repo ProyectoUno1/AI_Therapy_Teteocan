@@ -7,6 +7,10 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_event.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
+
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
@@ -29,13 +33,23 @@ class PatientChatScreen extends StatefulWidget {
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<MessageModel> _messages = [];
-  bool _isPatientTyping = false;
+  String? _currentUserId;
+  late String _chatId;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    // Obtener el ID del psicólogo una sola vez al inicio
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    if (authState.psychologist != null && authState.isAuthenticatedPsychologist) {
+      _currentUserId = authState.psychologist!.uid;
+      // Generar el chatId único
+      final ids = [_currentUserId!, widget.patientId]..sort();
+      _chatId = '${ids[0]}_${ids[1]}';
+      
+      // Cargar los mensajes al iniciar la pantalla
+      BlocProvider.of<ChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
+    }
   }
 
   @override
@@ -45,103 +59,18 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     super.dispose();
   }
 
-  void _loadMessages() {
-    // TODO: Cargar mensajes reales desde el backend
-    setState(() {
-      _messages.addAll([
-        MessageModel(
-          id: '1',
-          content: 'Hola doctor, ¿cómo está usted?',
-          timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-          isUser: false, // Mensaje del paciente
-        ),
-        MessageModel(
-          id: '2',
-          content:
-              'Hola ${widget.patientName}, muy bien gracias. ¿Cómo te has sentido desde nuestra última sesión?',
-          timestamp: DateTime.now().subtract(
-            const Duration(hours: 1, minutes: 58),
-          ),
-          isUser: true, // Mensaje del psicólogo
-        ),
-        MessageModel(
-          id: '3',
-          content:
-              'He estado practicando los ejercicios de respiración que me enseñó y me han ayudado mucho',
-          timestamp: DateTime.now().subtract(
-            const Duration(hours: 1, minutes: 55),
-          ),
-          isUser: false,
-        ),
-        MessageModel(
-          id: '4',
-          content:
-              'Me alegra mucho escuchar eso. Es excelente que hayas sido constante con los ejercicios. ¿Has notado alguna situación específica donde te han funcionado mejor?',
-          timestamp: DateTime.now().subtract(
-            const Duration(hours: 1, minutes: 50),
-          ),
-          isUser: true,
-        ),
-      ]);
-    });
-    _scrollToBottom();
-  }
-
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final message = MessageModel(
-      id: DateTime.now().toString(),
-      content: _messageController.text.trim(),
-      timestamp: DateTime.now(),
-      isUser: true, // Mensaje del psicólogo
+    if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
+    
+    // Disparar el evento para enviar el mensaje a Firestore
+    BlocProvider.of<ChatBloc>(context).add(
+      SendMessage(
+        chatId: _chatId,
+        content: _messageController.text.trim(),
+        senderId: _currentUserId!,
+      ),
     );
-
-    setState(() {
-      _messages.add(message);
-      _messageController.clear();
-    });
-
-    _scrollToBottom();
-
-    // TODO: Enviar mensaje al backend
-    _simulatePatientResponse();
-  }
-
-  void _simulatePatientResponse() {
-    // Simular que el paciente está escribiendo
-    setState(() {
-      _isPatientTyping = true;
-    });
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isPatientTyping = false;
-        });
-
-        // Simular respuesta del paciente
-        final responses = [
-          'Gracias doctor, eso me ayuda mucho',
-          'Entiendo, voy a intentarlo',
-          'Sí, me parece una buena idea',
-          'Me siento mejor hablando con usted',
-          'Eso tiene mucho sentido',
-        ];
-
-        final response = MessageModel(
-          id: DateTime.now().toString(),
-          content: responses[DateTime.now().millisecond % responses.length],
-          timestamp: DateTime.now(),
-          isUser: false,
-        );
-
-        setState(() {
-          _messages.add(response);
-        });
-        _scrollToBottom();
-      }
-    });
+    _messageController.clear();
   }
 
   void _scrollToBottom() {
@@ -214,20 +143,12 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    _isPatientTyping
-                        ? 'Escribiendo...'
-                        : widget.isPatientOnline
-                        ? 'En línea'
-                        : 'Última vez hace 2h',
+                    widget.isPatientOnline ? 'En línea' : 'Última vez hace 2h',
                     style: TextStyle(
-                      color: _isPatientTyping || widget.isPatientOnline
-                          ? Colors.green
-                          : Colors.grey,
+                      color: widget.isPatientOnline ? Colors.green : Colors.grey,
                       fontSize: 12,
                       fontFamily: 'Poppins',
-                      fontStyle: _isPatientTyping
-                          ? FontStyle.italic
-                          : FontStyle.normal,
+                      fontStyle: FontStyle.normal,
                     ),
                   ),
                 ],
@@ -238,34 +159,18 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.videocam, color: AppConstants.primaryColor),
-            onPressed: () {
-              _showVideoCallDialog();
-            },
+            onPressed: () {},
           ),
           IconButton(
             icon: Icon(Icons.phone, color: AppConstants.primaryColor),
-            onPressed: () {
-              _showCallDialog();
-            },
+            onPressed: () {},
           ),
           PopupMenuButton<String>(
             icon: Icon(
               Icons.more_vert,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
-            onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  _showPatientProfile();
-                  break;
-                case 'notes':
-                  _showSessionNotes();
-                  break;
-                case 'history':
-                  _showChatHistory();
-                  break;
-              }
-            },
+            onSelected: (value) {},
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'profile',
@@ -303,28 +208,45 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       ),
       body: Column(
         children: [
-          // Mensajes
+          // Mensajes 
           Expanded(
-            child: _messages.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
+            child: BlocConsumer<ChatBloc, ChatState>(
+              listener: (context, state) {
+                // Desplazarse al final cuando se cargan nuevos mensajes
+                if (state is ChatLoaded) {
+                  _scrollToBottom();
+                }
+              },
+              builder: (context, state) {
+                if (state is ChatLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is ChatError) {
+                  return Center(child: Text(state.message));
+                }
+                if (state is ChatLoaded) {
+                  if (state.messages.isEmpty) {
+                    return _buildEmptyState(context);
+                  }
+                  return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_isPatientTyping ? 1 : 0),
+                    itemCount: state.messages.length,
                     itemBuilder: (context, index) {
-                      if (_isPatientTyping && index == _messages.length) {
-                        return _buildTypingIndicator();
-                      }
+                      final message = state.messages[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: MessageBubble(
-                          message: _messages[index],
-                          isMe: _messages[index]
-                              .isUser, // true si es mensaje del psicólogo
+                          message: message,
+                          isMe: message.isUser, 
                         ),
                       );
                     },
-                  ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ),
 
           // Área de entrada de mensaje
@@ -340,54 +262,47 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 ),
               ],
             ),
-            child: BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, authState) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).brightness == Brightness.light
-                              ? Colors.grey[100]
-                              : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(25),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? Colors.grey[100]
+                          : Colors.grey[800],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: TextField(
+                      controller: _messageController,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'Escribe un mensaje...',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontFamily: 'Poppins',
                         ),
-                        child: TextField(
-                          controller: _messageController,
-                          maxLines: null,
-                          decoration: InputDecoration(
-                            hintText: 'Escribe un mensaje...',
-                            hintStyle: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.color,
-                              fontFamily: 'Poppins',
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                          ),
-                          onSubmitted: (_) => _sendMessage(),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
                         ),
                       ),
+                      onSubmitted: (_) => _sendMessage(),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        onPressed: _sendMessage,
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -395,7 +310,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  // Métodos helper para los widgets 
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -417,137 +333,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTypingIndicator() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppConstants.lightAccentColor,
-            backgroundImage: NetworkImage(widget.patientImageUrl),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.grey[200]
-                  : Colors.grey[700],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).textTheme.bodySmall?.color ??
-                          Colors.grey,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Escribiendo...',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showVideoCallDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Videollamada'),
-        content: Text(
-          '¿Deseas iniciar una videollamada con ${widget.patientName}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implementar videollamada
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Función de videollamada próximamente'),
-                ),
-              );
-            },
-            child: const Text('Llamar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCallDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Llamada de voz'),
-        content: Text(
-          '¿Deseas iniciar una llamada de voz con ${widget.patientName}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implementar llamada de voz
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Función de llamada próximamente'),
-                ),
-              );
-            },
-            child: const Text('Llamar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPatientProfile() {
-    // TODO: Implementar vista del perfil del paciente
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Vista de perfil próximamente')),
-    );
-  }
-
-  void _showSessionNotes() {
-    // TODO: Implementar notas de sesión
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notas de sesión próximamente')),
-    );
-  }
-
-  void _showChatHistory() {
-    // TODO: Implementar historial de chat
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Historial de chat próximamente')),
     );
   }
 }

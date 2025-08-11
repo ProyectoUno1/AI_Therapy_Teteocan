@@ -2,14 +2,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_event.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_state.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfessionalInfoSetupScreen extends StatefulWidget {
-  const ProfessionalInfoSetupScreen({super.key});
+  final PsychologistModel? psychologist;
+
+  const ProfessionalInfoSetupScreen({super.key, this.psychologist});
 
   @override
   State<ProfessionalInfoSetupScreen> createState() =>
@@ -34,20 +44,16 @@ class _ProfessionalInfoSetupScreenState
   final TextEditingController _certificationsController =
       TextEditingController();
 
-  // Variables de estado
-  File? _profileImage;
   String? _selectedSpecialty;
-  Set<String> _selectedSubSpecialties = {};
-  Map<String, TimeOfDay?> _schedule = {
-    'Lunes': null,
-    'Martes': null,
-    'Miércoles': null,
-    'Jueves': null,
-    'Viernes': null,
-    'Sábado': null,
-    'Domingo': null,
-  };
-  Map<String, TimeOfDay?> _endSchedule = {
+  final List<String> _selectedSubSpecialties = [];
+
+  final _emailController = TextEditingController();
+  final _specialtyController = TextEditingController();
+  final List<String> _educationList = [];
+  final List<String> _certificationsList = [];
+  final Map<String, dynamic> _schedule = {};
+
+  final Map<String, TimeOfDay?> _startSchedule = {
     'Lunes': null,
     'Martes': null,
     'Miércoles': null,
@@ -57,9 +63,19 @@ class _ProfessionalInfoSetupScreenState
     'Domingo': null,
   };
 
-  // Variables removidas: modalidades y tarifas las maneja el admin
-  // bool _isAvailableOnline = true;
-  // bool _isAvailableInPerson = false;
+  final Map<String, TimeOfDay?> _endSchedule = {
+    'Lunes': null,
+    'Martes': null,
+    'Miércoles': null,
+    'Jueves': null,
+    'Viernes': null,
+    'Sábado': null,
+    'Domingo': null,
+  };
+
+  // Variables de estado
+  File? _profileImage;
+  File? _imageFile;
 
   // Listas de opciones
   final List<String> _specialties = [
@@ -110,8 +126,138 @@ class _ProfessionalInfoSetupScreenState
     ],
   };
 
+  
+  late StreamSubscription _blocSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicia la suscripción al stream del Bloc
+    _blocSubscription = context.read<PsychologistInfoBloc>().stream.listen((
+      state,
+    ) {
+      if (state is PsychologistInfoLoaded) {
+        // Rellena los campos si se han cargado los datos
+        _fillFormWithData(state.psychologist);
+      }
+    });
+
+    // Inicia la carga de la información del psicólogo al entrar a la pantalla
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      BlocProvider.of<PsychologistInfoBloc>(
+        context,
+      ).add(LoadPsychologistInfoEvent(uid: uid));
+    }
+  }
+
+  void _fillFormWithData(PsychologistModel psychologist) {
+    _fullNameController.text = psychologist.fullName ?? '';
+    _professionalTitleController.text = psychologist.professionalTitle ?? '';
+    _licenseNumberController.text = psychologist.professionalLicense ?? '';
+    _yearsExperienceController.text =
+        psychologist.yearsExperience?.toString() ?? '';
+    _descriptionController.text = psychologist.description ?? '';
+
+    if (psychologist.education != null) {
+      _educationController.text = psychologist.education!.join('\n');
+    }
+    if (psychologist.certifications != null) {
+      _certificationsController.text = psychologist.certifications!.join('\n');
+    }
+
+    _selectedSpecialty = psychologist.specialty;
+    if (psychologist.subSpecialties != null) {
+      _selectedSubSpecialties.clear();
+      _selectedSubSpecialties.addAll(psychologist.subSpecialties!);
+    }
+
+    _startSchedule.clear();
+    _endSchedule.clear();
+    if (psychologist.schedule != null && psychologist.schedule is Map) {
+      (psychologist.schedule as Map<String, dynamic>).forEach((day, times) {
+        final startTime = times['startTime'];
+        final endTime = times['endTime'];
+        if (startTime != null && endTime != null) {
+          final startParts = startTime.split(':');
+          final endParts = endTime.split(':');
+          _startSchedule[day] = TimeOfDay(
+            hour: int.parse(startParts[0]),
+            minute: int.parse(startParts[1]),
+          );
+          _endSchedule[day] = TimeOfDay(
+            hour: int.parse(endParts[0]),
+            minute: int.parse(endParts[1]),
+          );
+        }
+      });
+    }
+
+    setState(() {});
+  }
+
+  void _saveProfessionalInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null && _formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      // Lógica para procesar los controladores de texto en listas
+      final educationList = _educationController.text
+          .split('\n')
+          .where((s) => s.isNotEmpty)
+          .toList();
+      final certificationsList = _certificationsController.text
+          .split('\n')
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      // Lógica para procesar el horario
+      final Map<String, Map<String, String>> formattedSchedule = {};
+      _startSchedule.forEach((day, time) {
+        if (time != null && _endSchedule[day] != null) {
+          formattedSchedule[day] = {
+            'from':
+                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+            'to':
+                '${_endSchedule[day]!.hour.toString().padLeft(2, '0')}:${_endSchedule[day]!.minute.toString().padLeft(2, '0')}',
+          };
+        }
+      });
+
+      context.read<PsychologistInfoBloc>().add(
+        SetupProfessionalInfoEvent(
+          uid: user.uid,
+          email: user.email ?? '',
+          fullName: _fullNameController.text,
+          professionalTitle: _professionalTitleController.text,
+          licenseNumber: _licenseNumberController.text,
+          yearsExperience: int.tryParse(_yearsExperienceController.text) ?? 0,
+          description: _descriptionController.text,
+          education: educationList,
+          certifications: certificationsList,
+          profilePictureUrl:
+              null, 
+          selectedSpecialty: _selectedSpecialty,
+          selectedSubSpecialties: _selectedSubSpecialties,
+          schedule: formattedSchedule,
+          isAvailable: true,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: No hay un usuario autenticado.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    
+    _blocSubscription.cancel();
     _fullNameController.dispose();
     _professionalTitleController.dispose();
     _licenseNumberController.dispose();
@@ -168,7 +314,7 @@ class _ProfessionalInfoSetupScreenState
         if (isEndTime) {
           _endSchedule[day] = picked;
         } else {
-          _schedule[day] = picked;
+          _startSchedule[day] = picked;
         }
       });
     }
@@ -467,6 +613,7 @@ class _ProfessionalInfoSetupScreenState
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: DropdownButtonFormField<String>(
+            isExpanded: true, // 🔹 Evita el overflow
             value: _selectedSpecialty,
             decoration: const InputDecoration(
               hintText: 'Selecciona tu especialidad principal',
@@ -487,6 +634,8 @@ class _ProfessionalInfoSetupScreenState
                 child: Text(
                   specialty,
                   style: const TextStyle(fontFamily: 'Poppins'),
+                  overflow:
+                      TextOverflow.ellipsis, 
                 ),
               );
             }).toList(),
@@ -554,33 +703,6 @@ class _ProfessionalInfoSetupScreenState
         ],
 
         const SizedBox(height: 24),
-
-        // Certificaciones adicionales
-        const Text(
-          'Certificaciones adicionales (opcional)',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _certificationsController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText:
-                'Ej: Certificación en Terapia Familiar, Diplomado en Neuropsicología...',
-            hintStyle: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.all(16),
-          ),
-          style: const TextStyle(fontFamily: 'Poppins'),
-        ),
-
-        const SizedBox(height: 24),
-
         // Nota informativa sobre tarifas y modalidades
         Container(
           padding: const EdgeInsets.all(16),
@@ -591,7 +713,7 @@ class _ProfessionalInfoSetupScreenState
               color: AppConstants.lightAccentColor.withOpacity(0.3),
             ),
           ),
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -601,8 +723,8 @@ class _ProfessionalInfoSetupScreenState
                     color: AppConstants.lightAccentColor,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
+                  SizedBox(width: 8),
+                  Text(
                     'Información importante',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
@@ -612,8 +734,8 @@ class _ProfessionalInfoSetupScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 '• Las tarifas por sesión serán establecidas por el administrador\n'
                 '• Las modalidades de atención (presencial/en línea) se configurarán posteriormente\n'
                 '• Tu perfil será revisado antes de ser publicado para los pacientes',
@@ -653,7 +775,6 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
         const SizedBox(height: 24),
-
         ...[
           'Lunes',
           'Martes',
@@ -697,7 +818,8 @@ class _ProfessionalInfoSetupScreenState
                                 border: Border.all(color: Colors.grey[300]!),
                               ),
                               child: Text(
-                                _schedule[day]?.format(context) ?? 'Inicio',
+                                _startSchedule[day]?.format(context) ??
+                                    'Inicio',
                                 style: const TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 14,
@@ -746,17 +868,17 @@ class _ProfessionalInfoSetupScreenState
                   ),
                   IconButton(
                     icon: Icon(
-                      _schedule[day] != null
+                      _startSchedule[day] != null
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked,
-                      color: _schedule[day] != null
+                      color: _startSchedule[day] != null
                           ? AppConstants.lightAccentColor
                           : Colors.grey,
                     ),
                     onPressed: () {
-                      if (_schedule[day] != null) {
+                      if (_startSchedule[day] != null) {
                         setState(() {
-                          _schedule[day] = null;
+                          _startSchedule[day] = null;
                           _endSchedule[day] = null;
                         });
                       }
@@ -773,14 +895,80 @@ class _ProfessionalInfoSetupScreenState
 
   void _nextStep() {
     if (_currentStep < 3) {
+      // Lógica para avanzar al siguiente paso
       if (_validateCurrentStep()) {
         setState(() {
           _currentStep++;
         });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, completa todos los campos requeridos.'),
+          ),
+        );
       }
     } else {
-      _submitForm();
+      // Lógica para finalizar y guardar la información (Paso final)
+      if (_formKey.currentState!.validate()) {
+        _formKey.currentState!.save();
+
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          context.read<PsychologistInfoBloc>().add(
+            SetupProfessionalInfoEvent(
+              uid: user.uid,
+              email: user.email ?? '',
+              fullName: _fullNameController.text,
+              professionalTitle: _professionalTitleController.text,
+              licenseNumber: _licenseNumberController.text,
+              yearsExperience:
+                  int.tryParse(_yearsExperienceController.text) ?? 0,
+              description: _descriptionController.text,
+              education: _educationController.text
+                  .split('\n')
+                  .where((s) => s.isNotEmpty)
+                  .toList(),
+              certifications: _certificationsController.text
+                  .split('\n')
+                  .where((s) => s.isNotEmpty)
+                  .toList(),
+              profilePictureUrl: _imageFile?.path,
+              selectedSpecialty: _selectedSpecialty,
+              selectedSubSpecialties: _selectedSubSpecialties,
+              schedule: _convertScheduleToBackendFormat(),
+              isAvailable: true,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error: No hay un usuario autenticado.'),
+              backgroundColor: AppConstants.errorColor,
+            ),
+          );
+        }
+      }
     }
+  }
+
+  Map<String, Map<String, String>> _convertScheduleToBackendFormat() {
+    final Map<String, Map<String, String>> backendSchedule = {};
+    _startSchedule.forEach((day, time) {
+      if (time != null && _endSchedule[day] != null) {
+        backendSchedule[day] = {
+          'startTime': _formatTimeOfDay(time),
+          'endTime': _formatTimeOfDay(_endSchedule[day]!),
+        };
+      }
+    });
+    return backendSchedule;
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    final now = DateTime.now();
+    final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    final format = DateFormat.Hm(); // Formato de 24 horas (HH:mm)
+    return format.format(dt);
   }
 
   void _previousStep() {
@@ -804,147 +992,146 @@ class _ProfessionalInfoSetupScreenState
       case 2:
         return _selectedSpecialty != null;
       case 3:
-        return _schedule.values.any((time) => time != null);
+        return _startSchedule.values.any((time) => time != null);
       default:
         return false;
     }
   }
 
-  void _submitForm() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Aquí se enviaría la información al backend
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '¡Perfil profesional configurado exitosamente! Las tarifas serán establecidas por el administrador.',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
-        ),
-      );
-
-      // Navegar a la pantalla de login para que el psicólogo pueda iniciar sesión
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return BlocListener<PsychologistInfoBloc, PsychologistInfoState>(
+      listener: (context, state) {
+        if (state is PsychologistInfoSaved) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Perfil profesional configurado exitosamente!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => PsychologistHomeScreen()),
+            (Route<dynamic> route) => false,
+          );
+        } else if (state is PsychologistInfoError) {
+          // Muestra un error si algo falla en el BLoC
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al guardar: ${state.message}'),
+              backgroundColor: AppConstants.errorColor,
+            ),
+          );
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: _currentStep > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: _previousStep,
-              )
-            : null,
-        title: Text(
-          'Configuración Profesional',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: _currentStep > 0
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: _previousStep,
+                )
+              : null,
+          title: const Text(
+            'Configuración Profesional',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            // Indicador de progreso
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: List.generate(4, (index) {
-                  return Expanded(
-                    child: Container(
-                      margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: index <= _currentStep
-                            ? AppConstants.lightAccentColor
-                            : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+        body: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              // Indicador de progreso
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: List.generate(4, (index) {
+                    return Expanded(
+                      child: Container(
+                        margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: index <= _currentStep
+                              ? AppConstants.lightAccentColor
+                              : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
-            ),
 
-            // Contenido del paso actual
-            Expanded(
-              child: SingleChildScrollView(
+              // Contenido del paso actual
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildStepContent(),
+                ),
+              ),
+
+              // Botones de navegación
+              Container(
                 padding: const EdgeInsets.all(24),
-                child: _buildStepContent(),
-              ),
-            ),
-
-            // Botones de navegación
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  if (_currentStep > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _previousStep,
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: AppConstants.lightAccentColor,
+                child: Row(
+                  children: [
+                    if (_currentStep > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _previousStep,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppConstants.lightAccentColor,
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
+                          child: Text(
+                            'Anterior',
+                            style: TextStyle(
+                              color: AppConstants.lightAccentColor,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_currentStep > 0) const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _nextStep,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.lightAccentColor,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: Text(
-                          'Anterior',
-                          style: TextStyle(
-                            color: AppConstants.lightAccentColor,
+                          _currentStep < 3 ? 'Siguiente' : 'Finalizar',
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     ),
-                  if (_currentStep > 0) const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: _nextStep,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.lightAccentColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        _currentStep < 3 ? 'Continuar' : 'Finalizar',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

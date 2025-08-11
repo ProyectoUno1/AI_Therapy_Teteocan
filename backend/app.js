@@ -1,3 +1,4 @@
+
 // \AI_Therapy_Teteocan\backend\app.js
 
 import express from 'express';
@@ -6,6 +7,8 @@ import aiRoutes from './routes/aiRoutes.js';
 import patientsRoutes from './routes/patients.js';
 import psychologistsRoutes from './routes/psychologists.js';
 import aiChatRoutes from './routes/aiChatRoutes.js';
+import chatRoutes from './routes/chatRoutes.js'; 
+import psychologistProfessionalProfileRoutes from './routes/psychologist_professional_profile.js';
 
 import { auth, db } from './firebase-admin.js';
 
@@ -45,9 +48,11 @@ app.get('/', (req, res) => {
 
 app.use('/api/patients', patientsRoutes);
 app.use('/api/psychologists', psychologistsRoutes);
+app.use('/api/psychologists', psychologistProfessionalProfileRoutes);
 
 app.use('/api/ai', aiRoutes);
 app.use('/api/chats/ai-chat', aiChatRoutes);
+app.use('/api/chats', chatRoutes);
 
 // --- Manejador de Errores Global ---
 app.use((error, req, res, next) => {
