@@ -1,6 +1,7 @@
 // lib/presentation/patient/views/psychologists_list_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/psychologist_chat_screen.dart';
@@ -29,76 +30,82 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
     'Terapia Familiar',
   ];
 
-  // Datos de ejemplo de psicólogos
-  final List<PsychologistModel> _psychologists = [
-    PsychologistModel.example(
-      id: 'p1',
-      username: 'Dra. María González',
-      email: 'maria.gonzalez@example.com',
-      specialty: 'Depresión',
-      rating: 4.8,
-      isAvailable: true,
-      profilePictureUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-      description:
-          'Especialista en terapia cognitivo-conductual con 10 años de experiencia.',
-      hourlyRate: 80.0,
-      schedule: 'Lun-Vie 9:00-18:00',
-    ),
-    PsychologistModel.example(
-      id: 'p2',
-      username: 'Dr. Carlos Rodríguez',
-      email: 'carlos.rodriguez@example.com',
-      specialty: 'Ansiedad',
-      rating: 4.9,
-      isAvailable: true,
-      profilePictureUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-      description:
-          'Psicólogo clínico especializado en trastornos de ansiedad y pánico.',
-      hourlyRate: 75.0,
-      schedule: 'Mar-Sáb 10:00-19:00',
-    ),
-    PsychologistModel.example(
-      id: 'p3',
-      username: 'Dra. Ana Martínez',
-      email: 'ana.martinez@example.com',
-      specialty: 'Terapia de Pareja',
-      rating: 4.7,
-      isAvailable: false,
-      profilePictureUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
-      description: 'Terapeuta familiar y de pareja con enfoque sistémico.',
-      hourlyRate: 90.0,
-      schedule: 'Lun-Jue 14:00-20:00',
-    ),
-    PsychologistModel.example(
-      id: 'p4',
-      username: 'Dr. Luis Herrera',
-      email: 'luis.herrera@example.com',
-      specialty: 'Adicciones',
-      rating: 4.6,
-      isAvailable: true,
-      profilePictureUrl: 'https://randomuser.me/api/portraits/men/70.jpg',
-      description:
-          'Especialista en tratamiento de adicciones y rehabilitación.',
-      hourlyRate: 85.0,
-      schedule: 'Lun-Vie 8:00-16:00',
-    ),
-  ];
+  late Future<List<PsychologistModel>> _psychologistsFuture;
+  List<PsychologistModel> _allPsychologists =
+      []; // Lista para almacenar todos los psicólogos
+  List<PsychologistModel> _filteredPsychologists =
+      []; // Lista para los psicólogos filtrados
 
-  List<PsychologistModel> get _filteredPsychologists {
-    return _psychologists.where((psychologist) {
-      final matchesSearch =
-          psychologist.username.toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ) ||
-          (psychologist.specialty?.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ) ??
-              false);
-      final matchesSpecialty =
-          _selectedSpecialty == 'Todas' ||
-          psychologist.specialty == _selectedSpecialty;
-      return matchesSearch && matchesSpecialty;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _psychologistsFuture = _fetchPsychologistsWithProfessionalInfo();
+  }
+
+  Future<List<PsychologistModel>>
+  _fetchPsychologistsWithProfessionalInfo() async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final psychologistsRef = firestore.collection('psychologists');
+      final professionalInfoRef = firestore.collection(
+        'psychologist_professional_info',
+      );
+
+      final psychologistsSnapshot = await psychologistsRef.get();
+
+      if (psychologistsSnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      final combinedPsychologists = await Future.wait(
+        psychologistsSnapshot.docs.map((basicDoc) async {
+          final uid = basicDoc.id;
+          final basicData = basicDoc.data() as Map<String, dynamic>;
+
+          // Obtener la información profesional para cada psicólogo
+          final professionalDoc = await professionalInfoRef.doc(uid).get();
+
+          final professionalData = professionalDoc.exists
+              ? professionalDoc.data() as Map<String, dynamic>
+              : {};
+
+          // Combinar los datos básicos y profesionales
+          final Map<String, dynamic> combinedData = {
+            ...basicData,
+            ...professionalData,
+          };
+
+          return PsychologistModel.fromFirestore(combinedData);
+        }),
+      );
+
+      _allPsychologists = combinedPsychologists;
+      _applyFilters(); // Aplicar filtros iniciales
+      return _allPsychologists;
+    } catch (e) {
+      print('Error al obtener la lista de psicólogos: $e');
+      return [];
+    }
+  }
+
+  // función para aplicar los filtros
+  void _applyFilters() {
+    setState(() {
+      _filteredPsychologists = _allPsychologists.where((psychologist) {
+        final matchesSearch =
+            (psychologist.fullName ?? '').toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ) ||
+            (psychologist.specialty?.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ??
+                false);
+        final matchesSpecialty =
+            _selectedSpecialty == 'Todas' ||
+            (psychologist.specialty == _selectedSpecialty);
+        return matchesSearch && matchesSpecialty;
+      }).toList();
+    });
   }
 
   @override
@@ -136,9 +143,8 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
+                _searchQuery = value;
+                _applyFilters();
               },
               decoration: InputDecoration(
                 hintText: 'Buscar psicólogos o especialidades...',
@@ -192,9 +198,8 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                       0.1,
                     ),
                     onSelected: (selected) {
-                      setState(() {
-                        _selectedSpecialty = specialty;
-                      });
+                      _selectedSpecialty = specialty;
+                      _applyFilters();
                     },
                   ),
                 );
@@ -206,19 +211,34 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
           // Lista de psicólogos
           Expanded(
-            child: _filteredPsychologists.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _filteredPsychologists.length,
-                    itemBuilder: (context, index) {
-                      final psychologist = _filteredPsychologists[index];
-                      return _PsychologistCard(
-                        psychologist: psychologist,
-                        onTap: () => _onPsychologistSelected(psychologist),
-                      );
-                    },
-                  ),
+            child: FutureBuilder<List<PsychologistModel>>(
+              future: _psychologistsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Ocurrió un error: ${snapshot.error}'),
+                  );
+                }
+                if (!snapshot.hasData || _filteredPsychologists.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _filteredPsychologists.length,
+                  itemBuilder: (context, index) {
+                    final psychologist = _filteredPsychologists[index];
+                    return _PsychologistCard(
+                      psychologist: psychologist,
+                      onTap: () => _onPsychologistSelected(psychologist),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -327,11 +347,11 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
   }
 
   void _onPsychologistSelected(PsychologistModel psychologist) {
-    if (!psychologist.isAvailable) {
+    if (psychologist.isAvailable != true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${psychologist.username} no está disponible en este momento',
+            '${psychologist.fullName} no está disponible en este momento',
             style: const TextStyle(fontFamily: 'Poppins'),
           ),
           backgroundColor: AppConstants.errorColor,
@@ -366,7 +386,8 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => PsychologistChatScreen(
-                      psychologistName: psychologist.username,
+                      psychologistUid: psychologist.uid,
+                      psychologistName: psychologist.fullName ?? 'Psicólogo',
                       psychologistImageUrl:
                           psychologist.profilePictureUrl ?? '',
                     ),
@@ -420,7 +441,7 @@ class _PsychologistCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      psychologist.username,
+                      psychologist.fullName ?? 'Psicólogo sin nombre',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -456,18 +477,18 @@ class _PsychologistCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: psychologist.isAvailable
+                            color: (psychologist.isAvailable ?? false)
                                 ? Colors.green.withOpacity(0.1)
                                 : Colors.red.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            psychologist.isAvailable
+                            (psychologist.isAvailable ?? false)
                                 ? 'Disponible'
                                 : 'No disponible',
                             style: TextStyle(
                               fontSize: 10,
-                              color: psychologist.isAvailable
+                              color: (psychologist.isAvailable ?? false)
                                   ? Colors.green
                                   : Colors.red,
                               fontWeight: FontWeight.w500,
@@ -572,7 +593,7 @@ class _PsychologistDetailsModal extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              psychologist.username,
+                               psychologist.fullName ?? 'Psicólogo sin nombre',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -642,7 +663,21 @@ class _PsychologistDetailsModal extends StatelessWidget {
                           icon: Icons.schedule,
                           title: 'Horarios',
                           subtitle:
-                              psychologist.schedule ?? 'Horario por definir',
+                              psychologist.schedule != null &&
+                                  psychologist.schedule!.isNotEmpty
+                              ? psychologist.schedule!.entries
+                                    .map((entry) {
+                                      final day = entry.key;
+                                      final scheduleForDay =
+                                          entry.value as Map<String, dynamic>;
+                                      final startTime =
+                                          scheduleForDay['startTime'] ?? '';
+                                      final endTime =
+                                          scheduleForDay['endTime'] ?? '';
+                                      return '$day: $startTime - $endTime';
+                                    })
+                                    .join('\n')
+                              : 'Horario no definido',
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -696,7 +731,7 @@ class _PsychologistDetailsModal extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: psychologist.isAvailable
+                          onPressed: (psychologist.isAvailable ?? false)
                               ? onStartChat
                               : null,
                           style: ElevatedButton.styleFrom(
@@ -708,7 +743,7 @@ class _PsychologistDetailsModal extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                           child: Text(
-                            psychologist.isAvailable
+                            (psychologist.isAvailable ?? false)
                                 ? 'Iniciar Chat'
                                 : 'No Disponible',
                             style: const TextStyle(

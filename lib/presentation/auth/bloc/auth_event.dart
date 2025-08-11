@@ -68,9 +68,6 @@ class AuthSignOutRequested extends AuthEvent {
   const AuthSignOutRequested();
 }
 
-// -----------------------------------------------------------
-// ¡NUEVO EVENTO PARA ACTUALIZAR LA INFORMACIÓN DEL PACIENTE!
-// -----------------------------------------------------------
 class UpdatePatientInfoRequested extends AuthEvent {
   final String? name;
   final String? dob;

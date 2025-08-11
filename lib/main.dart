@@ -1,10 +1,16 @@
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
+// lib/main.dart
+
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Necesario para obtener el token de Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 
 // Importaciones de las capas de la arquitectura limpia
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -14,14 +20,24 @@ import 'package:ai_therapy_teteocan/data/repositories/auth_repository_impl.dart'
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
+import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
+import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
+
+// Importaciones para el tema
+import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
+import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 
 import 'firebase_options.dart';
 
@@ -38,6 +54,9 @@ void main() async {
     await _connectToFirebaseEmulator();
   }
 
+  // --- Inicialización de la base de datos de zonas horarias ---
+  tzdata.initializeTimeZones();
+
   // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
       AuthRemoteDataSourceImpl(firebaseAuth: FirebaseAuth.instance);
@@ -52,10 +71,10 @@ void main() async {
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
-  );
-
-  // --- Inicialización del Repositorio de Chat ---
+  ); 
   final ChatRepository chatRepository = ChatRepository();
+  final ThemeService themeService = ThemeService();
+  final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
@@ -77,10 +96,7 @@ void main() async {
   runApp(
     MultiBlocProvider(
       providers: [
-        // Proveedor para HomeContentCubit
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
-
-        // Proveedor para AuthBloc
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthBloc(
@@ -88,12 +104,16 @@ void main() async {
                 signInUseCase: signInUseCase,
                 registerUserUseCase: registerUserUseCase,
               )..add(
-                const AuthStarted(),
-              ), // Dispara el evento inicial de autenticación
+                  const AuthStarted(),
+                ), 
         ),
-
-        // Proveedor para ChatBloc
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
+        BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
+        BlocProvider<PsychologistInfoBloc>(
+          create: (context) => PsychologistInfoBloc(
+            psychologistRepository: PsychologistRepositoryImpl(psychologistRemoteDataSource),
+          ),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -113,256 +133,185 @@ Future<void> _connectToFirebaseEmulator() async {
 }
 
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // --- Temas de la aplicación (Claro y Oscuro) ---
-  ThemeData _lightTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Poppins',
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.accentColor,
-        brightness: Brightness.light,
-        primary: AppConstants.accentColor,
-        secondary: const Color(0xFF81C784),
-        surface: const Color(0xFFFAFAFA),
-        error: AppConstants.errorColor,
-      ),
-      textTheme: _poppinsTextTheme(Brightness.light),
-      appBarTheme: AppBarTheme(
-        backgroundColor: AppConstants.accentColor,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        centerTitle: true,
-        titleTextStyle: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.accentColor,
-          foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w500,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppConstants.lightAccentColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        hintStyle: const TextStyle(
-          color: Colors.white70,
-          fontFamily: 'Poppins',
-        ),
-        prefixIconColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        errorStyle: const TextStyle(height: 0, fontSize: 0),
-      ),
-    );
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Establece el estado inicial en línea si el usuario ya está autenticado
+    _updateOnlineStatus(true);
   }
 
-  ThemeData _darkTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Poppins',
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.accentColor,
-        brightness: Brightness.dark,
-        primary: AppConstants.lightAccentColor,
-        secondary: const Color(0xFFA5D6A7),
-        surface: const Color(0xFF1E1E1E),
-        error: const Color(0xFFEF9A9A),
+  @override
+  void dispose() {
+    // Al cerrar la app, establece el estado a fuera de línea
+    _updateOnlineStatus(false);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // El usuario volvió a la aplicación, lo ponemos en línea
+      _updateOnlineStatus(true);
+    } else if (state == AppLifecycleState.paused) {
+      // El usuario salió de la aplicación, lo ponemos fuera de línea
+      _updateOnlineStatus(false);
+    }
+  }
+
+  void _updateOnlineStatus(bool isOnline) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      
+      userRef.set(
+        {'isOnline': isOnline, 'lastActive': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      ).catchError((error) => log('Error al actualizar el estado de conexión: $error'));
+    }
+  }
+
+  // --- Temas de la aplicación usando FlexColorScheme ---
+  ThemeData _lightTheme() {
+    final lightColorScheme = FlexColorScheme.light(scheme: FlexScheme.tealM3);
+    return FlexThemeData.light(
+      scheme: FlexScheme.tealM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 7,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 10,
+        blendOnColors: false,
+        useTextTheme: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        bottomNavigationBarElevation: 0,
+        navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
+        navigationBarUnselectedLabelSchemeColor: SchemeColor.onSurfaceVariant,
+        navigationBarIndicatorSchemeColor: SchemeColor.secondaryContainer,
+        navigationBarBackgroundSchemeColor: SchemeColor.surface,
       ),
-      textTheme: _poppinsTextTheme(Brightness.dark),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF2D2D2D),
-        foregroundColor: AppConstants.lightAccentColor,
-        elevation: 2,
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      swapLegacyOnMaterial3: true,
+      fontFamily: 'Poppins',
+    ).copyWith(
+      appBarTheme: AppBarTheme(
         centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: lightColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: lightColorScheme.onSurface,
         titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: AppConstants.lightAccentColor,
+          color: lightColorScheme.onSurface,
         ),
+        iconTheme: IconThemeData(color: lightColorScheme.onSurface),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.lightAccentColor,
-          foregroundColor: const Color(0xFF1E1E1E),
-          textStyle: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w500,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFF2D2D2D),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppConstants.accentColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        hintStyle: const TextStyle(
-          color: Colors.white70,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: lightColorScheme.surface,
+        selectedItemColor: lightColorScheme.primary,
+        unselectedItemColor: Colors.grey[600],
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(
           fontFamily: 'Poppins',
+          fontWeight: FontWeight.w600,
         ),
-        prefixIconColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.normal,
         ),
-        errorStyle: const TextStyle(height: 0, fontSize: 0),
       ),
+      scaffoldBackgroundColor: lightColorScheme.surface,
     );
   }
 
-  TextTheme _poppinsTextTheme(Brightness brightness) {
-    Color textColor = brightness == Brightness.light
-        ? Colors.black87
-        : Colors.white;
-    Color mutedTextColor = brightness == Brightness.light
-        ? Colors.black54
-        : Colors.grey[400]!;
-
-    return TextTheme(
-      displayLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w300,
-        color: textColor,
+  ThemeData _darkTheme() {
+    final darkColorScheme = FlexColorScheme.dark(scheme: FlexScheme.tealM3);
+    return FlexThemeData.dark(
+      scheme: FlexScheme.tealM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 13,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 20,
+        useTextTheme: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        bottomNavigationBarElevation: 0,
+        navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
+        navigationBarUnselectedLabelSchemeColor: SchemeColor.onSurfaceVariant,
+        navigationBarIndicatorSchemeColor: SchemeColor.secondaryContainer,
+        navigationBarBackgroundSchemeColor: SchemeColor.surface,
       ),
-      displayMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      swapLegacyOnMaterial3: true,
+      fontFamily: 'Poppins',
+    ).copyWith(
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: darkColorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: darkColorScheme.onSurface,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: darkColorScheme.onSurface,
+        ),
+        iconTheme: IconThemeData(color: darkColorScheme.onSurface),
       ),
-      displaySmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: darkColorScheme.surface,
+        selectedItemColor: darkColorScheme.primary,
+        unselectedItemColor: Colors.grey[400],
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.normal,
+        ),
       ),
-      headlineLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      headlineMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      headlineSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      titleLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      titleMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      titleSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      bodyLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      bodyMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: textColor,
-      ),
-      bodySmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w400,
-        color: mutedTextColor,
-      ),
-      labelLarge: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: textColor,
-      ),
-      labelMedium: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: mutedTextColor,
-      ),
-      labelSmall: TextStyle(
-        fontFamily: 'Poppins',
-        fontWeight: FontWeight.w500,
-        color: mutedTextColor,
-      ),
+      scaffoldBackgroundColor: darkColorScheme.surface,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: AppConstants.appName,
-      theme: _lightTheme(),
-      darkTheme: _darkTheme(),
-      themeMode: ThemeMode.system,
-      navigatorKey: navigatorKey,
-      home:
-           const PatientHomeScreen(), // AuthWrapper maneja la navegación inicial
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: AppConstants.appName,
+          theme: _lightTheme(),
+          darkTheme: _darkTheme(),
+          themeMode: themeState.selectedTheme.themeMode,
+          navigatorKey: navigatorKey,
+          home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
+              //const PsychologistHomeScreen(),
+              //const PsychologistChatListScreen(),
+        );
+      },
     );
   }
 }

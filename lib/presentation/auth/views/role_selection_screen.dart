@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/register_patient_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/register_psychologist_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';
@@ -8,7 +7,6 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       body: Stack(
         children: [
           Container(
@@ -38,9 +36,11 @@ class RoleSelectionScreen extends StatelessWidget {
                     backgroundColor: Colors.transparent,
                     elevation: 0,
                     leading: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back_ios,
-                        color: Colors.black54,
+                        color: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.color?.withOpacity(0.6),
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -56,16 +56,16 @@ class RoleSelectionScreen extends StatelessWidget {
                   Icon(
                     Icons.person_add_alt_1_rounded,
                     size: 90,
-                    color: AppConstants.accentColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 30),
-                  const Text(
+                  Text(
                     '¿Cómo deseas utilizar Aurora?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Theme.of(context).textTheme.headlineMedium?.color,
                       fontFamily: 'Poppins',
                     ),
                   ),

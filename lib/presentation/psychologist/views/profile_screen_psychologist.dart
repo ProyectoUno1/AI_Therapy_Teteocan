@@ -7,116 +7,449 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
-
-
+import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
 
 class ProfileScreenPsychologist extends StatefulWidget {
+  const ProfileScreenPsychologist({super.key});
   @override
   _ProfileScreenPsychologistState createState() =>
       _ProfileScreenPsychologistState();
 }
 
-
 class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
-
-  void _onLogoutPressed() { 
-    context.read<AuthBloc>().add(const AuthSignOutRequested()); 
-  }
-
-  // Your color palette
-  final Color primaryColor = AppConstants.primaryColor;
-  final Color accentColor = AppConstants.accentColor;
-  final Color lightAccentColor = AppConstants.lightAccentColor;
+  // Los colores ahora se obtienen del tema dinámicamente
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Profile Settings Section
-          _buildExpansionCard(
-            title: 'CONFIGURACIÓN DEL PERFIL',
-            children: [
-              _buildProfileOption(context, 'Información personal', () {
-                // Ensure PersonalInfoScreenPsychologist is imported
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => PersonalInfoScreenPsychologist()));
-              }),
-              _buildProfileOption(context, 'Notificaciones', () {
-                // Ensure NotificationsScreenPsychologist is imported
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsScreenPsychologist()));
-              }),
-              _buildProfileOption(context, 'Apariencia', () {
-                // Ensure AppearanceScreenPsychologist is imported
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => AppearanceScreenPsychologist()));
-              }),
-              _buildProfileOption(context, 'Idioma', () {
-                // Ensure LanguageScreenPsychologist is imported
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => LanguageScreenPsychologist()));
-              }),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Professional Profile Section (Psychologists only)
-          _buildExpansionCard(
-            title: 'PERFIL PROFESIONAL',
-            children: [
-              _buildProfileOption(context, 'Información profesional', () {
-                // Ensure ProfessionalInfoScreenPsychologist is imported
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => ProfessionalInfoScreenPsychologist()));
-              }),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Associated Account Section (Psychologists only)
-          _buildExpansionCard(
-            title: 'CUENTA ASOCIADA',
-            children: [
-              _buildProfileOption(
-                context,
-                'Información para recibir pagos',
-                () {
-                  /* Payment logic */
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Support Section
-          _buildExpansionCard(
-            title: 'SOPORTE',
-            children: [
-              _buildProfileOption(context, 'Soporte', () {
-                /* Support Logic */
-              }),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Contracts Section
-          _buildExpansionCard(
-            title: 'CONTRATOS',
-            children: [
-              _buildProfileOption(context, 'Política de privacidad', () {
-                /* Privacy Policy Logic */
-              }),
-              // You can add more contract options here
-            ],
-          ),
           const SizedBox(height: 30),
 
-          // Sign Out Button
+          // Header con información del psicólogo
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              String userName = 'Cargando...';
+              String userEmail = '';
+              String professionalTitle = '';
+              String? profileImageUrl;
+
+              if (authState.status == AuthStatus.authenticated &&
+                  authState.psychologist != null) {
+                userName = authState.psychologist!.username;
+                userEmail = authState.psychologist!.email;
+                professionalTitle =
+                    authState.psychologist!.professionalTitle ?? 'Psicólogo/a';
+                profileImageUrl = authState.psychologist!.profilePictureUrl;
+              }
+
+              return Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SizedBox(
+                    width: 250,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                          ),
+                          child: profileImageUrl != null
+                              ? Image.network(
+                                  profileImageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.person,
+                                      size: 30,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimaryContainer,
+                                    );
+                                  },
+                                )
+                              : Icon(
+                                  Icons.person,
+                                  size: 30,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                                ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              12,
+                              0,
+                              0,
+                              0,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.color,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  professionalTitle,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  userEmail,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: Theme.of(context).hintColor,
+                                        fontSize: 12,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              PersonalInfoScreenPsychologist(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // Sección Perfil Profesional
+          Text(
+            'Perfil Profesional',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                ProfileListItem(
+                  icon: Icons.work_outline,
+                  text: 'Información profesional',
+                  secondaryText: 'Editar perfil',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const ProfessionalInfoSetupScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.schedule_outlined,
+                  text: 'Horarios',
+                  secondaryText: 'Gestionar disponibilidad',
+                  onTap: () {
+                    // TODO: Implementar gestión de horarios
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.star_outline,
+                  text: 'Reseñas',
+                  secondaryText: 'Ver calificaciones',
+                  onTap: () {
+                    // TODO: Implementar vista de reseñas
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Sección Cuenta
+          Text(
+            'Cuenta',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                ProfileListItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  text: 'Información de pagos',
+                  secondaryText: 'Gestionar cobros',
+                  onTap: () {
+                    // TODO: Implementar gestión de pagos
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.analytics_outlined,
+                  text: 'Estadísticas',
+                  secondaryText: 'Ver reportes',
+                  onTap: () {
+                    // TODO: Implementar estadísticas
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Sección Notificaciones
+          Text(
+            'Notificaciones',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildNotificationToggle(
+                  'Notificaciones Push',
+                  'Recibir notificaciones de nuevos pacientes',
+                  true,
+                  (value) {
+                    // TODO: Implementar toggle de notificaciones
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                _buildNotificationToggle(
+                  'Recordatorios de citas',
+                  'Alertas 15 minutos antes de cada sesión',
+                  true,
+                  (value) {
+                    // TODO: Implementar toggle de recordatorios
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                _buildNotificationToggle(
+                  'Mensajes de pacientes',
+                  'Notificar cuando recibas mensajes',
+                  true,
+                  (value) {
+                    // TODO: Implementar toggle de mensajes
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Sección Configuración
+          Text(
+            'Configuración',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+            ),
+            child: Column(
+              children: [
+                ProfileListItem(
+                  icon: Icons.palette_outlined,
+                  text: 'Apariencia',
+                  secondaryText: 'Tema y colores',
+                  onTap: () {
+                    _showThemeSelector(context);
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.language_outlined,
+                  text: 'Idioma',
+                  secondaryText: 'Español',
+                  onTap: () {
+                    // TODO: Implementar pantalla de idioma
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.help_outline,
+                  text: 'Soporte',
+                  secondaryText: 'Ayuda y contacto',
+                  onTap: () {
+                    // TODO: Implementar soporte
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.policy_outlined,
+                  text: 'Política de privacidad',
+                  secondaryText: 'Términos y condiciones',
+                  onTap: () {
+                    // TODO: Implementar política de privacidad
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad próximamente'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // Botón de cerrar sesión
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.unauthenticated &&
                   !Navigator.of(context).canPop()) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
                   (Route<dynamic> route) => false,
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +468,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
             builder: (context, state) {
               return SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: state.status == AuthStatus.loading
                       ? null
@@ -143,22 +476,44 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                           _showLogoutConfirmationDialog(context);
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.red.shade50,
+                    foregroundColor: Colors.red.shade700,
+                    side: BorderSide(color: Colors.red.shade200),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 5,
+                    elevation: 0,
                   ),
                   child: state.status == AuthStatus.loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'CERRAR SESIÓN',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.red.shade700,
+                            ),
                           ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.logout,
+                              size: 18,
+                              color: Colors.red.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Cerrar Sesión',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
               );
@@ -170,90 +525,45 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     );
   }
 
-  // Helper widget for expandable cards (sections)
-  Widget _buildExpansionCard({
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Theme.of(
-        context,
-      ).cardColor,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: PageStorageKey(title),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                letterSpacing: 1.2,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            iconColor: primaryColor,
-            collapsedIconColor: primaryColor,
-            children: <Widget>[
-              Divider(height: 1, color: lightAccentColor.withOpacity(0.5)),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: Column(children: children),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Helper widget for each option within a section
-  Widget _buildProfileOption(
-    BuildContext context,
+  Widget _buildNotificationToggle(
     String title,
-    VoidCallback onTap,
+    String subtitle,
+    bool value,
+    Function(bool) onChanged,
   ) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
-          ],
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'Poppins',
         ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).textTheme.bodySmall?.color,
+          fontFamily: 'Poppins',
+        ),
+      ),
+      trailing: Switch(
+        value: value,
+        onChanged: onChanged,
+        activeColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
 
-  // Logout confirmation dialog
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(20),
           ),
           title: const Text(
             'Cerrar Sesión',
@@ -263,31 +573,118 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
             ),
           ),
           content: const Text(
-            '¿Estás seguro de que quieres cerrar tu sesión?',
+            '¿Estás seguro de que deseas cerrar sesión?',
             style: TextStyle(fontFamily: 'Poppins'),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Cancelar',
-                style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontFamily: 'Poppins',
+                ),
               ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             ),
-            TextButton(
-              child: const Text(
-                'Sí, Cerrar Sesión',
-                style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
-              ),
+            ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Dispatch logout event to AuthBloc
-                context.read<AuthBloc>().add(const AuthSignOutRequested()); // <-- FIX IS HERE!
+                context.read<AuthBloc>().add(const AuthSignOutRequested());
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Cerrar Sesión',
+                style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+              ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showThemeSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Seleccionar Tema',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.brightness_7),
+                title: const Text('Tema Claro'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Tema claro - Cambia configuración en ajustes del dispositivo',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.brightness_3),
+                title: const Text('Tema Oscuro'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Tema oscuro - Cambia configuración en ajustes del dispositivo',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_system_daydream),
+                title: const Text('Seguir sistema'),
+                subtitle: const Text(
+                  'La app seguirá la configuración del dispositivo',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'La app sigue automáticamente la configuración del sistema',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         );
       },
     );

@@ -1,180 +1,175 @@
-// lib/data/models/psychologist_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:equatable/equatable.dart';
 
-class PsychologistModel {
+class PsychologistModel extends Equatable {
   final String uid;
   final String username;
   final String email;
-  final String phoneNumber;
-  final String professionalLicense;
-  final String? profilePictureUrl;
-  final DateTime dateOfBirth;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String? phoneNumber;
   final String role;
+  final DateTime? dateOfBirth;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? profilePictureUrl;
 
-  // Nuevos campos para funcionalidad de psicólogos
-  final String? specialty;
-  final double? rating;
-  final bool isAvailable;
+  // Campos profesionales
+  final String? fullName;
+  final String? professionalTitle;
+  final String? professionalLicense;
+  final int? yearsExperience;
   final String? description;
+  final List<String>? education;
+  final List<String>? certifications;
+  final String? specialty;
+  final List<String>? subSpecialties;
+  final Map<String, dynamic>? schedule;
+
+ 
+  final double? rating;
+  final bool? isAvailable;
   final double? hourlyRate;
-  final String? schedule;
 
   const PsychologistModel({
     required this.uid,
-    required this.username,
     required this.email,
-    required this.phoneNumber,
-    required this.professionalLicense,
+    required this.username,
+    this.fullName,
+    this.phoneNumber,
+    this.professionalLicense,
+    this.dateOfBirth,
+    this.createdAt,
+    this.updatedAt,
+    required this.role,
     this.profilePictureUrl,
-    required this.dateOfBirth,
-    required this.createdAt,
-    required this.updatedAt,
-    this.role = 'psychologist',
-    this.specialty,
-    this.rating,
-    this.isAvailable = false,
+    this.professionalTitle,
+    this.yearsExperience,
     this.description,
-    this.hourlyRate,
+    this.education,
+    this.certifications,
+    this.specialty,
+    this.subSpecialties,
     this.schedule,
+    this.rating,
+    this.isAvailable,
+    this.hourlyRate,
   });
 
-  // Constructor conveniente para crear datos de ejemplo
-  PsychologistModel.example({
-    required String id,
-    required this.username,
-    required this.email,
-    this.specialty,
-    this.rating,
-    this.isAvailable = false,
-    this.profilePictureUrl,
-    this.description,
-    this.hourlyRate,
-    this.schedule,
-  }) : uid = id,
-       phoneNumber = '',
-       professionalLicense = '',
-       dateOfBirth = DateTime(1990, 1, 1),
-       createdAt = DateTime(2024, 1, 1),
-       updatedAt = DateTime(2024, 1, 1),
-       role = 'psychologist';
-
-  factory PsychologistModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> snapshot,
-    SnapshotOptions? options,
-  ) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw StateError('El documento de psicólogo no contiene datos.');
-    }
-
-    // Manejo robusto de Timestamps para createdAt y updatedAt
-    final Timestamp createdAtTimestamp = data['created_at'] is Timestamp
-        ? data['created_at']
-        : Timestamp.now();
-    final Timestamp updatedAtTimestamp = data['updated_at'] is Timestamp
-        ? data['updated_at']
-        : Timestamp.now();
-
-    DateTime parsedDateOfBirth;
-    if (data['date_of_birth'] is Timestamp) {
-      parsedDateOfBirth = (data['date_of_birth'] as Timestamp).toDate();
-    } else if (data['date_of_birth'] is String) {
-      parsedDateOfBirth =
-          DateTime.tryParse(data['date_of_birth']) ?? DateTime(1900);
-    } else {
-      parsedDateOfBirth = DateTime(1900);
-    }
-
+  factory PsychologistModel.fromJson(Map<String, dynamic> json) {
     return PsychologistModel(
-      uid: snapshot.id,
-      username: data['username'] as String,
-      email: data['email'] as String,
-      phoneNumber: data['phone_number'] as String,
-      professionalLicense: data['professional_license'] as String,
-      profilePictureUrl: data['profile_picture_url'] as String?,
-      dateOfBirth: parsedDateOfBirth,
-      createdAt: createdAtTimestamp.toDate(),
-      updatedAt: updatedAtTimestamp.toDate(),
-      role: data['role'] as String,
+      uid: json['uid'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String?,
+      role: json['role'] as String? ?? 'psicologo',
+      dateOfBirth: json['dateOfBirth'] is String
+          ? DateTime.tryParse(json['dateOfBirth'])
+          : null,
+      createdAt: json['createdAt'] is String
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] is String
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
+      profilePictureUrl: json['profilePictureUrl'] as String?,
+      fullName: json['fullName'] as String?,
+      professionalTitle: json['professionalTitle'] as String?,
+      professionalLicense: json['professionalLicense'] as String?,
+      yearsExperience: (json['yearsExperience'] as num?)?.toInt(),
+      description: json['description'] as String?,
+      education: (json['education'] as List?)?.cast<String>(),
+      certifications: (json['certifications'] as List?)?.cast<String>(),
+      specialty: json['specialty'] as String?,
+      subSpecialties: (json['subSpecialties'] as List?)?.cast<String>(),
+      schedule: json['schedule'] as Map<String, dynamic>?,
+      rating: (json['rating'] as num?)?.toDouble(),
+      isAvailable: json['isAvailable'] as bool?,
+      hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
+    );
+  }
+
+  factory PsychologistModel.fromFirestore(Map<String, dynamic> data) {
+    return PsychologistModel(
+      uid: data['firebase_uid'] as String? ?? data['uid'] as String? ?? '',
+      email: data['email'] as String? ?? '',
+      username: data['username'] as String? ?? '',
+      phoneNumber: data['phone_number'] as String?,
+      professionalLicense: data['professional_license'] as String?,
+      dateOfBirth: (data['date_of_birth'] is Timestamp)
+          ? (data['date_of_birth'] as Timestamp?)?.toDate()
+          : null,
+      createdAt: (data['created_at'] is Timestamp)
+          ? (data['created_at'] as Timestamp?)?.toDate()
+          : null,
+      updatedAt: (data['updatedAt'] is Timestamp)
+          ? (data['updatedAt'] as Timestamp?)?.toDate()
+          : null,
+      profilePictureUrl: data['profilePictureUrl'] as String?,
+      role: data['role'] as String? ?? 'psicologo',
+      fullName: data['fullName'] as String?,
+      professionalTitle: data['professionalTitle'] as String?,
+      yearsExperience: (data['yearsExperience'] as num?)?.toInt(),
+      description: data['description'] as String?,
+      education: (data['education'] as List?)?.cast<String>(),
+      certifications: (data['certifications'] as List?)?.cast<String>(),
+      specialty: data['specialty'] as String?,
+      subSpecialties: (data['subSpecialties'] as List?)?.cast<String>(),
+      schedule: data['schedule'] as Map<String, dynamic>?,
+      rating: (data['rating'] as num?)?.toDouble(),
+      isAvailable: data['isAvailable'] as bool? ?? false,
+      hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      "username": username,
-      "email": email,
-      "phone_number": phoneNumber,
-      "professional_license": professionalLicense,
-      "profile_picture_url": profilePictureUrl,
-      "date_of_birth": dateOfBirth.toIso8601String().split('T')[0],
-      "created_at": Timestamp.fromDate(createdAt),
-      "updated_at": Timestamp.fromDate(updatedAt),
-      "role": role,
-    };
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
       'uid': uid,
-      'username': username,
       'email': email,
+      'username': username,
       'phoneNumber': phoneNumber,
       'professionalLicense': professionalLicense,
       'profilePictureUrl': profilePictureUrl,
-      'dateOfBirth': dateOfBirth.toIso8601String().split('T')[0],
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'role': ['role'] as String? ?? 'psychologist',
+      'role': role,
+      'dateOfBirth': dateOfBirth != null ? Timestamp.fromDate(dateOfBirth!) : null,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      'fullName': fullName,
+      'professionalTitle': professionalTitle,
+      'yearsExperience': yearsExperience,
+      'description': description,
+      'education': education,
+      'certifications': certifications,
+      'specialty': specialty,
+      'subSpecialties': subSpecialties,
+      'schedule': schedule,
+      'rating': rating,
+      'isAvailable': isAvailable,
+      'hourlyRate': hourlyRate,
     };
   }
-}
 
-class PsychologistPatient {
-  final String id;
-  final String name;
-  final String? imageUrl;
-  final String latestMessage;
-  final String lastSeen;
-  final bool isOnline;
-
-  const PsychologistPatient({
-    required this.id,
-    required this.name,
-    this.imageUrl,
-    this.latestMessage = '',
-    this.lastSeen = '',
-    this.isOnline = false,
-  });
-}
-
-class Session {
-  final String id;
-  final DateTime time;
-  final PsychologistPatient patient;
-  final String type;
-  final int durationMinutes;
-
-  Session({
-    required this.id,
-    required this.time,
-    required this.patient,
-    required this.type,
-    required this.durationMinutes,
-  });
-}
-
-class PsychologistArticleSummary {
-  final String id;
-  final String title;
-  final String imageUrl;
-  final DateTime date;
-
-  PsychologistArticleSummary({
-    required this.id,
-    required this.title,
-    required this.imageUrl,
-    required this.date,
-  });
+  @override
+  List<Object?> get props => [
+    uid,
+    username,
+    email,
+    phoneNumber,
+    role,
+    dateOfBirth,
+    createdAt,
+    updatedAt,
+    profilePictureUrl,
+    fullName,
+    professionalTitle,
+    professionalLicense,
+    yearsExperience,
+    description,
+    specialty,
+    subSpecialties,
+    education,
+    certifications,
+    schedule,
+    rating,
+    isAvailable,
+    hourlyRate,
+  ];
 }

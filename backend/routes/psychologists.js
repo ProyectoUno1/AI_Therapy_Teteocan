@@ -3,6 +3,7 @@
 import express from 'express'; 
 const router = express.Router();
 import verifyFirebaseToken from '../middlewares/auth_middleware.js'; 
+import admin, { db } from '../firebase-admin.js';
 
 
 
@@ -62,35 +63,31 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-router.put('/profile', verifyFirebaseToken, async (req, res) => {
+router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
     try {
-        const uid = req.firebaseUser.uid; 
-        const { username, email, phoneNumber, professional_license, profilePictureUrl } = req.body;
-
-        const psychologistRef = db.collection('psychologists').doc(uid);
-        const doc = await psychologistRef.get();
-
-        if (!doc.exists) {
-            return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        const { uid } = req.params;
+        console.log('ID del usuario autenticado (del token):', req.firebaseUser.uid);
+        console.log('ID recibido en la URL (del frontend):', uid);
+        console.log('¿Coinciden los IDs?', req.firebaseUser.uid === uid);
+        // Validación para asegurar que el usuario autenticado solo pueda actualizar su propio perfil
+        if (req.firebaseUser.uid !== uid) {
+            return res.status(403).json({ error: 'Acceso no autorizado.' });
         }
 
-        const updateData = {
-            username: username,
-            email: email,
-            phone_number: phoneNumber,
-            professional_license: professional_license,
-            profile_picture_url: profilePictureUrl || null,
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        };
+        const { username, email, phoneNumber, profilePictureUrl } = req.body;
 
-        await psychologistRef.update(updateData);
+        const updateData = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+        if (username) updateData.username = username;
+        if (email) updateData.email = email;
+        if (phoneNumber) updateData.phoneNumber = phoneNumber;
+        if (profilePictureUrl) updateData.profilePictureUrl = profilePictureUrl;
 
-        const updatedDoc = await psychologistRef.get(); // Obtener el documento actualizado para la respuesta
+        await db.collection('psychologists').doc(uid).update(updateData);
 
-        res.json({ message: 'Perfil actualizado', psychologist: { id: updatedDoc.id, ...updatedDoc.data() } });
+        res.json({ message: 'Información básica actualizada' });
     } catch (error) {
-        console.error('Error al actualizar perfil psicólogo en Firestore:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('Error al actualizar información básica del psicólogo:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
 });
 

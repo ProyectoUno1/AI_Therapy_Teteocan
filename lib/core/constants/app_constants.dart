@@ -17,6 +17,7 @@ class AppConstants {
   static const Color secondaryColor = Color(0xFF00A389); // A greenish/teal color, as seen in your psychologist images
   static const Color lightSecondaryColor = Color(0xFF66D9EF); // A lighter blue/green, if you need a lighter shade
   static const Color lightGreyBackground = Color(0xFFF5F5F5); // A very light grey often used for screen/card backgrounds
+  static const Color lightGrayColor = Color(0xFFF0F0F0);
 
 
   // Rutas de imágenes

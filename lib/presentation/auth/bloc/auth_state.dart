@@ -93,7 +93,7 @@ class AuthState extends Equatable {
         patient = null,
         psychologist = null;
 
-  // Tu método copyWith existente
+  
   AuthState copyWith({
     AuthStatus? status,
     String? errorMessage,

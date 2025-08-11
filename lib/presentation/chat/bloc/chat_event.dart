@@ -24,7 +24,7 @@ class LoadMessagesEvent extends ChatEvent {
   List<Object?> get props => [chatId];
 }
 
-// Evento para cuando se recibe un mensaje (útil para tiempo real o confirmaciones)
+// Evento para cuando se recibe un mensaje 
 class MessageReceivedEvent extends ChatEvent {
   final String message;
   final DateTime timestamp;
@@ -41,4 +41,3 @@ class SetTypingStatusEvent extends ChatEvent {
   @override
   List<Object?> get props => [isTyping];
 }
-
