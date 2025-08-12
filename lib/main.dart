@@ -1,15 +1,11 @@
 // lib/main.dart
 
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 
 // Importaciones de las capas de la arquitectura limpia
@@ -30,7 +26,6 @@ import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
-import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
 
 // Importaciones para el tema
@@ -49,7 +44,11 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  const bool useEmulator = true;
+  // Configuración dinámica para emuladores vs producción
+  const bool useEmulator = bool.fromEnvironment(
+    'USE_EMULATOR',
+    defaultValue: false,
+  );
   if (useEmulator) {
     await _connectToFirebaseEmulator();
   }
@@ -71,7 +70,7 @@ void main() async {
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
-  ); 
+  );
   final ChatRepository chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
@@ -98,20 +97,19 @@ void main() async {
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
-          create: (context) =>
-              AuthBloc(
-                authRepository: authRepository,
-                signInUseCase: signInUseCase,
-                registerUserUseCase: registerUserUseCase,
-              )..add(
-                  const AuthStarted(),
-                ), 
+          create: (context) => AuthBloc(
+            authRepository: authRepository,
+            signInUseCase: signInUseCase,
+            registerUserUseCase: registerUserUseCase,
+          )..add(const AuthStarted()),
         ),
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
         BlocProvider<PsychologistInfoBloc>(
           create: (context) => PsychologistInfoBloc(
-            psychologistRepository: PsychologistRepositoryImpl(psychologistRemoteDataSource),
+            psychologistRepository: PsychologistRepositoryImpl(
+              psychologistRemoteDataSource,
+            ),
           ),
         ),
       ],
@@ -171,12 +169,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _updateOnlineStatus(bool isOnline) {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      
-      userRef.set(
-        {'isOnline': isOnline, 'lastActive': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
-      ).catchError((error) => log('Error al actualizar el estado de conexión: $error'));
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      userRef
+          .set({
+            'isOnline': isOnline,
+            'lastActive': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .catchError(
+            (error) => log('Error al actualizar el estado de conexión: $error'),
+          );
     }
   }
 
@@ -308,8 +312,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
           home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
-              //const PsychologistHomeScreen(),
-              //const PsychologistChatListScreen(),
+          //const PsychologistHomeScreen(),
+          //const PsychologistChatListScreen(),
         );
       },
     );

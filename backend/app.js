@@ -1,66 +1,76 @@
-
 // \AI_Therapy_Teteocan\backend\app.js
 
-import express from 'express';
-import cors from 'cors';
-import aiRoutes from './routes/aiRoutes.js';
-import patientsRoutes from './routes/patients.js';
-import psychologistsRoutes from './routes/psychologists.js';
-import aiChatRoutes from './routes/aiChatRoutes.js';
-import chatRoutes from './routes/chatRoutes.js'; 
-import psychologistProfessionalProfileRoutes from './routes/psychologist_professional_profile.js';
+import express from "express";
+import cors from "cors";
+import aiRoutes from "./routes/aiRoutes.js";
+import patientsRoutes from "./routes/patients.js";
+import psychologistsRoutes from "./routes/psychologists.js";
+import aiChatRoutes from "./routes/aiChatRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import psychologistProfessionalProfileRoutes from "./routes/psychologist_professional_profile.js";
 
-import { auth, db } from './firebase-admin.js';
+import { auth, db } from "./firebase-admin.js";
 
 const app = express();
 
+// --- Configuración CORS para desarrollo y producción ---
+const corsOptions = {
+  origin:
+    process.env.NODE_ENV === "production"
+      ? [process.env.FRONTEND_URL, "https://tu-app-url.com"] // ← URLs de producción
+      : ["http://localhost:3000", "http://10.0.2.2:3000"], // URLs de desarrollo
+  credentials: true,
+};
+
 // --- Middlewares Globales ---
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json()); // Para interpretar cuerpos de petición JSON
 
 // --- Middleware de Autenticación Firebase (Adaptado para Desarrollo) ---
 
 app.use(async (req, res, next) => {
-    const idToken = req.headers.authorization?.split('Bearer ')[1];
+  const idToken = req.headers.authorization?.split("Bearer ")[1];
 
-    if (!idToken) {
-        console.warn('⚠️No se proporcionó token de autorización. Usando userId de PRUEBA para desarrollo.');
-        req.userId = 'test_dev_user_id';
-        return next();
-    }
+  if (!idToken) {
+    console.warn(
+      "⚠️No se proporcionó token de autorización. Usando userId de PRUEBA para desarrollo."
+    );
+    req.userId = "test_dev_user_id";
+    return next();
+  }
 
-    try {
-        
-        const decodedToken = await auth.verifyIdToken(idToken); 
-        req.userId = decodedToken.uid;
-        console.log(`👤 Usuario autenticado (Firebase): ${req.userId}`);
-        next();
-    } catch (error) {
-        console.error('❌ Error al verificar token de Firebase:', error);
-        console.error('❌ Código de error:', error.code); // Mostrar el código de error para más detalle
-        return res.status(403).json({ error: 'Token de autenticación inválido o expirado.' });
-    }
+  try {
+    const decodedToken = await auth.verifyIdToken(idToken);
+    req.userId = decodedToken.uid;
+    console.log(`👤 Usuario autenticado (Firebase): ${req.userId}`);
+    next();
+  } catch (error) {
+    console.error("❌ Error al verificar token de Firebase:", error);
+    console.error("❌ Código de error:", error.code); // Mostrar el código de error para más detalle
+    return res
+      .status(403)
+      .json({ error: "Token de autenticación inválido o expirado." });
+  }
 });
 
-app.get('/', (req, res) => {
-    res.send('¡Aurora Backend funcionando en modo DESARROLLO!');
+app.get("/", (req, res) => {
+  res.send("¡Aurora Backend funcionando en modo DESARROLLO!");
 });
 
-app.use('/api/patients', patientsRoutes);
-app.use('/api/psychologists', psychologistsRoutes);
-app.use('/api/psychologists', psychologistProfessionalProfileRoutes);
+app.use("/api/patients", patientsRoutes);
+app.use("/api/psychologists", psychologistsRoutes);
+app.use("/api/psychologists", psychologistProfessionalProfileRoutes);
 
-app.use('/api/ai', aiRoutes);
-app.use('/api/chats/ai-chat', aiChatRoutes);
-app.use('/api/chats', chatRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/chats/ai-chat", aiChatRoutes);
+app.use("/api/chats", chatRoutes);
 
 // --- Manejador de Errores Global ---
 app.use((error, req, res, next) => {
-    console.error('💥 Error global capturado:', error);
-    res.status(error.status || 500).json({
-        error: error.message || 'Internal server error' 
-    });
+  console.error("💥 Error global capturado:", error);
+  res.status(error.status || 500).json({
+    error: error.message || "Internal server error",
+  });
 });
-
 
 export default app;
