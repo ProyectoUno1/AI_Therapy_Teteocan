@@ -2,14 +2,12 @@
 
 import express from 'express'; 
 const router = express.Router();
-import verifyFirebaseToken from '../middlewares/auth_middleware.js'; 
-import admin, { db } from '../firebase-admin.js';
-
-
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { admin, db } from '../firebase-admin.js';
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
-        const { uid, username, email, phoneNumber, professional_license, dateOfBirth, profilePictureUrl } = req.body;
+        const { uid, username, email, phoneNumber, professionalLicense, dateOfBirth, profilePictureUrl } = req.body;
         const firebaseUser = req.firebaseUser; 
 
         if (!firebaseUser || firebaseUser.uid !== uid) { 
@@ -23,15 +21,17 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             return res.status(400).json({ error: 'Psicólogo ya registrado' });
         }
 
+        // Se corrigieron los nombres de los campos para usar camelCase,
+        // lo que coincide con el modelo de Flutter
         const psychologistData = {
-            firebase_uid: uid,
+            firebaseUid: uid, // Corrección: de firebase_uid a firebaseUid
             username: username,
             email: email,
-            phone_number: phoneNumber,
-            professional_license: professional_license,
-            date_of_birth: dateOfBirth,
-            profile_picture_url: profilePictureUrl || null,
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            phoneNumber: phoneNumber, // Corrección: de phone_number a phoneNumber
+            professionalLicense: professionalLicense, // Corrección: de professional_license a professionalLicense
+            dateOfBirth: dateOfBirth, // Corrección: de date_of_birth a dateOfBirth
+            profilePictureUrl: profilePictureUrl || null, // Corrección: de profile_picture_url a profilePictureUrl
+            createdAt: admin.firestore.FieldValue.serverTimestamp(), // Corrección: de created_at a createdAt
         };
 
         await psychologistRef.set(psychologistData);

@@ -49,7 +49,8 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  const bool useEmulator = true;
+  // Hemos cambiado 'true' a 'false' para usar producción en lugar de emuladores.
+  const bool useEmulator = false;
   if (useEmulator) {
     await _connectToFirebaseEmulator();
   }
@@ -66,15 +67,17 @@ void main() async {
   final AuthRepository authRepository = AuthRepositoryImpl(
     authRemoteDataSource: authRemoteDataSource,
     userRemoteDataSource: userRemoteDataSource,
+    firebaseAuth: FirebaseAuth.instance,
   );
 
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
-  ); 
-  final ChatRepository chatRepository = ChatRepository();
+  );
+  final chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
+  
 
   FirebaseAuth.instance.authStateChanges().listen((User? user) async {
     if (user != null) {
@@ -103,9 +106,7 @@ void main() async {
                 authRepository: authRepository,
                 signInUseCase: signInUseCase,
                 registerUserUseCase: registerUserUseCase,
-              )..add(
-                  const AuthStarted(),
-                ), 
+              ), // <-- La llamada a .add(const AuthStarted()) ha sido eliminada.
         ),
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
@@ -172,7 +173,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      
+      // Usamos set() con merge: true para crear el documento si no existe
+      // o actualizarlo si ya existe.
       userRef.set(
         {'isOnline': isOnline, 'lastActive': FieldValue.serverTimestamp()},
         SetOptions(merge: true),
@@ -307,9 +309,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
-              //const PsychologistHomeScreen(),
-              //const PsychologistChatListScreen(),
+          home: const AuthWrapper(),
         );
       },
     );

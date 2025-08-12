@@ -60,7 +60,7 @@ firebase-debug.log
 # Node.js
 backend/node_modules/
 backend/package-lock.json
-
+.dart_tool
 # Development files
 .env
 .env.local
@@ -72,5 +72,6 @@ backend/package-lock.json
 firebase.json
 .firebaserc
 serviceAccountKey.json
-
 key.properties
+
+lib/firebase_options.dart

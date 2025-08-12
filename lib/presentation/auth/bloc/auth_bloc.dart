@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
@@ -16,42 +17,55 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SignInUseCase _signInUseCase;
   final RegisterUserUseCase _registerUserUseCase;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  late StreamSubscription<dynamic> _userSubscription;
+  late StreamSubscription<User?> _userSubscription;
 
   AuthBloc({
     required AuthRepository authRepository,
     required SignInUseCase signInUseCase,
     required RegisterUserUseCase registerUserUseCase,
   }) : _authRepository = authRepository,
-        _signInUseCase = signInUseCase,
-        _registerUserUseCase = registerUserUseCase,
-        super(const AuthState.unknown()) {
+       _signInUseCase = signInUseCase,
+       _registerUserUseCase = registerUserUseCase,
+       super(const AuthState.unknown()) {
+
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
     on<AuthRegisterPsychologistRequested>(_onAuthRegisterPsychologistRequested);
     on<AuthSignOutRequested>(_onAuthSignOutRequested);
     on<AuthStatusChanged>(_onAuthStatusChanged);
-    on<AuthStarted>(_onAuthStarted);
     on<UpdatePatientInfoRequested>(_onUpdatePatientInfoRequested);
 
-    log(' AuthBloc: Inicializando _userSubscription para authStateChanges.', name: 'AuthBloc');
-    _userSubscription = _authRepository.authStateChanges.listen((userProfile) {
-      log(' AuthBloc Subscription: Recibido userProfile del repositorio: ${userProfile?.runtimeType}', name: 'AuthBloc');
-
-      if (userProfile == null) {
-        log(' AuthBloc Subscription: Firebase User es null. Añadiendo AuthStatusChanged para UNATHENTICATED.', name: 'AuthBloc');
+    // --- CAMBIO CLAVE: SUSCRIPCIÓN DIRECTA A FIREBASE AUTH ---
+    // Esto asegura que el BLoC siempre reaccione al estado de autenticación más reciente de Firebase.
+    log('AuthBloc: Inicializando _userSubscription para authStateChanges de Firebase.', name: 'AuthBloc');
+    _userSubscription = _firebaseAuth.authStateChanges().listen((user) async {
+      log('AuthBloc Subscription: Firebase User recibido: ${user != null ? user.uid : 'null'}', name: 'AuthBloc');
+      
+      if (user == null) {
+        // Si no hay usuario autenticado, emitimos el estado de no autenticado.
         add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown));
-      } else if (userProfile is PatientModel) {
-        log(' AuthBloc Subscription: userProfile es PatientModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Patient).', name: 'AuthBloc');
-        add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.patient));
-      } else if (userProfile is PsychologistModel) {
-        log(' AuthBloc Subscription: userProfile es PsychologistModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Psychologist).', name: 'AuthBloc');
-        add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.psychologist));
       } else {
-        log(' AuthBloc Subscription: userProfile es de tipo inesperado: ${userProfile.runtimeType}. Forzando cierre de sesión.', name: 'AuthBloc');
-        add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Perfil de usuario inesperado. Sesión cerrada.'));
-        _authRepository.signOut();
+        // Si hay un usuario, buscamos su perfil para determinar el rol.
+        try {
+          final userProfile = await _authRepository.getUserProfile(user.uid);
+          if (userProfile is PatientModel) {
+            add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.patient));
+          } else if (userProfile is PsychologistModel) {
+            add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.psychologist));
+          } else {
+            // Perfil no encontrado o de tipo inesperado, cerramos la sesión.
+            await _authRepository.signOut();
+            add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Perfil de usuario no encontrado. Sesión cerrada.'));
+          }
+        } on AppException catch (e) {
+          await _authRepository.signOut();
+          add(AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: e.message));
+        } catch (e) {
+          await _authRepository.signOut();
+          add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Error al cargar perfil. Sesión cerrada.'));
+        }
       }
     });
   }

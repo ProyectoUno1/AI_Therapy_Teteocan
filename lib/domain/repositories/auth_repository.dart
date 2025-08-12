@@ -8,6 +8,8 @@ abstract class AuthRepository {
   Future<void> signIn({required String email, required String password});
   Future<void> signOut();
   Stream<dynamic> get authStateChanges;
+  Future<dynamic> getUserProfile(String uid);
+
   Future<PatientModel> registerPatient({
     required String email,
     required String password,

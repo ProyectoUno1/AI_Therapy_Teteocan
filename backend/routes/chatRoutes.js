@@ -1,6 +1,11 @@
+// backend/routes/chatRoutes.js
 
-import express from 'express';
-import admin, { db } from '../firebase-admin.js';
+import express from 'express'; 
+import {
+    admin, 
+    db 
+} from '../firebase-admin.js';
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 
 const router = express.Router();
 

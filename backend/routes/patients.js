@@ -2,7 +2,8 @@
 
 import express from 'express'; 
 const router = express.Router();
-import verifyFirebaseToken from '../middlewares/auth_middleware.js';
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { admin, db } from '../firebase-admin.js';
 
 
 
