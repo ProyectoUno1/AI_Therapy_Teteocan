@@ -11,8 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
   image_picker: ^1.1.2
-  uuid: ^4.4.0 
-  flutter_dotenv: ^5.0.0 
+  uuid: ^4.4.0
+  flutter_dotenv: ^5.0.0
 
   cupertino_icons: ^1.0.8
   timezone: ^0.9.0
@@ -29,13 +29,16 @@ dependencies:
   equatable: ^2.0.7
   flutter_bloc: ^8.1.6
   bloc: ^8.1.4
-  intl: ^0.18.1  # Gestión de estado y almacenamiento local
+  intl: ^0.18.1 # Gestión de estado y almacenamiento local
   provider: ^6.1.2
   shared_preferences: ^2.3.3
   lottie: ^3.3.1
-  
+
   # Temas personalizados con Material 3
   flex_color_scheme: ^8.0.2
+
+  # Pagos in-app nativos
+  in_app_purchase: ^3.1.13
 
 dev_dependencies:
   flutter_test:
