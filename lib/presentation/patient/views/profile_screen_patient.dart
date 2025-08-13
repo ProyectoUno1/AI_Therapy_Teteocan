@@ -6,6 +6,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/subscription_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -55,10 +56,9 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   SizedBox(
-                    width:
-                        250, 
+                    width: 250,
                     child: Row(
-                      mainAxisSize: MainAxisSize.min, 
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           width: 56,
@@ -154,9 +154,14 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                 ProfileListItem(
                   icon: Icons.military_tech_outlined,
                   text: 'Suscripción',
-                  secondaryText: 'Aurora Premium',
+                  secondaryText: 'Gestionar Premium',
                   onTap: () {
-                    // Lógica para la suscripción
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SubscriptionScreen(),
+                      ),
+                    );
                   },
                 ),
                 Divider(
@@ -480,11 +485,13 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     );
   }
 }
+
 class PersonalInfoScreenPatient extends StatefulWidget {
   const PersonalInfoScreenPatient({super.key});
 
   @override
-  _PersonalInfoScreenPatientState createState() => _PersonalInfoScreenPatientState();
+  _PersonalInfoScreenPatientState createState() =>
+      _PersonalInfoScreenPatientState();
 }
 
 class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
@@ -549,7 +556,9 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     DateTime initialDate = DateTime.now();
     try {
       final authState = BlocProvider.of<AuthBloc>(context).state;
-      if (authState.isAuthenticatedPatient && authState.patient != null && authState.patient!.dateOfBirth != null) {
+      if (authState.isAuthenticatedPatient &&
+          authState.patient != null &&
+          authState.patient!.dateOfBirth != null) {
         initialDate = authState.patient!.dateOfBirth!;
       }
     } catch (e) {
@@ -579,7 +588,9 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Text(state.errorMessage ?? 'Perfil actualizado con éxito'),
+                content: Text(
+                  state.errorMessage ?? 'Perfil actualizado con éxito',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -588,7 +599,9 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Text(state.errorMessage ?? 'Error al actualizar el perfil'),
+                content: Text(
+                  state.errorMessage ?? 'Error al actualizar el perfil',
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -598,15 +611,17 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
         if (state.isLoading) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: const Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         // Construimos el Scaffold solo cuando los datos del paciente están disponibles
         if (!state.isAuthenticatedPatient || state.patient == null) {
-          return const Center(child: Text('Error: Usuario no autenticado o datos no disponibles.'));
+          return const Center(
+            child: Text(
+              'Error: Usuario no autenticado o datos no disponibles.',
+            ),
+          );
         }
 
         return Scaffold(
@@ -694,7 +709,8 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                     context,
                     _dobController,
                     'Fecha de nacimiento',
-                    onTap: _showDatePicker, // Pasamos el método para abrir el DatePicker
+                    onTap:
+                        _showDatePicker, // Pasamos el método para abrir el DatePicker
                   ),
                   _buildInputFieldWithLabel(
                     context,
@@ -705,14 +721,15 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState != null && _formKey.currentState!.validate()) {
+                        if (_formKey.currentState != null &&
+                            _formKey.currentState!.validate()) {
                           context.read<AuthBloc>().add(
-                                UpdatePatientInfoRequested(
-                                  name: _nameController.text,
-                                  dob: _dobController.text,
-                                  phone: _phoneController.text,
-                                ),
-                              );
+                            UpdatePatientInfoRequested(
+                              name: _nameController.text,
+                              dob: _dobController.text,
+                              phone: _phoneController.text,
+                            ),
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -747,7 +764,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     String label, {
     bool isEditable = true,
     int maxLines = 1,
-    VoidCallback? onTap, 
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -765,7 +782,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
           const SizedBox(height: 4),
           TextFormField(
             controller: controller,
-            readOnly: onTap != null || !isEditable, 
+            readOnly: onTap != null || !isEditable,
             maxLines: maxLines,
             onTap: onTap,
             style: TextStyle(

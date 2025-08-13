@@ -1,5 +1,7 @@
 // lib/main.dart
 
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -311,7 +313,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
+          home:
+              const PatientHomeScreen(), //AuthWrapper maneja la vista dinamicamente
           //const PsychologistHomeScreen(),
           //const PsychologistChatListScreen(),
         );
