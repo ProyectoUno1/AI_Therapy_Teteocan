@@ -1,5 +1,3 @@
-// lib/presentation/psychologist/views/psychologist_chat_list_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -11,7 +9,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_blo
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_state.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart'; // Importación correcta del BLoC unificado
 
 class PsychologistChatListScreen extends StatefulWidget {
   const PsychologistChatListScreen({super.key});
@@ -118,7 +116,7 @@ class _PsychologistChatListScreenState
 
         if (state is ChatListLoaded) {
           final isSearching = _searchController.text.isNotEmpty;
-          
+
           final chatsToShow = isSearching ? state.filteredChats : state.chats;
 
           if (chatsToShow.isEmpty) {
@@ -147,7 +145,6 @@ class _PsychologistChatListScreenState
     );
   }
 
-
   Widget _buildEmptyState({required bool isFiltered}) {
     return Container(
       color: Theme.of(context).cardColor,
@@ -162,9 +159,9 @@ class _PsychologistChatListScreenState
                   ? 'No se encontraron pacientes'
                   : 'No tienes chats activos',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -296,8 +293,8 @@ class _PsychologistChatListScreenState
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => BlocProvider<ChatBloc>(
-              create: (context) => ChatBloc(),
+            builder: (context) => BlocProvider.value(
+              value: context.read<ChatBloc>(),
               child: PatientChatScreen(
                 patientId: patient.id,
                 patientName: patient.name,

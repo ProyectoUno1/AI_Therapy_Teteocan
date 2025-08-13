@@ -1,15 +1,11 @@
 // lib/main.dart
 
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/profile_screen_psychologist.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 
 // Importaciones de las capas de la arquitectura limpia
@@ -30,7 +26,6 @@ import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
-import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
 
 // Importaciones para el tema
@@ -49,12 +44,7 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Hemos cambiado 'true' a 'false' para usar producción en lugar de emuladores.
-  const bool useEmulator = false;
-  if (useEmulator) {
-    await _connectToFirebaseEmulator();
-  }
-
+  
   // --- Inicialización de la base de datos de zonas horarias ---
   tzdata.initializeTimeZones();
 
@@ -67,52 +57,36 @@ void main() async {
   final AuthRepository authRepository = AuthRepositoryImpl(
     authRemoteDataSource: authRemoteDataSource,
     userRemoteDataSource: userRemoteDataSource,
-    firebaseAuth: FirebaseAuth.instance,
   );
 
   final SignInUseCase signInUseCase = SignInUseCase(authRepository);
   final RegisterUserUseCase registerUserUseCase = RegisterUserUseCase(
     authRepository,
   );
-  final chatRepository = ChatRepository();
+  final ChatRepository chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
-  
 
-  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-    if (user != null) {
-      final idToken = await user.getIdToken();
-      chatRepository.setAuthToken(idToken);
-      log(
-        '🔑 Token de Firebase Auth actualizado en ChatRepository para ${user.uid}',
-      );
-    } else {
-      chatRepository.setAuthToken(
-        null,
-      ); // Limpia el token si el usuario cierra sesión
-      log(
-        '❌ Usuario desautenticado, token de Firebase Auth limpiado del ChatRepository.',
-      );
-    }
-  });
+
 
   runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
-          create: (context) =>
-              AuthBloc(
-                authRepository: authRepository,
-                signInUseCase: signInUseCase,
-                registerUserUseCase: registerUserUseCase,
-              ), // <-- La llamada a .add(const AuthStarted()) ha sido eliminada.
+          create: (context) => AuthBloc(
+            authRepository: authRepository,
+            signInUseCase: signInUseCase,
+            registerUserUseCase: registerUserUseCase,
+          )..add(const AuthStarted()),
         ),
         BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
         BlocProvider<PsychologistInfoBloc>(
           create: (context) => PsychologistInfoBloc(
-            psychologistRepository: PsychologistRepositoryImpl(psychologistRemoteDataSource),
+            psychologistRepository: PsychologistRepositoryImpl(
+              psychologistRemoteDataSource,
+            ),
           ),
         ),
       ],
@@ -121,17 +95,7 @@ void main() async {
   );
 }
 
-/// Función para conectar la aplicación a los emuladores de Firebase.
-Future<void> _connectToFirebaseEmulator() async {
-  try {
-    await FirebaseAuth.instance.useAuthEmulator('10.0.2.2', 9099);
-    log('🔧 Firebase Auth conectado al emulador en 10.0.2.2:9099');
-    FirebaseFirestore.instance.useFirestoreEmulator('10.0.2.2', 8080);
-    log('🔧 Firebase Firestore conectado al emulador en 10.0.2.2:8080');
-  } catch (e) {
-    log('❌ Error conectando a los emuladores: $e');
-  }
-}
+
 
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
 class MyApp extends StatefulWidget {
@@ -172,13 +136,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _updateOnlineStatus(bool isOnline) {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      // Usamos set() con merge: true para crear el documento si no existe
-      // o actualizarlo si ya existe.
-      userRef.set(
-        {'isOnline': isOnline, 'lastActive': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
-      ).catchError((error) => log('Error al actualizar el estado de conexión: $error'));
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      userRef
+          .set({
+            'isOnline': isOnline,
+            'lastActive': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .catchError(
+            (error) => log('Error al actualizar el estado de conexión: $error'),
+          );
     }
   }
 
@@ -309,7 +278,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: const AuthWrapper(),
+          home: const AuthWrapper(), //AuthWrapper maneja la vista dinamicamente
+          //const PsychologistHomeScreen(),
+          //const PsychologistChatListScreen(),
         );
       },
     );

@@ -10,7 +10,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_management_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
+
 
 class PsychologistHomeScreen extends StatefulWidget {
   const PsychologistHomeScreen({super.key});

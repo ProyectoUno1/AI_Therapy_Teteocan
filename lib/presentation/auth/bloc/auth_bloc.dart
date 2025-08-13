@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/exceptions/app_exceptions.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
@@ -17,9 +16,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SignInUseCase _signInUseCase;
   final RegisterUserUseCase _registerUserUseCase;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  late StreamSubscription<User?> _userSubscription;
+  late StreamSubscription<dynamic> _userSubscription;
 
   AuthBloc({
     required AuthRepository authRepository,
@@ -29,43 +27,74 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _signInUseCase = signInUseCase,
        _registerUserUseCase = registerUserUseCase,
        super(const AuthState.unknown()) {
-
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
     on<AuthRegisterPsychologistRequested>(_onAuthRegisterPsychologistRequested);
     on<AuthSignOutRequested>(_onAuthSignOutRequested);
     on<AuthStatusChanged>(_onAuthStatusChanged);
+    on<AuthStarted>(_onAuthStarted);
     on<UpdatePatientInfoRequested>(_onUpdatePatientInfoRequested);
 
-    // --- CAMBIO CLAVE: SUSCRIPCIÓN DIRECTA A FIREBASE AUTH ---
-    // Esto asegura que el BLoC siempre reaccione al estado de autenticación más reciente de Firebase.
-    log('AuthBloc: Inicializando _userSubscription para authStateChanges de Firebase.', name: 'AuthBloc');
-    _userSubscription = _firebaseAuth.authStateChanges().listen((user) async {
-      log('AuthBloc Subscription: Firebase User recibido: ${user != null ? user.uid : 'null'}', name: 'AuthBloc');
-      
-      if (user == null) {
-        // Si no hay usuario autenticado, emitimos el estado de no autenticado.
-        add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown));
+    log(
+      ' AuthBloc: Inicializando _userSubscription para authStateChanges.',
+      name: 'AuthBloc',
+    );
+    _userSubscription = _authRepository.authStateChanges.listen((userProfile) {
+      log(
+        ' AuthBloc Subscription: Recibido userProfile del repositorio: ${userProfile?.runtimeType}',
+        name: 'AuthBloc',
+      );
+
+      if (userProfile == null) {
+        log(
+          ' AuthBloc Subscription: Firebase User es null. Añadiendo AuthStatusChanged para UNATHENTICATED.',
+          name: 'AuthBloc',
+        );
+        add(
+          const AuthStatusChanged(
+            AuthStatus.unauthenticated,
+            null,
+            userRole: UserRole.unknown,
+          ),
+        );
+      } else if (userProfile is PatientModel) {
+        log(
+          ' AuthBloc Subscription: userProfile es PatientModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Patient).',
+          name: 'AuthBloc',
+        );
+        add(
+          AuthStatusChanged(
+            AuthStatus.authenticated,
+            userProfile,
+            userRole: UserRole.patient,
+          ),
+        );
+      } else if (userProfile is PsychologistModel) {
+        log(
+          ' AuthBloc Subscription: userProfile es PsychologistModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Psychologist).',
+          name: 'AuthBloc',
+        );
+        add(
+          AuthStatusChanged(
+            AuthStatus.authenticated,
+            userProfile,
+            userRole: UserRole.psychologist,
+          ),
+        );
       } else {
-        // Si hay un usuario, buscamos su perfil para determinar el rol.
-        try {
-          final userProfile = await _authRepository.getUserProfile(user.uid);
-          if (userProfile is PatientModel) {
-            add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.patient));
-          } else if (userProfile is PsychologistModel) {
-            add(AuthStatusChanged(AuthStatus.authenticated, userProfile, userRole: UserRole.psychologist));
-          } else {
-            // Perfil no encontrado o de tipo inesperado, cerramos la sesión.
-            await _authRepository.signOut();
-            add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Perfil de usuario no encontrado. Sesión cerrada.'));
-          }
-        } on AppException catch (e) {
-          await _authRepository.signOut();
-          add(AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: e.message));
-        } catch (e) {
-          await _authRepository.signOut();
-          add(const AuthStatusChanged(AuthStatus.unauthenticated, null, userRole: UserRole.unknown, errorMessage: 'Error al cargar perfil. Sesión cerrada.'));
-        }
+        log(
+          ' AuthBloc Subscription: userProfile es de tipo inesperado: ${userProfile.runtimeType}. Forzando cierre de sesión.',
+          name: 'AuthBloc',
+        );
+        add(
+          const AuthStatusChanged(
+            AuthStatus.unauthenticated,
+            null,
+            userRole: UserRole.unknown,
+            errorMessage: 'Perfil de usuario inesperado. Sesión cerrada.',
+          ),
+        );
+        _authRepository.signOut();
       }
     });
   }
@@ -74,30 +103,48 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthStarted event,
     Emitter<AuthState> emit,
   ) async {
-    log(' AuthBloc Event: AuthStarted recibido. No se emite estado aquí, la suscripción a authStateChanges lo maneja.', name: 'AuthBloc');
+    log(
+      ' AuthBloc Event: AuthStarted recibido. No se emite estado aquí, la suscripción a authStateChanges lo maneja.',
+      name: 'AuthBloc',
+    );
   }
 
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
-    log('DEBUG AUTHBLOC: Inicia procesamiento de _onAuthStatusChanged para evento: ${event.status}', name: 'AuthBloc');
-    log(' AuthBloc Event: AuthStatusChanged recibido. Nuevo estado: ${event.status}, Rol: ${event.userRole}, Perfil: ${event.userProfile?.runtimeType}, Mensaje Error: ${event.errorMessage}', name: 'AuthBloc');
-    
+    log(
+      'DEBUG AUTHBLOC: Inicia procesamiento de _onAuthStatusChanged para evento: ${event.status}',
+      name: 'AuthBloc',
+    );
+    log(
+      ' AuthBloc Event: AuthStatusChanged recibido. Nuevo estado: ${event.status}, Rol: ${event.userRole}, Perfil: ${event.userProfile?.runtimeType}, Mensaje Error: ${event.errorMessage}',
+      name: 'AuthBloc',
+    );
+
     AuthState newState;
 
     switch (event.status) {
       case AuthStatus.authenticated:
-        if (event.userRole == UserRole.patient && event.userProfile is PatientModel) {
+        if (event.userRole == UserRole.patient &&
+            event.userProfile is PatientModel) {
           newState = AuthState.authenticated(
             userRole: UserRole.patient,
             patient: event.userProfile as PatientModel,
           );
-        } else if (event.userRole == UserRole.psychologist && event.userProfile is PsychologistModel) {
+        } else if (event.userRole == UserRole.psychologist &&
+            event.userProfile is PsychologistModel) {
           newState = AuthState.authenticated(
             userRole: UserRole.psychologist,
             psychologist: event.userProfile as PsychologistModel,
           );
         } else {
-          log(' AuthBloc Event: AuthStatusChanged (authenticated) con rol/perfil inconsistente. Forzando unauthenticated.', name: 'AuthBloc');
-          newState = AuthState.unauthenticated(errorMessage: event.errorMessage ?? 'Rol o perfil inconsistente. Sesión cerrada.');
+          log(
+            ' AuthBloc Event: AuthStatusChanged (authenticated) con rol/perfil inconsistente. Forzando unauthenticated.',
+            name: 'AuthBloc',
+          );
+          newState = AuthState.unauthenticated(
+            errorMessage:
+                event.errorMessage ??
+                'Rol o perfil inconsistente. Sesión cerrada.',
+          );
           _authRepository.signOut();
         }
         break;
@@ -121,9 +168,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     if (state != newState) {
       emit(newState);
-      log(' AuthBloc Emitió: Nuevo estado: ${newState.status}. Detalle: ${newState.userRole}, Patient: ${newState.patient != null}, Psychologist: ${newState.psychologist != null}, Error: ${newState.errorMessage}', name: 'AuthBloc');
+      log(
+        ' AuthBloc Emitió: Nuevo estado: ${newState.status}. Detalle: ${newState.userRole}, Patient: ${newState.patient != null}, Psychologist: ${newState.psychologist != null}, Error: ${newState.errorMessage}',
+        name: 'AuthBloc',
+      );
     } else {
-      log(' AuthBloc NO EMITIÓ: Nuevo estado es idéntico al actual (${newState.status}). Equatable funcionó.', name: 'AuthBloc');
+      log(
+        ' AuthBloc NO EMITIÓ: Nuevo estado es idéntico al actual (${newState.status}). Equatable funcionó.',
+        name: 'AuthBloc',
+      );
     }
   }
 
@@ -131,10 +184,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UpdatePatientInfoRequested event,
     Emitter<AuthState> emit,
   ) async {
-    
     if (state.isAuthenticatedPatient) {
-      final user = state.patient!; 
-      
+      final user = state.patient!;
+
       emit(const AuthState.loading());
       try {
         await _authRepository.updatePatientInfo(
@@ -143,17 +195,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           dob: event.dob,
           phone: event.phone,
         );
-        
+
         final updatedPatient = await _authRepository.getPatientData(user.uid);
-        emit(const AuthState.success(errorMessage: 'Perfil actualizado exitosamente.'));
-        emit(AuthState.authenticated(userRole: UserRole.patient, patient: updatedPatient));
+        emit(
+          const AuthState.success(
+            errorMessage: 'Perfil actualizado exitosamente.',
+          ),
+        );
+        emit(
+          AuthState.authenticated(
+            userRole: UserRole.patient,
+            patient: updatedPatient,
+          ),
+        );
       } on AppException catch (e) {
         emit(AuthState.error(errorMessage: e.message));
       } catch (e) {
-        emit(const AuthState.error(errorMessage: 'Ocurrió un error inesperado al actualizar el perfil.'));
+        emit(
+          const AuthState.error(
+            errorMessage:
+                'Ocurrió un error inesperado al actualizar el perfil.',
+          ),
+        );
       }
     } else {
-      emit(const AuthState.error(errorMessage: 'No tienes permiso para actualizar este perfil.'));
+      emit(
+        const AuthState.error(
+          errorMessage: 'No tienes permiso para actualizar este perfil.',
+        ),
+      );
     }
   }
 
@@ -161,55 +231,87 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
-    log(' AuthBloc Event: AuthSignInRequested para ${event.email}', name: 'AuthBloc');
+    log(
+      ' AuthBloc Event: AuthSignInRequested para ${event.email}',
+      name: 'AuthBloc',
+    );
     emit(const AuthState.loading());
 
     try {
       await _signInUseCase(email: event.email, password: event.password);
-      log(' AuthBloc Event: SignInUseCase completado. Esperando emisión de authStateChanges.', name: 'AuthBloc');
-      
+      log(
+        ' AuthBloc Event: SignInUseCase completado. Esperando emisión de authStateChanges.',
+        name: 'AuthBloc',
+      );
     } on AppException catch (e) {
-      log(' AuthBloc Event: Error de AppException al iniciar sesión: ${e.message}', name: 'AuthBloc');
+      log(
+        ' AuthBloc Event: Error de AppException al iniciar sesión: ${e.message}',
+        name: 'AuthBloc',
+      );
       emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
-      log(' AuthBloc Event: Error inesperado al iniciar sesión: $e', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: 'Error inesperado al iniciar sesión: $e'));
+      log(
+        ' AuthBloc Event: Error inesperado al iniciar sesión: $e',
+        name: 'AuthBloc',
+      );
+      emit(
+        AuthState.error(errorMessage: 'Error inesperado al iniciar sesión: $e'),
+      );
     }
   }
 
   Future<void> _onAuthRegisterPatientRequested(
-  AuthRegisterPatientRequested event,
-  Emitter<AuthState> emit,
-) async {
-  log(' AuthBloc Event: AuthRegisterPatientRequested para ${event.email}', name: 'AuthBloc');
-  emit(const AuthState.loading());
-
-  try {
-    await _authRepository.registerPatient(
-      email: event.email,
-      password: event.password,
-      username: event.username,
-      phoneNumber: event.phoneNumber,
-      dateOfBirth: event.dateOfBirth,
+    AuthRegisterPatientRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    log(
+      ' AuthBloc Event: AuthRegisterPatientRequested para ${event.email}',
+      name: 'AuthBloc',
     );
+    emit(const AuthState.loading());
 
-    log(' AuthBloc: Registro exitoso, iniciando sesión automática para ${event.email}', name: 'AuthBloc');
+    try {
+      await _authRepository.registerPatient(
+        email: event.email,
+        password: event.password,
+        username: event.username,
+        phoneNumber: event.phoneNumber,
+        dateOfBirth: event.dateOfBirth,
+      );
 
-    await _signInUseCase(email: event.email, password: event.password);
+      log(
+        ' AuthBloc: Registro exitoso, iniciando sesión automática para ${event.email}',
+        name: 'AuthBloc',
+      );
 
-  } on AppException catch (e) {
-    log(' AuthBloc: Error de AppException al registrar paciente: ${e.message}', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: e.message));
-  } catch (e) {
-    log(' AuthBloc: Error inesperado al registrar paciente: $e', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: 'Error inesperado al registrar paciente: $e'));
+      await _signInUseCase(email: event.email, password: event.password);
+    } on AppException catch (e) {
+      log(
+        ' AuthBloc: Error de AppException al registrar paciente: ${e.message}',
+        name: 'AuthBloc',
+      );
+      emit(AuthState.error(errorMessage: e.message));
+    } catch (e) {
+      log(
+        ' AuthBloc: Error inesperado al registrar paciente: $e',
+        name: 'AuthBloc',
+      );
+      emit(
+        AuthState.error(
+          errorMessage: 'Error inesperado al registrar paciente: $e',
+        ),
+      );
+    }
   }
-}
+
   Future<void> _onAuthRegisterPsychologistRequested(
     AuthRegisterPsychologistRequested event,
     Emitter<AuthState> emit,
   ) async {
-    log(' AuthBloc Event: AuthRegisterPsychologistRequested para ${event.email}', name: 'AuthBloc');
+    log(
+      ' AuthBloc Event: AuthRegisterPsychologistRequested para ${event.email}',
+      name: 'AuthBloc',
+    );
     emit(const AuthState.loading());
 
     try {
@@ -221,15 +323,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         professionalLicense: event.professionalLicense,
         dateOfBirth: event.dateOfBirth,
       );
+      log(
+        ' AuthBloc Event: Registro de psicólogo completado. Esperando que authStateChanges emita un nuevo estado.',
+        name: 'AuthBloc',
+      );
 
-      log(' AuthBloc Event: Registro de psicólogo completado. Forzando cierre de sesión.', name: 'AuthBloc');
-      await _signInUseCase(email: event.email, password: event.password);
+      
+      emit(
+        const AuthState.success(
+          errorMessage: 'Registro completado exitosamente.',
+        ),
+      );
     } on AppException catch (e) {
-      log(' AuthBloc Event: Error de AppException al registrar psicólogo: ${e.message}', name: 'AuthBloc');
+      log(
+        ' AuthBloc Event: Error de AppException al registrar psicólogo: ${e.message}',
+        name: 'AuthBloc',
+      );
       emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
-      log(' AuthBloc Event: Error inesperado al registrar psicólogo: $e', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: 'Error inesperado al registrar psicólogo: $e'));
+      log(
+        ' AuthBloc Event: Error inesperado al registrar psicólogo: $e',
+        name: 'AuthBloc',
+      );
+      emit(
+        AuthState.error(
+          errorMessage: 'Error inesperado al registrar psicólogo: $e',
+        ),
+      );
     }
   }
 
@@ -241,14 +361,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthState.loading());
     try {
       await _authRepository.signOut();
-      log(' AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).', name: 'AuthBloc');
-
+      log(
+        ' AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).',
+        name: 'AuthBloc',
+      );
     } on AppException catch (e) {
-      log(' AuthBloc Event: Error de AppException al cerrar sesión: ${e.message}', name: 'AuthBloc');
+      log(
+        ' AuthBloc Event: Error de AppException al cerrar sesión: ${e.message}',
+        name: 'AuthBloc',
+      );
       emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
-      log(' AuthBloc Event: Error inesperado al cerrar sesión: $e', name: 'AuthBloc');
-      emit(AuthState.error(errorMessage: 'Error inesperado al cerrar sesión: $e'));
+      log(
+        ' AuthBloc Event: Error inesperado al cerrar sesión: $e',
+        name: 'AuthBloc',
+      );
+      emit(
+        AuthState.error(errorMessage: 'Error inesperado al cerrar sesión: $e'),
+      );
     }
   }
 

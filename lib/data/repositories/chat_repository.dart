@@ -1,41 +1,45 @@
 // lib/data/repositories/chat_repository.dart
+
 import 'dart:convert';
-import 'package:http/http.dart' as http; 
+import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
-import 'package:flutter/foundation.dart'; 
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
 
 class ChatRepository {
-  static const String _baseUrl = 'http://10.0.2.2:3000/api'; // O 'http://localhost:3000/api' 
+  static const String _baseUrl = 'http://10.0.2.2:3000/api';
+  final FirebaseAuth _auth = FirebaseAuth.instance; 
 
-  
-  String? _authToken; 
-
- 
   ChatRepository();
 
-  void setAuthToken(String? token) {
-    _authToken = token;
-  }
-
-  // Helper para obtener los encabezados de la solicitud, incluyendo el token de auth
-  Map<String, String> _getHeaders() {
+  // Helper para obtener los encabezados, incluyendo el token de autenticación
+  Future<Map<String, String>> _getHeaders() async {
     final headers = <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
     };
-    if (_authToken != null) {
-      headers['Authorization'] = 'Bearer $_authToken';
+
+    final user = _auth.currentUser;
+    if (user != null) {
+      
+      final idToken = await user.getIdToken(true);
+      if (idToken != null) {
+        headers['Authorization'] = 'Bearer $idToken';
+      } else {
+        throw Exception('No se pudo obtener el token de autenticación.');
+      }
+    } else {
+      throw Exception('Usuario no autenticado.');
     }
+
     return headers;
   }
 
-
-
-  // Obtiene el ID del chat de IA para el usuario actual o lo crea
+  // Obtiene el ID del chat de IA
   Future<String> getAIChatId() async {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/ai/chat-id'),
-        headers: _getHeaders(), // Envía el token si está disponible
+        headers: await _getHeaders(), // Envía los encabezados con el token
       );
 
       if (kDebugMode) print('getAIChatId response: ${response.statusCode} ${response.body}');
@@ -57,7 +61,7 @@ class ChatRepository {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/ai/chat'),
-        headers: _getHeaders(), 
+        headers: await _getHeaders(), // Envía los encabezados con el token
         body: jsonEncode({
           'chatId': chatId,
           'message': message,
@@ -68,7 +72,7 @@ class ChatRepository {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['aiMessage']; // El backend devuelve directamente el contenido de la IA
+        return data['aiMessage'];
       } else {
         throw Exception('Fallo al enviar mensaje a la IA: ${response.statusCode} - ${response.body}');
       }
@@ -83,14 +87,13 @@ class ChatRepository {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
-        headers: _getHeaders(), // Envía el token de auth
+        headers: await _getHeaders(), 
       );
 
       if (kDebugMode) print('loadMessages response: ${response.statusCode} ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = json.decode(response.body);
-        // Mapea la lista de JSON a una lista de MessageModel
         return jsonList.map((json) => MessageModel.fromJson(json)).toList();
       } else {
         throw Exception('Fallo al cargar mensajes: ${response.statusCode} - ${response.body}');
@@ -100,6 +103,4 @@ class ChatRepository {
       throw Exception('Error de red o servidor al cargar mensajes: $e');
     }
   }
-
-
 }

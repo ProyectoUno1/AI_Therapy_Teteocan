@@ -3,7 +3,7 @@
 import express from 'express'; 
 const router = express.Router();
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
-import { admin, db } from '../firebase-admin.js';
+import { db } from '../firebase-admin.js';
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
@@ -21,17 +21,16 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             return res.status(400).json({ error: 'Psicólogo ya registrado' });
         }
 
-        // Se corrigieron los nombres de los campos para usar camelCase,
-        // lo que coincide con el modelo de Flutter
+        
         const psychologistData = {
-            firebaseUid: uid, // Corrección: de firebase_uid a firebaseUid
+            firebaseUid: uid, 
             username: username,
             email: email,
-            phoneNumber: phoneNumber, // Corrección: de phone_number a phoneNumber
-            professionalLicense: professionalLicense, // Corrección: de professional_license a professionalLicense
-            dateOfBirth: dateOfBirth, // Corrección: de date_of_birth a dateOfBirth
-            profilePictureUrl: profilePictureUrl || null, // Corrección: de profile_picture_url a profilePictureUrl
-            createdAt: admin.firestore.FieldValue.serverTimestamp(), // Corrección: de created_at a createdAt
+            phoneNumber: phoneNumber, 
+            professionalLicense: professionalLicense, 
+            dateOfBirth: dateOfBirth,
+            profilePictureUrl: profilePictureUrl || null, 
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
         await psychologistRef.set(psychologistData);

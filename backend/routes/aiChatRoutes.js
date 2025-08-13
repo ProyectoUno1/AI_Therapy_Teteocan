@@ -5,7 +5,7 @@ const router = express.Router();
 import { processUserMessage, loadChatMessages } from '../routes/services/chatService.js';
 import { getOrCreateAIChatId } from '../routes/services/chatService.js'; 
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
-import { admin, db } from '../firebase-admin.js';
+import {  db } from '../firebase-admin.js';
 
 // --- Ruta para ENVIAR un mensaje al chat de IA y obtener la respuesta ---
 
@@ -38,7 +38,7 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
             return res.status(401).json({ error: 'Usuario no autenticado.' });
         }
 
-        // Asegurarse de que el chat exista o se crea si es la primera vez
+        
         await getOrCreateAIChatId(userId);
 
         // Llama a la función de tu chatService para cargar los mensajes

@@ -21,37 +21,6 @@ class AuthRepositoryImpl implements AuthRepository {
     FirebaseAuth? firebaseAuth,
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
-  // --- IMPLEMENTACIÓN DEL MÉTODO FALTANTE PARA RESOLVER EL ERROR ---
-  // Este método ahora es la lógica central para obtener el perfil del usuario.
-  @override
-  Future<dynamic> getUserProfile(String uid) async {
-    // Intentamos obtener el perfil del paciente
-    final patientProfile = await getPatientData(uid);
-    if (patientProfile != null) {
-      log('getUserProfile: Perfil de Paciente encontrado para UID: $uid', name: 'AuthRepositoryImpl');
-      return patientProfile;
-    }
-
-    // Si no es paciente, intentamos obtener el perfil del psicólogo
-    final psychologistProfile = await getPsychologistData(uid);
-    if (psychologistProfile != null) {
-      log('getUserProfile: Perfil de Psicólogo encontrado para UID: $uid', name: 'AuthRepositoryImpl');
-      return psychologistProfile;
-    }
-
-    // Si no se encuentra ninguno, devolvemos null
-    log('getUserProfile: No se encontró perfil para UID: $uid', name: 'AuthRepositoryImpl');
-    return null;
-  }
-
-  @override
-  Stream<dynamic> get authStateChanges {
-    // Ahora solo reenvía el stream de Firebase sin lógica adicional,
-    // ya que la lógica para cargar el perfil está ahora en getUserProfile()
-    // y es manejada por el AuthBloc. Esto simplifica el repositorio.
-    return _firebaseAuth.authStateChanges();
-  }
-
   @override
   Future<PatientModel?> getPatientData(String uid) {
     return userRemoteDataSource.getPatientData(uid);
@@ -61,6 +30,8 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<PsychologistModel?> getPsychologistData(String uid) {
     return userRemoteDataSource.getPsychologistData(uid);
   }
+
+ 
 
   @override
   Future<void> updatePatientInfo({
@@ -90,15 +61,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) async {
-    log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
-    try {
-      await authRemoteDataSource.signIn(email: email, password: password);
-      log(
-        ' Repo: Inicio de sesión en Firebase exitoso.',
-        name: 'AuthRepositoryImpl',
-      );
-    } on FirebaseAuthException catch (e) {
+  Future<String> signIn({required String email, required String password}) async {
+  log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
+  try {
+    final userCredential = await authRemoteDataSource.signIn(email: email, password: password);
+    final idToken = await userCredential.user?.getIdToken();
+    if (idToken == null) {
+      throw AuthException('No se pudo obtener el token de autenticación.');
+    }
+    log(' Repo: Token de autenticación obtenido exitosamente.', name: 'AuthRepositoryImpl');
+    return idToken;
+  } on FirebaseAuthException catch (e) {
       log(
         ' Repo: FirebaseAuthException: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
@@ -111,7 +84,7 @@ class AuthRepositoryImpl implements AuthRepository {
         throw InvalidEmailException('El formato del email es incorrecto.');
       } else if (e.code == 'invalid-credential') {
         throw InvalidCredentialsException(
-            'Credenciales inválidas. Verifica tu email y contraseña.',
+          'Credenciales inválidas. Verifica tu email y contraseña.',
         );
       }
       throw AuthException(
@@ -124,7 +97,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: 'AuthRepositoryImpl',
       );
       throw FetchDataException(
-          'Error inesperado en la capa de repositorio al iniciar sesión: $e',
+        'Error inesperado en la capa de repositorio al iniciar sesión: $e',
       );
     }
   }
@@ -151,7 +124,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       if (userCredential.user == null) {
         throw UserCreationException(
-            'No se pudo crear el usuario de autenticación para el paciente.',
+          'No se pudo crear el usuario de autenticación para el paciente.',
         );
       }
 
@@ -192,7 +165,7 @@ class AuthRepositoryImpl implements AuthRepository {
         throw WeakPasswordException('La contraseña es demasiado débil.');
       }
       throw AuthException(
-          'Error de autenticación al registrar paciente: ${e.message ?? e.code}',
+        'Error de autenticación al registrar paciente: ${e.message ?? e.code}',
       );
     } on AppException {
       rethrow;
@@ -229,7 +202,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       if (userCredential.user == null) {
         throw UserCreationException(
-            'No se pudo crear el usuario de autenticación para el psicólogo.',
+          'No se pudo crear el usuario de autenticación para el psicólogo.',
         );
       }
 
@@ -250,7 +223,7 @@ class AuthRepositoryImpl implements AuthRepository {
         uid: psychologist.uid,
         username: psychologist.username,
         email: psychologist.email,
-        phoneNumber: psychologist.phoneNumber ?? '',
+        phoneNumber: psychologist.phoneNumber ?? '', 
         professionalLicense: psychologist.professionalLicense ?? '',
         dateOfBirth: psychologist.dateOfBirth!,
         profilePictureUrl: psychologist.profilePictureUrl,
@@ -273,7 +246,7 @@ class AuthRepositoryImpl implements AuthRepository {
         throw WeakPasswordException('La contraseña es demasiado débil.');
       }
       throw AuthException(
-          'Error de autenticación al registrar psicólogo: ${e.message ?? e.code}',
+        'Error de autenticación al registrar psicólogo: ${e.message ?? e.code}',
       );
     } on AppException {
       rethrow;
@@ -284,6 +257,56 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       throw FetchDataException('Error inesperado al registrar psicólogo: $e');
     }
+  }
+
+  @override
+  Stream<dynamic> get authStateChanges {
+    return authRemoteDataSource.authStateChanges.asyncMap((fbUser) async {
+      log(
+        'DEBUG: Repo authStateChanges - Firebase User: ${fbUser?.uid ?? 'null'}',
+        name: 'AuthRepositoryImpl',
+      );
+
+      if (fbUser == null) {
+        log(
+          'DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.',
+          name: 'AuthRepositoryImpl',
+        );
+        return null;
+      }
+
+      try {
+        final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
+        if (userModel != null) {
+          log(
+            ' DEBUG: Repo authStateChanges - Perfil de usuario (tipo: ${userModel.runtimeType}) cargado para UID: ${fbUser.uid}',
+            name: 'AuthRepositoryImpl',
+          );
+          return userModel;
+        } else {
+          log(
+            ' DEBUG: Repo authStateChanges - Usuario Firebase ${fbUser.uid} autenticado, pero NO se encontró perfil de Patient/Psychologist. Forzando signOut.',
+            name: 'AuthRepositoryImpl',
+          );
+          await signOut();
+          return null;
+        }
+      } on AppException catch (e) {
+        log(
+          ' Error al obtener datos de usuario para authStateChanges (AppException): ${e.message ?? 'Unknown error'}',
+          name: 'AuthRepositoryImpl',
+        );
+        await signOut();
+        return null;
+      } catch (e) {
+        log(
+          ' Error inesperado al obtener datos de usuario para authStateChanges: $e',
+          name: 'AuthRepositoryImpl',
+        );
+        await signOut();
+        return null;
+      }
+    });
   }
 
   @override

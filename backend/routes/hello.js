@@ -1,12 +1,12 @@
 // backend/routes/hello.js
 
 import express from 'express';
-import { admin, db } from '../firebase-admin.js';
+import { db } from '../firebase-admin.js';
 const router = express.Router();
 
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 
-// Ruta protegida
+
 router.get("/hello", verifyFirebaseToken, (req, res) => {
     
     const user = req.firebaseUser;
