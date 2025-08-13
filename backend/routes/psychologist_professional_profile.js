@@ -1,6 +1,9 @@
+// psychologistRoutes.js
+
 import express from 'express';
-import admin, { db } from '../firebase-admin.js';
-import verifyFirebaseToken from '../middlewares/auth_middleware.js';
+import { db } from '../firebase-admin.js';
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { FieldValue } from 'firebase-admin/firestore'; 
 
 const router = express.Router();
 
@@ -24,10 +27,10 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
             specialty,
             subSpecialties,
             schedule,
-            isAvailable, 
+            isAvailable,
         } = req.body;
 
-        const updateData = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+        const updateData = { updatedAt: FieldValue.serverTimestamp() };
 
         // Validación y asignación de datos
         if (typeof fullName === 'string') updateData.fullName = fullName;
@@ -41,6 +44,7 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
         if (Array.isArray(subSpecialties)) updateData.subSpecialties = subSpecialties;
         if (typeof schedule === 'object' && schedule !== null) updateData.schedule = schedule;
         if (typeof isAvailable === 'boolean') updateData.isAvailable = isAvailable;
+
         // Guardar la información en la colección CORRECTA
         await db.collection('psychologist_professional_info').doc(uid).set(updateData, { merge: true });
 

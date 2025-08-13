@@ -17,6 +17,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<LoadMessagesEvent>(_onLoadMessages);
     on<SendMessageEvent>(_onSendMessage);
     on<SetTypingStatusEvent>(_onSetTypingStatus);
+    
   }
 
   Future<void> _onLoadMessages(

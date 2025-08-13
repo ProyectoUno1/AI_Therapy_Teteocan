@@ -1,59 +1,56 @@
 // backend/routes/aiRoutes.js
 
 import express from 'express';
+import { db } from '../firebase-admin.js';
 import { getOrCreateAIChatId, processUserMessage, loadChatMessages } from './services/chatService.js';
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js'; 
 
 const router = express.Router();
 
-// Ruta para obtener o crear el ID del chat de IA
-router.get('/chat-id', async (req, res, next) => { 
+// --- Ruta para ENVIAR un mensaje al chat de IA y obtener la respuesta ---
+router.post('/chat', verifyFirebaseToken, async (req, res, next) => {
     try {
+        const userId = req.firebaseUser.uid;
+        const { message } = req.body;
+
+        if (!userId || !message) {
+            return res.status(400).json({ error: 'Faltan datos de usuario o mensaje.' });
+        }
+
         
-        const userId = req.userId || 'test_user_id'; 
-        const chatId = await getOrCreateAIChatId(userId); 
-        res.json({ chatId });
+        await getOrCreateAIChatId(userId);
+
+        const aiResponseContent = await processUserMessage(userId, message);
+
+        res.status(200).json({ aiMessage: aiResponseContent });
     } catch (error) {
-        console.error('Error al obtener/crear chat ID:', error);
-        // Pasa el error al manejador de errores global
+        console.error('Error en /api/ai/chat (POST):', error);
         next(error);
     }
 });
 
-// Ruta para enviar mensajes a la IA
-router.post('/chat', async (req, res, next) => { 
-    const { message } = req.body;
-    const userId = req.userId || 'test_user_id'; 
-    const chatId = userId; 
-
-    if (!message) { 
-        return res.status(400).json({ error: 'El mensaje es requerido.' });
-    }
-
+// --- Ruta para OBTENER el historial de mensajes del chat de IA ---
+router.get('/chat-history', verifyFirebaseToken, async (req, res, next) => {
     try {
-        const aiResponse = await processUserMessage(userId, message); 
-        res.json({ aiMessage: aiResponse });
+        const userId = req.firebaseUser.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'Usuario no autenticado.' });
+        }
+
+        // Llama a la función de tu chatService para cargar los mensajes
+        const messages = await loadChatMessages(userId);
+
+        // Se necesita un formateo de los datos para que el frontend los entienda
+        const formattedMessages = messages.map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            isUser: !msg.isAI,
+            timestamp: msg.timestamp?.toDate(),
+        }));
+
+        res.status(200).json(formattedMessages);
     } catch (error) {
-        console.error('Error al procesar mensaje con IA:', error);
-        // Pasa el error al manejador de errores global
-        next(error);
-    }
-});
-
-// Ruta para cargar el historial de mensajes
-router.get('/:chatId/messages', async (req, res, next) => { 
-    const { chatId } = req.params;
-    const userId = req.userId || 'test_user_id'; 
-
-    if (chatId !== userId) {
-        return res.status(403).json({ error: 'Acceso denegado a este chat.' });
-    }
-
-    try {
-        const messages = await loadChatMessages(chatId);
-        res.json(messages);
-    } catch (error) {
-        console.error('Error al cargar mensajes:', error);
-        // Pasa el error al manejador de errores global
+        console.error('Error en /api/ai/chat-history (GET):', error);
         next(error);
     }
 });

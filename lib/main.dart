@@ -44,15 +44,7 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Configuración dinámica para emuladores vs producción
-  const bool useEmulator = bool.fromEnvironment(
-    'USE_EMULATOR',
-    defaultValue: false,
-  );
-  if (useEmulator) {
-    await _connectToFirebaseEmulator();
-  }
-
+  
   // --- Inicialización de la base de datos de zonas horarias ---
   tzdata.initializeTimeZones();
 
@@ -75,22 +67,7 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
-  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-    if (user != null) {
-      final idToken = await user.getIdToken();
-      chatRepository.setAuthToken(idToken);
-      log(
-        '🔑 Token de Firebase Auth actualizado en ChatRepository para ${user.uid}',
-      );
-    } else {
-      chatRepository.setAuthToken(
-        null,
-      ); // Limpia el token si el usuario cierra sesión
-      log(
-        '❌ Usuario desautenticado, token de Firebase Auth limpiado del ChatRepository.',
-      );
-    }
-  });
+
 
   runApp(
     MultiBlocProvider(
@@ -118,17 +95,7 @@ void main() async {
   );
 }
 
-/// Función para conectar la aplicación a los emuladores de Firebase.
-Future<void> _connectToFirebaseEmulator() async {
-  try {
-    await FirebaseAuth.instance.useAuthEmulator('10.0.2.2', 9099);
-    log('🔧 Firebase Auth conectado al emulador en 10.0.2.2:9099');
-    FirebaseFirestore.instance.useFirestoreEmulator('10.0.2.2', 8080);
-    log('🔧 Firebase Firestore conectado al emulador en 10.0.2.2:8080');
-  } catch (e) {
-    log('❌ Error conectando a los emuladores: $e');
-  }
-}
+
 
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
 class MyApp extends StatefulWidget {

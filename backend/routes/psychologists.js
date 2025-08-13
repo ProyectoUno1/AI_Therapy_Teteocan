@@ -2,14 +2,12 @@
 
 import express from 'express'; 
 const router = express.Router();
-import verifyFirebaseToken from '../middlewares/auth_middleware.js'; 
-import admin, { db } from '../firebase-admin.js';
-
-
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { db } from '../firebase-admin.js';
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
-        const { uid, username, email, phoneNumber, professional_license, dateOfBirth, profilePictureUrl } = req.body;
+        const { uid, username, email, phoneNumber, professionalLicense, dateOfBirth, profilePictureUrl } = req.body;
         const firebaseUser = req.firebaseUser; 
 
         if (!firebaseUser || firebaseUser.uid !== uid) { 
@@ -23,15 +21,16 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             return res.status(400).json({ error: 'Psicólogo ya registrado' });
         }
 
+        
         const psychologistData = {
-            firebase_uid: uid,
+            firebaseUid: uid, 
             username: username,
             email: email,
-            phone_number: phoneNumber,
-            professional_license: professional_license,
-            date_of_birth: dateOfBirth,
-            profile_picture_url: profilePictureUrl || null,
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            phoneNumber: phoneNumber, 
+            professionalLicense: professionalLicense, 
+            dateOfBirth: dateOfBirth,
+            profilePictureUrl: profilePictureUrl || null, 
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
         await psychologistRef.set(psychologistData);

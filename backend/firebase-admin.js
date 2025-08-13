@@ -15,55 +15,51 @@ const SHOULD_USE_EMULATORS = IS_DEVELOPMENT_ENV || USE_EMULATORS_FLAG;
 
 // Es el ID de tu proyecto real, aunque estemos usando emuladores.
 const FIREBASE_PROJECT_ID =
-  process.env.FIREBASE_PROJECT_ID || "teteocan-ai-therapy"; // ← CAMBIAR POR TU PROJECT ID REAL
+    process.env.FIREBASE_PROJECT_ID || "aurora-2b8f4";
 
 if (!admin.apps.length) {
-  if (SHOULD_USE_EMULATORS) {
-    console.log("🔗 [Firebase Admin] Configurando para usar EMULADORES...");
+    if (SHOULD_USE_EMULATORS) {
+        console.log("🔗 [Firebase Admin] Configurando para usar EMULADORES...");
 
-    process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
-    process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
 
-    admin.initializeApp({
-      projectId: FIREBASE_PROJECT_ID,
-    });
-    console.log(
-      `✅ Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`
-    );
-  } else {
-    console.log(
-      "🌐 [Firebase Admin] Configurando para usar CLOUD (Producción)..."
-    );
 
-    // Verificar si existe el archivo de credenciales
-    try {
-      const serviceAccount = require("./serviceAccountKey.json");
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: FIREBASE_PROJECT_ID,
-      });
-      console.log(
-        "✅ Firebase Admin SDK inicializado para CLOUD con serviceAccountKey.json."
-      );
-    } catch (error) {
-      console.log(
-        "⚠️ No se encontró serviceAccountKey.json, usando credenciales predeterminadas..."
-      );
-      admin.initializeApp({
-        projectId: FIREBASE_PROJECT_ID,
-      });
-      console.log(
-        "✅ Firebase Admin SDK inicializado para CLOUD con credenciales predeterminadas."
-      );
+        admin.initializeApp({
+            projectId: FIREBASE_PROJECT_ID,
+        });
+        console.log(
+            `✅ Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`
+        );
+    } else {
+        console.log(
+            "🌐 [Firebase Admin] Configurando para usar CLOUD (Producción)..."
+        );
+
+        // Verificar si existe el archivo de credenciales
+        try {
+            const serviceAccount = require("./serviceAccountKey.json");
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                projectId: FIREBASE_PROJECT_ID,
+            });
+            console.log(
+                "✅ Firebase Admin SDK inicializado para CLOUD con serviceAccountKey.json."
+            );
+        } catch (error) {
+            console.error(
+                "❌ ERROR FATAL: No se encontró serviceAccountKey.json o las credenciales no son válidas.",
+                "Asegúrate de que el archivo esté en la ruta correcta y que tu servidor lo pueda leer."
+            );
+            
+            throw new Error("No se pudo inicializar Firebase Admin sin credenciales válidas.");
+        }
     }
-  }
 } else {
-  console.log("✅ [Firebase Admin] SDK ya estaba inicializado.");
+    console.log("✅ [Firebase Admin] SDK ya estaba inicializado.");
 }
 
-// Exporta las instancias de Firebase que usarás en otras partes de la app
+
 export const db = getFirestore();
 export const auth = admin.auth();
 
-// Exporta 'admin' como la exportación por defecto
+
 export default admin;

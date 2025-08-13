@@ -1,21 +1,29 @@
+// backend/routes/chatRoutes.js
 
-import express from 'express';
-import admin, { db } from '../firebase-admin.js';
+import express from 'express'; 
+import { db } from '../firebase-admin.js'; // Solo importamos 'db'
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { FieldValue } from 'firebase-admin/firestore'; // Importamos FieldValue directamente
 
 const router = express.Router();
 
-// Ruta para enviar un nuevo mensaje
-router.post('/messages', async (req, res) => {
+// Ruta para enviar un nuevo mensaje (AHORA CON AUTENTICACIÓN)
+router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId, senderId, receiverId, content, isUser } = req.body;
+        
+        // Opcional: Verificar que el senderId coincide con el usuario autenticado
+        if (req.firebaseUser.uid !== senderId) {
+            return res.status(403).json({ error: 'ID de remitente no coincide con el usuario autenticado.' });
+        }
 
         const messageRef = db.collection('chats').doc(chatId).collection('messages');
         await messageRef.add({
             senderId,
             receiverId,
-            content,      // Coincide con el modelo MessageModel
-            isUser,       // Campo booleano que indica si el mensaje es del usuario o IA
-            timestamp: new Date(),
+            content,
+            isUser,
+            timestamp: FieldValue.serverTimestamp(), // Usamos FieldValue importado
         });
 
         res.status(200).json({ message: 'Mensaje enviado correctamente' });
@@ -25,15 +33,21 @@ router.post('/messages', async (req, res) => {
     }
 });
 
-// Ruta para obtener el historial de mensajes de un chat
-router.get('/messages/:chatId', async (req, res) => {
+// Ruta para obtener el historial de mensajes de un chat (AHORA CON AUTENTICACIÓN)
+router.get('/messages/:chatId', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
+        const userId = req.firebaseUser.uid;
+
+        // Opcional: Verificar que el usuario autenticado tenga acceso al chat
+        if (chatId !== userId) {
+            return res.status(403).json({ error: 'Acceso denegado a este chat.' });
+        }
 
         const messagesRef = db.collection('chats').doc(chatId).collection('messages');
-        const q = query(messagesRef, orderBy('timestamp'));
+        const q = messagesRef.orderBy('timestamp');
 
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await q.get();
         const messages = querySnapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -42,7 +56,7 @@ router.get('/messages/:chatId', async (req, res) => {
                 senderId: data.senderId,
                 receiverId: data.receiverId,
                 isUser: data.isUser,
-                timestamp: data.timestamp.toDate(),
+                timestamp: data.timestamp?.toDate(),
             };
         });
 

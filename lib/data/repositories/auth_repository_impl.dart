@@ -31,6 +31,8 @@ class AuthRepositoryImpl implements AuthRepository {
     return userRemoteDataSource.getPsychologistData(uid);
   }
 
+ 
+
   @override
   Future<void> updatePatientInfo({
     required String userId,
@@ -59,15 +61,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) async {
-    log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
-    try {
-      await authRemoteDataSource.signIn(email: email, password: password);
-      log(
-        ' Repo: Inicio de sesión en Firebase exitoso.',
-        name: 'AuthRepositoryImpl',
-      );
-    } on FirebaseAuthException catch (e) {
+  Future<String> signIn({required String email, required String password}) async {
+  log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
+  try {
+    final userCredential = await authRemoteDataSource.signIn(email: email, password: password);
+    final idToken = await userCredential.user?.getIdToken();
+    if (idToken == null) {
+      throw AuthException('No se pudo obtener el token de autenticación.');
+    }
+    log(' Repo: Token de autenticación obtenido exitosamente.', name: 'AuthRepositoryImpl');
+    return idToken;
+  } on FirebaseAuthException catch (e) {
       log(
         ' Repo: FirebaseAuthException: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
@@ -146,12 +150,6 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       log(
         ' Repo: Registro de paciente y datos de Firestore exitoso.',
-        name: 'AuthRepositoryImpl',
-      );
-
-      await signOut();
-      log(
-        ' Repo: Usuario desautenticado después del registro de paciente.',
         name: 'AuthRepositoryImpl',
       );
 
@@ -236,12 +234,6 @@ class AuthRepositoryImpl implements AuthRepository {
         name: 'AuthRepositoryImpl',
       );
 
-      await signOut();
-      log(
-        ' Repo: Usuario desautenticado después del registro de psicólogo.',
-        name: 'AuthRepositoryImpl',
-      );
-
       return psychologist;
     } on FirebaseAuthException catch (e) {
       log(
@@ -278,15 +270,6 @@ class AuthRepositoryImpl implements AuthRepository {
       if (fbUser == null) {
         log(
           'DEBUG: Repo authStateChanges - Firebase User es null. Emitiendo null.',
-          name: 'AuthRepositoryImpl',
-        );
-        return null;
-      }
-
-      final currentUser = _firebaseAuth.currentUser;
-      if (currentUser == null || currentUser.uid != fbUser.uid) {
-        log(
-          ' DEBUG: Repo authStateChanges - El usuario ${fbUser.uid} recibido del stream YA NO es el current user (${currentUser?.uid ?? 'null'}). Ignorando carga de perfil y emitiendo null.',
           name: 'AuthRepositoryImpl',
         );
         return null;
