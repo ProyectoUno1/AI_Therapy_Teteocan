@@ -280,10 +280,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home:
-              const PatientHomeScreen(), //AuthWrapper maneja la vista dinamicamente
-          //const PsychologistHomeScreen(),
-          //const PsychologistChatListScreen(),
+          home: const AuthWrapper(),
         );
       },
     );

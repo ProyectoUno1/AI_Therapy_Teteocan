@@ -3,13 +3,13 @@
 import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 
-abstract class ChatEvent extends Equatable {
-  const ChatEvent();
+abstract class PsychologistChatEvent extends Equatable {
+  const PsychologistChatEvent();
   @override
   List<Object?> get props => [];
 }
 
-class LoadChatMessages extends ChatEvent {
+class LoadChatMessages extends PsychologistChatEvent {
   final String chatId;
   final String senderId; 
   const LoadChatMessages(this.chatId, this.senderId);
@@ -17,7 +17,7 @@ class LoadChatMessages extends ChatEvent {
   List<Object?> get props => [chatId, senderId];
 }
 
-class SendMessage extends ChatEvent {
+class SendMessage extends PsychologistChatEvent {
   final String chatId;
   final String content;
   final String senderId;
@@ -26,7 +26,7 @@ class SendMessage extends ChatEvent {
   List<Object?> get props => [chatId, content, senderId];
 }
 
-class MessagesUpdated extends ChatEvent {
+class MessagesUpdated extends PsychologistChatEvent {
   final List<MessageModel> messages;
   const MessagesUpdated(this.messages);
   @override

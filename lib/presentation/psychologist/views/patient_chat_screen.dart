@@ -39,16 +39,13 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Obtener el ID del psicólogo una sola vez al inicio
     final authState = BlocProvider.of<AuthBloc>(context).state;
     if (authState.psychologist != null && authState.isAuthenticatedPsychologist) {
       _currentUserId = authState.psychologist!.uid;
-      // Generar el chatId único
       final ids = [_currentUserId!, widget.patientId]..sort();
       _chatId = '${ids[0]}_${ids[1]}';
       
-      // Cargar los mensajes al iniciar la pantalla
-      BlocProvider.of<ChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
+      BlocProvider.of<PsychologistChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
     }
   }
 
@@ -62,8 +59,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
     
-    // Disparar el evento para enviar el mensaje a Firestore
-    BlocProvider.of<ChatBloc>(context).add(
+    BlocProvider.of<PsychologistChatBloc>(context).add(
       SendMessage(
         chatId: _chatId,
         content: _messageController.text.trim(),
@@ -208,23 +204,21 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       ),
       body: Column(
         children: [
-          // Mensajes 
           Expanded(
-            child: BlocConsumer<ChatBloc, ChatState>(
+            child: BlocConsumer<PsychologistChatBloc, PsychologistChatState>(
               listener: (context, state) {
-                // Desplazarse al final cuando se cargan nuevos mensajes
-                if (state is ChatLoaded) {
+                if (state is PsychologistChatLoaded) {
                   _scrollToBottom();
                 }
               },
               builder: (context, state) {
-                if (state is ChatLoading) {
+                if (state is PsychologistChatLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (state is ChatError) {
+                if (state is PsychologistChatError) {
                   return Center(child: Text(state.message));
                 }
-                if (state is ChatLoaded) {
+                if (state is PsychologistChatLoaded) {
                   if (state.messages.isEmpty) {
                     return _buildEmptyState(context);
                   }
@@ -248,8 +242,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               },
             ),
           ),
-
-          // Área de entrada de mensaje
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -310,7 +302,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     );
   }
 
-  // Métodos helper para los widgets 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
