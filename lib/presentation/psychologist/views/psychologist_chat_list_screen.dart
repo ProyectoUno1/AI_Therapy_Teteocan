@@ -296,8 +296,8 @@ class _PsychologistChatListScreenState
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => BlocProvider<PsychologistChatBloc>( // ⬅️ CORRECCIÓN
-              create: (context) => PsychologistChatBloc(), // Se eliminó el repositorio ya que no se usa en el constructor
+            builder: (context) => BlocProvider<PsychologistChatBloc>( 
+              create: (context) => PsychologistChatBloc(), 
               child: PatientChatScreen(
                 patientId: patient.id,
                 patientName: patient.name,
