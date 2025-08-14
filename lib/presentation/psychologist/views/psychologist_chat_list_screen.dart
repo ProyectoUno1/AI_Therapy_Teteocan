@@ -1,3 +1,5 @@
+// lib/presentation/psychologist/views/psychologist_chat_list_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -9,7 +11,8 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_blo
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_state.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart'; // Importación correcta del BLoC unificado
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 
 class PsychologistChatListScreen extends StatefulWidget {
   const PsychologistChatListScreen({super.key});
@@ -293,8 +296,8 @@ class _PsychologistChatListScreenState
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => BlocProvider.value(
-              value: context.read<ChatBloc>(),
+            builder: (context) => BlocProvider<PsychologistChatBloc>( 
+              create: (context) => PsychologistChatBloc(), 
               child: PatientChatScreen(
                 patientId: patient.id,
                 patientName: patient.name,

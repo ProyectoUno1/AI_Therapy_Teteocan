@@ -7,11 +7,11 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
 
-class ChatBloc extends Bloc<ChatEvent, ChatState> {
+class PsychologistChatBloc extends Bloc<PsychologistChatEvent, PsychologistChatState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   StreamSubscription? _messagesSubscription;
 
-  ChatBloc() : super(ChatInitial()) {
+  PsychologistChatBloc() : super(PsychologistChatInitial()) {
     on<LoadChatMessages>(_onLoadChatMessages);
     on<SendMessage>(_onSendMessage);
     on<MessagesUpdated>(_onMessagesUpdated);
@@ -19,13 +19,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onLoadChatMessages(
     LoadChatMessages event,
-    Emitter<ChatState> emit,
+    Emitter<PsychologistChatState> emit,
   ) async {
-    emit(ChatLoading());
+    emit(PsychologistChatLoading());
     try {
       _messagesSubscription?.cancel();
 
-      
       final currentUserId = event.senderId;
 
       _messagesSubscription = _firestore
@@ -42,13 +41,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             add(MessagesUpdated(messages));
           });
     } catch (e) {
-      emit(ChatError('Error al cargar mensajes: $e'));
+      emit(PsychologistChatError('Error al cargar mensajes: $e'));
     }
   }
 
   Future<void> _onSendMessage(
     SendMessage event,
-    Emitter<ChatState> emit,
+    Emitter<PsychologistChatState> emit,
   ) async {
     try {
       final messageRef = _firestore
@@ -71,8 +70,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-  void _onMessagesUpdated(MessagesUpdated event, Emitter<ChatState> emit) {
-    emit(ChatLoaded(event.messages));
+  void _onMessagesUpdated(MessagesUpdated event, Emitter<PsychologistChatState> emit) {
+    emit(PsychologistChatLoaded(event.messages));
   }
 
   @override
