@@ -1,5 +1,3 @@
-// psychologistRoutes.js
-
 import express from 'express';
 import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
@@ -7,11 +5,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 const router = express.Router();
 
-// Ruta para actualizar la información profesional del psicólogo
 router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
     try {
         const uid = req.firebaseUser.uid;
 
+        
         if (uid !== req.params.uid) {
             return res.status(403).json({ error: 'Acceso no autorizado' });
         }
@@ -45,7 +43,7 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
         if (typeof schedule === 'object' && schedule !== null) updateData.schedule = schedule;
         if (typeof isAvailable === 'boolean') updateData.isAvailable = isAvailable;
 
-        // Guardar la información en la colección CORRECTA
+        // Guardar la información en la colección usando `set` con `merge: true`
         await db.collection('psychologist_professional_info').doc(uid).set(updateData, { merge: true });
 
         res.status(200).json({ message: 'Información profesional actualizada' });

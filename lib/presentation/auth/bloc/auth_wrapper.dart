@@ -4,17 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; 
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart'; 
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart'; 
-import 'package:ai_therapy_teteocan/splash_screen.dart'; 
-import 'dart:developer'; // Para los logs
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
+import 'package:ai_therapy_teteocan/splash_screen.dart';
+import 'dart:developer';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class AuthWrapper extends StatelessWidget {
+
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  
+  @override
   Widget build(BuildContext context) {
+    
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.isError && state.errorMessage != null) {
@@ -40,14 +50,12 @@ class AuthWrapper extends StatelessWidget {
         );
 
         if (state.isUnknown || state.isLoading) {
-          
           log(
             ' AuthWrapper Builder: Mostrando SplashScreen.',
             name: 'AuthWrapper',
           );
           return const SplashScreen();
         } else if (state.isAuthenticated) {
-          
           if (state.isAuthenticatedPatient) {
             log(
               ' AuthWrapper Builder: Mostrando PatientHomeScreen.',
@@ -61,7 +69,6 @@ class AuthWrapper extends StatelessWidget {
             );
             return PsychologistHomeScreen();
           } else {
-           
             log(
               ' AuthWrapper Builder: Estado autenticado sin rol definido. Volviendo a LoginScreen.',
               name: 'AuthWrapper',
@@ -69,7 +76,6 @@ class AuthWrapper extends StatelessWidget {
             return const LoginScreen();
           }
         } else {
-         
           log(
             ' AuthWrapper Builder: Mostrando LoginScreen.',
             name: 'AuthWrapper',

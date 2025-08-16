@@ -1,7 +1,15 @@
+// lib/presentation/subscription/views/subscription_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:ai_therapy_teteocan/data/models/subscription_model.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:io';
+import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
+
+// URL de tu servidor de backend
+const String backendUrl = 'http://10.0.2.2:3000';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -12,46 +20,13 @@ class SubscriptionScreen extends StatefulWidget {
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool isLoading = false;
-  UserSubscription? currentSubscription;
   int aiMessagesUsed = 15;
   int aiMessagesLimit = 20;
-
-  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  bool _isAvailable = false;
-  List<ProductDetails> _products = [];
-
-  // IDs de productos para los planes de suscripción
-  static const String monthlyPlanId = 'aurora_premium_monthly';
-  static const String yearlyPlanId = 'aurora_premium_yearly';
 
   @override
   void initState() {
     super.initState();
     _loadSubscriptionData();
-    _initializeInAppPurchase();
-  }
-
-  Future<void> _initializeInAppPurchase() async {
-    final bool isAvailable = await _inAppPurchase.isAvailable();
-    if (!isAvailable) {
-      setState(() {
-        _isAvailable = false;
-      });
-      return;
-    }
-
-    const Set<String> kIds = <String>{monthlyPlanId, yearlyPlanId};
-    final ProductDetailsResponse response = await _inAppPurchase
-        .queryProductDetails(kIds);
-
-    if (response.notFoundIDs.isNotEmpty) {
-      print('Productos no encontrados: ${response.notFoundIDs}');
-    }
-
-    setState(() {
-      _isAvailable = isAvailable;
-      _products = response.productDetails;
-    });
   }
 
   void _loadSubscriptionData() {
@@ -63,9 +38,105 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     Future.delayed(const Duration(milliseconds: 1500), () {
       setState(() {
         isLoading = false;
-        // currentSubscription = UserSubscription(...); // Aquí cargarías datos reales
       });
     });
+  }
+
+  Future<void> _startStripePayment({
+    required String planId,
+    required String planName,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$backendUrl/api/stripe/create-subscription'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'planId': planId}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error al contactar al backend: ${response.body}');
+      }
+
+      final Map<String, dynamic> data = json.decode(response.body);
+
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      final bool paymentRequired = data['paymentRequired'] ?? false;
+      final String? clientSecret = data['clientSecret'];
+      final String? appearanceJson = data['appearance'];
+
+      if (paymentRequired && clientSecret != null) {
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: data['clientSecret'],
+            merchantDisplayName: 'AI Therapy',
+            style: Theme.of(context).brightness == Brightness.dark
+                ? ThemeMode.dark
+                : ThemeMode.light,
+          ),
+        );
+
+        await Stripe.instance.presentPaymentSheet();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('¡Suscripción a $planName completada con éxito!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('¡Suscripción de prueba a $planName activada con éxito!'),
+              backgroundColor: Colors.blue,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (e is StripeException) {
+        print('Error de Stripe: ${e.error.localizedMessage}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error en el pago: ${e.error.localizedMessage}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      } else {
+        print('Error de pago: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error inesperado: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -307,7 +378,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
-              '\$199',
+              '\$499',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -344,7 +415,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _showPricingPlans,
+        onPressed: () => _showPricingPlans(),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
@@ -354,11 +425,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
           elevation: 0,
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.rocket_launch, size: 20),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
               'Actualizar a Premium',
               style: TextStyle(
@@ -423,10 +494,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   _buildPlanOption(
                     title: 'Plan Mensual',
                     subtitle: 'Perfecto para empezar',
-                    price: '\$199',
+                    price: '\$499',
                     period: '/mes',
                     isPopular: false,
-                    productId: monthlyPlanId,
+                    onTap: () {
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user == null) {
+                        Navigator.pop(context);
+                        // Considera mostrar un SnackBar o una alerta
+                        print('Error: Usuario no autenticado.');
+                        return;
+                      }
+                      
+                      Navigator.pop(context); // Cierra el modal
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CheckoutScreen(
+                            planName: 'Aurora Premium',
+                            price: '\$499',
+                            period: '/mes',
+                            isAnnual: false,
+                            planId: 'price_1RvpKc2Szsvtfc49E0VZHcAv',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   _buildPlanOption(
@@ -436,7 +529,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     period: '/año',
                     originalPrice: '\$2,388',
                     isPopular: true,
-                    productId: yearlyPlanId,
+                    onTap: () {
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user == null) {
+                        Navigator.pop(context);
+                        // Considera mostrar un SnackBar o una alerta
+                        print('Error: Usuario no autenticado.');
+                        return;
+                      }
+                      
+                      Navigator.pop(context); // Cierra el modal
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CheckoutScreen(
+                            planName: 'Aurora Premium Anual',
+                            price: '\$1,999',
+                            period: '/año',
+                            isAnnual: true,
+                            planId: 'price_1RwQDS2Szsvtfc49voxyVem6',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const Spacer(),
                   Text(
@@ -465,246 +580,178 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     required String price,
     required String period,
     required bool isPopular,
-    required String productId,
+    required VoidCallback onTap,
     String? originalPrice,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPopular
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey[300]!,
-          width: isPopular ? 2 : 1,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isPopular
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey[300]!,
+            width: isPopular ? 2 : 1,
+          ),
+          color: Theme.of(context).cardColor,
         ),
-        color: Theme.of(context).cardColor,
-      ),
-      child: Stack(
-        children: [
-          if (isPopular)
-            Positioned(
-              top: 0,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
+        child: Stack(
+          children: [
+            if (isPopular)
+              Positioned(
+                top: 0,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                ),
-                child: Text(
-                  'MEJOR VALOR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'MEJOR VALOR',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
                   ),
                 ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isPopular) const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.headlineMedium?.color,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (originalPrice != null) ...[
-                          Text(
-                            originalPrice,
-                            style: TextStyle(
-                              fontSize: 12,
-                              decoration: TextDecoration.lineThrough,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ],
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isPopular) const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              price,
+                              title,
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: isPopular
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(
-                                        context,
-                                      ).textTheme.headlineMedium?.color,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.headlineMedium?.color,
                                 fontFamily: 'Poppins',
                               ),
                             ),
+                            const SizedBox(height: 4),
                             Text(
-                              period,
+                              subtitle,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: Theme.of(
                                   context,
-                                ).textTheme.bodyMedium?.color,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                                 fontFamily: 'Poppins',
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _selectPlan(productId, title),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isPopular
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent,
-                      foregroundColor: isPopular
-                          ? Colors.white
-                          : Theme.of(context).colorScheme.primary,
-                      side: !isPopular
-                          ? BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 1,
-                            )
-                          : null,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'Seleccionar',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (originalPrice != null) ...[
+                            Text(
+                              originalPrice,
+                              style: TextStyle(
+                                fontSize: 12,
+                                decoration: TextDecoration.lineThrough,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                price,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: isPopular
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(
+                                          context,
+                                        ).textTheme.headlineMedium?.color,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              Text(
+                                period,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isPopular
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent,
+                        foregroundColor: isPopular
+                            ? Colors.white
+                            : Theme.of(context).colorScheme.primary,
+                        side: !isPopular
+                            ? BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 1,
+                              )
+                            : null,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Seleccionar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  void _selectPlan(String productId, String planName) {
-    Navigator.pop(context); // Cerrar modal
-    _purchaseProduct(productId, planName);
-  }
-
-  Future<void> _purchaseProduct(String productId, String planName) async {
-    if (!_isAvailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Las compras in-app no están disponibles'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Mostrar mensaje de que se está procesando
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Iniciando compra de $planName...'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-
-    // Buscar el producto en la lista
-    ProductDetails? product;
-    try {
-      product = _products.firstWhere((p) => p.id == productId);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Producto no encontrado: $productId'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Crear parámetros de compra
-    final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
-
-    try {
-      // Iniciar la compra
-      if (Platform.isIOS) {
-        await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
-      } else {
-        // Para Android, usamos buyNonConsumable para suscripciones también
-        await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
-      }
-    } catch (e) {
-      print('Error durante la compra: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error durante la compra: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-    }
   }
 }

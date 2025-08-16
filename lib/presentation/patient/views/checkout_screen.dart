@@ -1,18 +1,24 @@
+// lib/presentation/checkout/views/checkout_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String planName;
   final String price;
   final String period;
   final bool isAnnual;
+  final String planId;
 
   const CheckoutScreen({
     super.key,
     required this.planName,
     required this.price,
     required this.period,
+    required this.planId,
     this.isAnnual = false,
   });
 
@@ -21,8 +27,19 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  PaymentMethod _selectedPaymentMethod = PaymentMethod.appStore;
   bool _isProcessingPayment = false;
+  // Endpoint para crear una Checkout Session
+  final String backendUrl = 'http://10.0.2.2:3000/api/stripe/create-checkout-session';
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +56,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Finalizar compra',
+          'Confirmar suscripción',
           style: TextStyle(
             color: Theme.of(context).textTheme.bodyLarge?.color,
             fontSize: 18,
@@ -55,8 +72,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSubscriptionSummary(),
-            const SizedBox(height: 24),
-            _buildPaymentMethods(),
             const SizedBox(height: 24),
             _buildOrderSummary(),
             const SizedBox(height: 32),
@@ -85,7 +100,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Finaliza tu compra',
+            'Resumen de tu pedido',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -95,7 +110,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pasarela Stripe',
+            'Tu compra será procesada por Stripe.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -124,7 +139,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Aurora Premium',
+                      widget.planName,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -186,233 +201,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildPaymentMethods() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Método de pago',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).textTheme.headlineMedium?.color,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // App Store / Google Play
-          _buildPaymentMethodTile(
-            method: PaymentMethod.appStore,
-            icon: Theme.of(context).platform == TargetPlatform.iOS
-                ? Icons.apple
-                : Icons.android,
-            title: Theme.of(context).platform == TargetPlatform.iOS
-                ? 'App Store'
-                : 'Google Play',
-            subtitle: 'Pago seguro con tu cuenta',
-            isRecommended: true,
-          ),
-
-          const SizedBox(height: 12),
-
-          // Tarjeta de crédito/débito
-          _buildPaymentMethodTile(
-            method: PaymentMethod.creditCard,
-            icon: Icons.credit_card,
-            title: 'Tarjeta de crédito o débito',
-            subtitle: null,
-            logos: ['visa', 'mastercard'],
-          ),
-
-          const SizedBox(height: 12),
-
-          // PayPal
-          _buildPaymentMethodTile(
-            method: PaymentMethod.paypal,
-            icon: Icons.account_balance_wallet,
-            title: 'PayPal',
-            subtitle: null,
-            customColor: Colors.blue[700],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Mercado Pago
-          _buildPaymentMethodTile(
-            method: PaymentMethod.mercadoPago,
-            icon: Icons.payment,
-            title: 'Mercado pago',
-            subtitle: null,
-            customColor: Colors.blue[600],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethodTile({
-    required PaymentMethod method,
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    List<String>? logos,
-    Color? customColor,
-    bool isRecommended = false,
-  }) {
-    final bool isSelected = _selectedPaymentMethod == method;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = method;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? AppConstants.primaryColor : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: isSelected
-              ? AppConstants.primaryColor.withOpacity(0.05)
-              : Colors.white,
-        ),
-        child: Row(
-          children: [
-            Radio<PaymentMethod>(
-              value: method,
-              groupValue: _selectedPaymentMethod,
-              onChanged: (PaymentMethod? value) {
-                setState(() {
-                  _selectedPaymentMethod = value!;
-                });
-              },
-              activeColor: AppConstants.primaryColor,
-            ),
-            const SizedBox(width: 12),
-            Icon(
-              icon,
-              color:
-                  customColor ??
-                  (isSelected ? AppConstants.primaryColor : Colors.grey[600]),
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(
-                            context,
-                          ).textTheme.headlineMedium?.color,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      if (isRecommended) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green[100],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Recomendado',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green[700],
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (logos != null) ...[
-              const SizedBox(width: 8),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[900],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'VISA',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red[700],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'MC',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildOrderSummary() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -444,7 +232,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Aurora Premium',
+                widget.planName,
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -498,7 +286,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isProcessingPayment ? null : _processPayment,
+        onPressed: _isProcessingPayment ? null : _processStripePayment,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
@@ -517,7 +305,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               )
             : Text(
-                'Completar compra',
+                'Pagar con Tarjeta',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -528,38 +316,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Future<void> _processPayment() async {
+  Future<void> _processStripePayment() async {
     setState(() {
       _isProcessingPayment = true;
     });
 
     try {
-      switch (_selectedPaymentMethod) {
-        case PaymentMethod.appStore:
-          await _processInAppPurchase();
-          break;
-        case PaymentMethod.creditCard:
-        case PaymentMethod.paypal:
-        case PaymentMethod.mercadoPago:
-          _showComingSoonDialog();
-          break;
+      print('1. Llamando a tu backend para crear la sesión de Checkout...');
+
+      // ontener datos reales del usuario proximamente
+      final String userEmail = 'cliente_de_ejemplo@email.com'; 
+      final String userId = 'id_de_usuario_ejemplo';
+
+      final url = Uri.parse(backendUrl);
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'planId': widget.planId,
+          'userEmail': userEmail,
+          'userId': userId,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        print('Error del backend: ${response.body}');
+        throw Exception('Error del servidor: ${response.statusCode}');
       }
+
+      print('2. Respuesta del backend recibida. Obteniendo la URL...');
+      final sessionData = jsonDecode(response.body);
+      final String? checkoutUrl = sessionData['checkoutUrl'];
+
+      if (checkoutUrl == null) {
+        print('Error: checkoutUrl no recibido del backend.');
+        throw Exception('URL de Checkout no encontrada en la respuesta del servidor.');
+      }
+
+      print('3. Abriendo la URL de Checkout de Stripe en el navegador...');
+      await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+ //dialogos de exito o error proximamemnte
+
     } catch (e) {
-      _showErrorDialog(e.toString());
+      print('Error inesperado: $e');
+      _showErrorDialog('Un error inesperado ocurrió: $e');
     } finally {
       setState(() {
         _isProcessingPayment = false;
       });
-    }
-  }
-
-  Future<void> _processInAppPurchase() async {
-    // Aquí implementaremos la lógica de In-App Purchase
-    // Por ahora simularemos el proceso
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      _showSuccessDialog();
     }
   }
 
@@ -600,9 +404,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // Cerrar dialog
-                    Navigator.of(context).pop(); // Volver a subscription screen
-                    Navigator.of(context).pop(); // Volver a profile
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConstants.primaryColor,
@@ -621,33 +425,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  void _showComingSoonDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Próximamente', style: TextStyle(fontFamily: 'Poppins')),
-          content: Text(
-            'Este método de pago estará disponible pronto. Por ahora, usa ${Theme.of(context).platform == TargetPlatform.iOS ? 'App Store' : 'Google Play'}.',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Entendido',
-                style: TextStyle(
-                  color: AppConstants.primaryColor,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -683,5 +460,3 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 }
-
-enum PaymentMethod { appStore, creditCard, paypal, mercadoPago }

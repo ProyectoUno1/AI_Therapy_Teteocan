@@ -1,18 +1,17 @@
 // backend/routes/chatRoutes.js
 
 import express from 'express'; 
-import { db } from '../firebase-admin.js'; // Solo importamos 'db'
+import { db } from '../firebase-admin.js'; 
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
-import { FieldValue } from 'firebase-admin/firestore'; // Importamos FieldValue directamente
+import { FieldValue } from 'firebase-admin/firestore';
 
 const router = express.Router();
 
-// Ruta para enviar un nuevo mensaje (AHORA CON AUTENTICACIÓN)
+
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId, senderId, receiverId, content, isUser } = req.body;
         
-        // Opcional: Verificar que el senderId coincide con el usuario autenticado
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ error: 'ID de remitente no coincide con el usuario autenticado.' });
         }
@@ -23,7 +22,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             receiverId,
             content,
             isUser,
-            timestamp: FieldValue.serverTimestamp(), // Usamos FieldValue importado
+            timestamp: FieldValue.serverTimestamp(), 
         });
 
         res.status(200).json({ message: 'Mensaje enviado correctamente' });
@@ -33,13 +32,11 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// Ruta para obtener el historial de mensajes de un chat (AHORA CON AUTENTICACIÓN)
 router.get('/messages/:chatId', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.firebaseUser.uid;
 
-        // Opcional: Verificar que el usuario autenticado tenga acceso al chat
         if (chatId !== userId) {
             return res.status(403).json({ error: 'Acceso denegado a este chat.' });
         }

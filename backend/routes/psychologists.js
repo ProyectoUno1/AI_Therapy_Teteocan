@@ -1,9 +1,11 @@
 // backend/routes/psychologists.js
 
 import express from 'express'; 
-const router = express.Router();
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { db } from '../firebase-admin.js';
+import { FieldValue } from 'firebase-admin/firestore'; 
+
+const router = express.Router();
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
@@ -11,7 +13,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
         const firebaseUser = req.firebaseUser; 
 
         if (!firebaseUser || firebaseUser.uid !== uid) { 
-            return res.status(403).json({ error: 'UID mismatch or no authenticated user' });
+            return res.status(403).json({ error: 'UID mismatch o usuario no autenticado' });
         }
 
         const psychologistRef = db.collection('psychologists').doc(uid);
@@ -21,16 +23,15 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             return res.status(400).json({ error: 'Psicólogo ya registrado' });
         }
 
-        
         const psychologistData = {
             firebaseUid: uid, 
-            username: username,
-            email: email,
-            phoneNumber: phoneNumber, 
-            professionalLicense: professionalLicense, 
-            dateOfBirth: dateOfBirth,
+            username,
+            email,
+            phoneNumber, 
+            professionalLicense, 
+            dateOfBirth,
             profilePictureUrl: profilePictureUrl || null, 
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
         };
 
         await psychologistRef.set(psychologistData);
@@ -62,26 +63,24 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
     }
 });
 
+
 router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
-        console.log('ID del usuario autenticado (del token):', req.firebaseUser.uid);
-        console.log('ID recibido en la URL (del frontend):', uid);
-        console.log('¿Coinciden los IDs?', req.firebaseUser.uid === uid);
-        // Validación para asegurar que el usuario autenticado solo pueda actualizar su propio perfil
+
         if (req.firebaseUser.uid !== uid) {
             return res.status(403).json({ error: 'Acceso no autorizado.' });
         }
 
         const { username, email, phoneNumber, profilePictureUrl } = req.body;
 
-        const updateData = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+        const updateData = { updatedAt: FieldValue.serverTimestamp() };
         if (username) updateData.username = username;
         if (email) updateData.email = email;
         if (phoneNumber) updateData.phoneNumber = phoneNumber;
         if (profilePictureUrl) updateData.profilePictureUrl = profilePictureUrl;
 
-        await db.collection('psychologists').doc(uid).update(updateData);
+        await db.collection('psychologists').doc(uid).set(updateData, { merge: true });
 
         res.json({ message: 'Información básica actualizada' });
     } catch (error) {

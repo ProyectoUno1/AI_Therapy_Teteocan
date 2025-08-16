@@ -11,7 +11,7 @@ class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoS
   final PsychologistRepository psychologistRepository;
   
   final PsychologistSetupUseCase _setupUsecase;
-  final PsychologistGetUsecase _getUsecase; // ¡Nuevo usecase para obtener datos!
+  final PsychologistGetUsecase _getUsecase; 
 
   PsychologistInfoBloc({required this.psychologistRepository})
       : _setupUsecase = PsychologistSetupUseCase(psychologistRepository),

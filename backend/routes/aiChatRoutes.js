@@ -37,7 +37,6 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
         if (!userId) {
             return res.status(401).json({ error: 'Usuario no autenticado.' });
         }
-
         
         await getOrCreateAIChatId(userId);
 

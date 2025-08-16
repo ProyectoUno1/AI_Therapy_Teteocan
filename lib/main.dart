@@ -1,5 +1,6 @@
 // lib/main.dart
 
+import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
 import 'package:timezone/data/latest.dart' as tzdata;
+import 'dart:async'; 
+import 'package:firebase_database/firebase_database.dart'; 
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 // Importaciones de las capas de la arquitectura limpia
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
@@ -29,6 +33,7 @@ import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -46,9 +51,9 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  
   // --- Inicialización de la base de datos de zonas horarias ---
   tzdata.initializeTimeZones();
+  Stripe.publishableKey = 'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
 
   // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
@@ -68,8 +73,6 @@ void main() async {
   final ChatRepository chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
-
-
 
   runApp(
     MultiBlocProvider(
@@ -97,8 +100,6 @@ void main() async {
   );
 }
 
-
-
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -107,50 +108,67 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class _MyAppState extends State<MyApp> {
+  // Suscripción al estado de autenticación para escuchar los cambios del usuario
+  late StreamSubscription<User?> _authStateSubscription;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    // Establece el estado inicial en línea si el usuario ya está autenticado
-    _updateOnlineStatus(true);
+    // Suscribirse a los cambios de estado de autenticación de Firebase
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
+      user,
+    ) {
+      if (user != null) {
+        // Usuario ha iniciado sesión
+        _setupUserPresence(user.uid);
+      }
+    });
   }
 
   @override
-  void dispose() {
-    // Al cerrar la app, establece el estado a fuera de línea
-    _updateOnlineStatus(false);
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
+void dispose() {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .set({
+      'isOnline': false,
+      'lastSeen': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // El usuario volvió a la aplicación, lo ponemos en línea
-      _updateOnlineStatus(true);
-    } else if (state == AppLifecycleState.paused) {
-      // El usuario salió de la aplicación, lo ponemos fuera de línea
-      _updateOnlineStatus(false);
-    }
-  }
+  _authStateSubscription.cancel();
+  super.dispose();
+}
 
-  void _updateOnlineStatus(bool isOnline) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid);
+  // Método que configura el estado de presencia del usuario
+  void _setupUserPresence(String userId) async {
+    log(
+      'Estableciendo estado de presencia para el usuario: $userId',
+      name: 'UserPresence',
+    );
 
-      userRef
-          .set({
-            'isOnline': isOnline,
-            'lastActive': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
-          .catchError(
-            (error) => log('Error al actualizar el estado de conexión: $error'),
-          );
-    }
+    // Referencia a Firestore y Realtime Database
+    final userFirestoreRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId);
+    final userRealtimeRef = FirebaseDatabase.instance.ref('status/$userId');
+
+    // 1. Establecer el estado inicial en línea en Realtime Database
+    await userRealtimeRef.set({
+      'isOnline': true,
+      'lastSeen': ServerValue.timestamp,
+    });
+
+    // 2. Configurar la función onDisconnect en Realtime Database
+    userRealtimeRef.onDisconnect().set({
+      'isOnline': false,
+      'lastSeen': ServerValue.timestamp,
+    });
+
+    
   }
 
   // --- Temas de la aplicación usando FlexColorScheme ---

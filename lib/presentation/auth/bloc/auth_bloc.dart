@@ -11,7 +11,8 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SignInUseCase _signInUseCase;
@@ -23,10 +24,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required AuthRepository authRepository,
     required SignInUseCase signInUseCase,
     required RegisterUserUseCase registerUserUseCase,
-  }) : _authRepository = authRepository,
-       _signInUseCase = signInUseCase,
-       _registerUserUseCase = registerUserUseCase,
-       super(const AuthState.unknown()) {
+  })  : _authRepository = authRepository,
+        _signInUseCase = signInUseCase,
+        _registerUserUseCase = registerUserUseCase,
+        super(const AuthState.unknown()) {
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
     on<AuthRegisterPsychologistRequested>(_onAuthRegisterPsychologistRequested);
@@ -142,8 +143,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           );
           newState = AuthState.unauthenticated(
             errorMessage:
-                event.errorMessage ??
-                'Rol o perfil inconsistente. Sesión cerrada.',
+                event.errorMessage ?? 'Rol o perfil inconsistente. Sesión cerrada.',
           );
           _authRepository.signOut();
         }
@@ -360,6 +360,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     log(' AuthBloc Event: AuthSignOutRequested recibido.', name: 'AuthBloc');
     emit(const AuthState.loading());
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        log('AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.', name: 'AuthBloc');
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+          'isOnline': false,
+          'lastSeen': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      
       await _authRepository.signOut();
       log(
         ' AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).',

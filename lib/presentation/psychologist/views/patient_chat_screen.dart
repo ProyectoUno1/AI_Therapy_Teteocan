@@ -1,4 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
+//vista del psicologo
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,20 +11,19 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
   final String patientName;
   final String patientImageUrl;
-  final bool isPatientOnline;
 
   const PatientChatScreen({
     super.key,
     required this.patientId,
     required this.patientName,
     required this.patientImageUrl,
-    required this.isPatientOnline,
   });
 
   @override
@@ -35,6 +35,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _currentUserId;
   late String _chatId;
+  late Stream<DocumentSnapshot> _patientStatusStream;
 
   @override
   void initState() {
@@ -44,9 +45,14 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       _currentUserId = authState.psychologist!.uid;
       final ids = [_currentUserId!, widget.patientId]..sort();
       _chatId = '${ids[0]}_${ids[1]}';
-      
+
       BlocProvider.of<PsychologistChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
     }
+
+    _patientStatusStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.patientId)
+        .snapshots();
   }
 
   @override
@@ -58,7 +64,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
-    
+
     BlocProvider.of<PsychologistChatBloc>(context).add(
       SendMessage(
         chatId: _chatId,
@@ -95,62 +101,79 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            Stack(
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: _patientStatusStream,
+          builder: (context, snapshot) {
+            bool isOnline = false;
+            String statusText = 'Cargando...';
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              isOnline = data['isOnline'] ?? false;
+              final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
+              statusText = isOnline
+                  ? 'En l\u00ednea'
+                  : 'Última vez: ${_formatTimestamp(lastSeenTimestamp)}';
+            }
+
+            return Row(
               children: [
-                CircleAvatar(
-                  backgroundImage: NetworkImage(widget.patientImageUrl),
-                  radius: 20,
-                  backgroundColor: AppConstants.lightAccentColor,
-                ),
-                if (widget.isPatientOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Theme.of(context).cardColor,
-                          width: 2,
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: NetworkImage(widget.patientImageUrl),
+                      radius: 20,
+                      backgroundColor: AppConstants.lightAccentColor,
+                    ),
+                    if (isOnline)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Theme.of(context).cardColor,
+                              width: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.patientName,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                          fontStyle: FontStyle.normal,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
               ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.patientName,
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    widget.isPatientOnline ? 'En línea' : 'Última vez hace 2h',
-                    style: TextStyle(
-                      color: widget.isPatientOnline ? Colors.green : Colors.grey,
-                      fontSize: 12,
-                      fontFamily: 'Poppins',
-                      fontStyle: FontStyle.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           IconButton(
@@ -184,7 +207,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                   children: [
                     Icon(Icons.note),
                     SizedBox(width: 8),
-                    Text('Notas de sesión'),
+                    Text('Notas de sesi\u00f3n'),
                   ],
                 ),
               ),
@@ -232,7 +255,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: MessageBubble(
                           message: message,
-                          isMe: message.isUser, 
+                          isMe: message.isUser,
                         ),
                       );
                     },
@@ -302,6 +325,27 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     );
   }
 
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return 'Desconocido';
+    final DateTime lastSeenDate = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(lastSeenDate);
+
+    if (difference.inMinutes < 1) {
+      return 'hace menos de un minuto';
+    } else if (difference.inMinutes < 60) {
+      return 'hace ${difference.inMinutes} min';
+    } else if (difference.inHours < 24) {
+      return 'hace ${difference.inHours} h';
+    } else if (difference.inDays < 7) {
+      return 'hace ${difference.inDays} d\u00edas';
+    } else {
+      final formatter = DateFormat('dd/MM/yyyy');
+      return formatter.format(lastSeenDate);
+    }
+  }
+
+
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -310,7 +354,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Inicia la conversación',
+            'Inicia la conversaci\u00f3n',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
@@ -318,7 +362,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Envía el primer mensaje a ${widget.patientName}',
+            'Env\u00eda el primer mensaje a ${widget.patientName}',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),

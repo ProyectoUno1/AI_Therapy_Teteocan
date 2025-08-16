@@ -1,6 +1,5 @@
-/*server.js tiene el proposito de iniciar el servidor web con Express.js*/
 
-import app from './app.js'; // Usa import, y añade .js a las importaciones locales
+import app from './app.js'; 
 import dotenv from 'dotenv'; 
 
 // Cargar variables de entorno desde .env
