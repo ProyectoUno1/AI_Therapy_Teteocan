@@ -4,6 +4,7 @@ import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasou
 import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart'; 
 
+
 class PsychologistRepositoryImpl implements PsychologistRepository {
   final PsychologistRemoteDataSource _remoteDataSource;
 

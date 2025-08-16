@@ -13,7 +13,6 @@ const IS_DEVELOPMENT_ENV = process.env.NODE_ENV === "development";
 const USE_EMULATORS_FLAG = process.env.USE_EMULATORS === "true";
 const SHOULD_USE_EMULATORS = IS_DEVELOPMENT_ENV || USE_EMULATORS_FLAG;
 
-// Es el ID de tu proyecto real, aunque estemos usando emuladores.
 const FIREBASE_PROJECT_ID =
     process.env.FIREBASE_PROJECT_ID || "aurora-2b8f4";
 
@@ -22,16 +21,15 @@ if (!admin.apps.length) {
         console.log("🔗 [Firebase Admin] Configurando para usar EMULADORES...");
 
 
-
         admin.initializeApp({
             projectId: FIREBASE_PROJECT_ID,
         });
         console.log(
-            `✅ Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`
+            ` Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`
         );
     } else {
         console.log(
-            "🌐 [Firebase Admin] Configurando para usar CLOUD (Producción)..."
+            " [Firebase Admin] Configurando para usar CLOUD (Producción)..."
         );
 
         // Verificar si existe el archivo de credenciales
@@ -42,11 +40,11 @@ if (!admin.apps.length) {
                 projectId: FIREBASE_PROJECT_ID,
             });
             console.log(
-                "✅ Firebase Admin SDK inicializado para CLOUD con serviceAccountKey.json."
+                " Firebase Admin SDK inicializado para CLOUD con serviceAccountKey.json."
             );
         } catch (error) {
             console.error(
-                "❌ ERROR FATAL: No se encontró serviceAccountKey.json o las credenciales no son válidas.",
+                " ERROR FATAL: No se encontró serviceAccountKey.json o las credenciales no son válidas.",
                 "Asegúrate de que el archivo esté en la ruta correcta y que tu servidor lo pueda leer."
             );
             
@@ -54,7 +52,7 @@ if (!admin.apps.length) {
         }
     }
 } else {
-    console.log("✅ [Firebase Admin] SDK ya estaba inicializado.");
+    console.log(" [Firebase Admin] SDK ya estaba inicializado.");
 }
 
 

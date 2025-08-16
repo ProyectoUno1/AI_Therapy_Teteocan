@@ -1,5 +1,3 @@
-// lib/data/datasources/psychologist_remote_datasource.dart
-
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
@@ -73,6 +71,7 @@ class PsychologistRemoteDataSource {
   }) async {
     print('Backend: Iniciando updateProfessionalInfo para $uid');
 
+    // La variable `data` se define aquí.
     final Map<String, dynamic> data = {};
     if (fullName != null) data['fullName'] = fullName;
     if (professionalTitle != null) data['professionalTitle'] = professionalTitle;
@@ -93,8 +92,8 @@ class PsychologistRemoteDataSource {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/psychologists/professional'), 
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
@@ -104,8 +103,6 @@ class PsychologistRemoteDataSource {
   }
 
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
-    
-
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/psychologists/$uid/professional'), 

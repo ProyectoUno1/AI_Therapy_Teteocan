@@ -53,7 +53,6 @@ class MessageModel {
     };
   }
 
-  // Método para serializar a JSON si es necesario para otros servicios
   Map<String, dynamic> toJson() {
     return {
       'id': id,

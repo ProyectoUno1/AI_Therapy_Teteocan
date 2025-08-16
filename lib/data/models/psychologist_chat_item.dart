@@ -1,3 +1,4 @@
+//lib/data/models/psychologist_chat_item.dart
 import 'package:equatable/equatable.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 

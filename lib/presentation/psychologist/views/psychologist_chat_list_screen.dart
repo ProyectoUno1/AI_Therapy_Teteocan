@@ -1,4 +1,5 @@
 // lib/presentation/psychologist/views/psychologist_chat_list_screen.dart
+//vista del psicologo
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +14,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_sta
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PsychologistChatListScreen extends StatefulWidget {
   const PsychologistChatListScreen({super.key});
@@ -171,8 +173,8 @@ class _PsychologistChatListScreenState
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 isFiltered
-                    ? 'Intenta con otro término de búsqueda'
-                    : 'Los pacientes aparecerán aquí cuando inicien conversaciones',
+                    ? 'Intenta con otro t\u00e9rmino de b\u00fasqueda'
+                    : 'Los pacientes aparecer\u00e1n aqu\u00ed cuando inicien conversaciones',
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),
@@ -186,31 +188,41 @@ class _PsychologistChatListScreenState
   Widget _buildPatientChatTile(PatientChatItem patient) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
-            backgroundImage: NetworkImage(patient.profileImageUrl),
-          ),
-          if (patient.isOnline)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).cardColor,
-                    width: 2,
+      leading: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(patient.id).snapshots(),
+        builder: (context, snapshot) {
+          bool isOnline = false;
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            isOnline = data['isOnline'] ?? false;
+          }
+          return Stack(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+                backgroundImage: NetworkImage(patient.profileImageUrl),
+              ),
+              if (isOnline)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).cardColor,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
       title: Row(
         children: [
@@ -296,13 +308,12 @@ class _PsychologistChatListScreenState
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => BlocProvider<PsychologistChatBloc>( 
-              create: (context) => PsychologistChatBloc(), 
+            builder: (context) => BlocProvider<PsychologistChatBloc>(
+              create: (context) => PsychologistChatBloc(),
               child: PatientChatScreen(
                 patientId: patient.id,
                 patientName: patient.name,
                 patientImageUrl: patient.profileImageUrl,
-                isPatientOnline: patient.isOnline,
               ),
             ),
           ),

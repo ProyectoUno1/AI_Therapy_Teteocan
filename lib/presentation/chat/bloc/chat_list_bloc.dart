@@ -1,4 +1,5 @@
 // lib/presentation/chat/bloc/chat_list_bloc.dart
+//vista de paciente
 
 import 'dart:async';
 import 'package:bloc/bloc.dart';

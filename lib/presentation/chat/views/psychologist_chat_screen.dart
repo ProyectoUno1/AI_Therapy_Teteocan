@@ -1,9 +1,12 @@
+// lib/presentation/chat/views/psychologist_chat_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
+import 'package:intl/intl.dart'; 
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -21,8 +24,6 @@ class PsychologistChatScreen extends StatefulWidget {
   State<PsychologistChatScreen> createState() => _PsychologistChatScreenState();
 }
 
-bool _isOnline = true;
-String _lastSeen = 'En línea';
 
 class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final TextEditingController _messageController = TextEditingController();
@@ -32,12 +33,18 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final _auth = FirebaseAuth.instance;
   late final String _chatId;
 
+  
+  late final Stream<DocumentSnapshot> _psychologistStatusStream;
+
   @override
   void initState() {
     super.initState();
     final currentUserUid = _auth.currentUser!.uid;
     final uids = [currentUserUid, widget.psychologistUid]..sort();
     _chatId = uids.join('_');
+
+    
+    _psychologistStatusStream = _firestore.collection('users').doc(widget.psychologistUid).snapshots();
   }
 
   @override
@@ -69,7 +76,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     });
 
     //  Paso 2: Actualiza el documento de resumen en la colección 'chats'.
-    // Esto es lo que nos permitirá listar los chats.
     await _firestore.collection('chats').doc(_chatId).set(
       {
         'participants': [currentUserUid, widget.psychologistUid],
@@ -78,7 +84,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
       },
       SetOptions(
         merge: true,
-      ), // Usamos merge: true para no sobrescribir otros campos si los hubiera.
+      ),
     );
 
     _scrollToBottom();
@@ -113,27 +119,63 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
               radius: 20,
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.psychologistName,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                Text(
-                  _isOnline ? 'En línea' : _lastSeen,
-                  style: TextStyle(
-                    color: _isOnline ? Colors.green : Colors.grey,
-                    fontSize: 12,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
+            
+            StreamBuilder<DocumentSnapshot>(
+              stream: _psychologistStatusStream,
+              builder: (context, snapshot) {
+                // Estado por defecto
+                bool isOnline = false;
+                String lastSeenText = 'Última vez visto: N/A';
+
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                  isOnline = data['isOnline'] as bool? ?? false;
+                  final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
+
+                  if (lastSeenTimestamp != null) {
+                    final lastSeenDate = lastSeenTimestamp.toDate();
+                    final now = DateTime.now();
+                    final difference = now.difference(lastSeenDate);
+
+                    if (difference.inMinutes < 1) {
+                      lastSeenText = 'En línea';
+                    } else if (difference.inHours < 1) {
+                      lastSeenText = 'Última vez visto hace ${difference.inMinutes} min';
+                    } else if (difference.inDays < 1) {
+                      lastSeenText = 'Última vez visto hoy a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                    } else if (difference.inDays < 2) {
+                      lastSeenText = 'Última vez visto ayer a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                    } else {
+                      lastSeenText = 'Última vez visto el ${DateFormat('dd MMM').format(lastSeenDate)}';
+                    }
+                  } else {
+                    lastSeenText = 'Última vez visto: N/A';
+                  }
+                }
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.psychologistName,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    Text(
+                      isOnline ? 'En línea' : lastSeenText,
+                      style: TextStyle(
+                        color: isOnline ? Colors.green : Colors.grey,
+                        fontSize: 12,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -205,7 +247,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                     return MessageModel(
                       id: doc.id,
                       content: data['content'],
-
                       timestamp: timestamp?.toDate() ?? DateTime.now(),
                       isUser: data['senderId'] == _auth.currentUser!.uid,
                     );

@@ -23,7 +23,7 @@ class ChatState extends Equatable {
     this.isTyping = false, // Valor inicial por defecto
   });
 
-  // Método copyWith para crear nuevas instancias del estado inmutable
+  
   ChatState copyWith({
     ChatStatus? status,
     List<MessageModel>? messages,

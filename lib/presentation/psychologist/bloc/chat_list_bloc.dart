@@ -1,5 +1,3 @@
-// lib/presentation/psychologist/bloc/chat_list_bloc.dart
-
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -7,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_chat_item.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_state.dart';
+import 'dart:developer'; 
 
 class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -26,6 +25,7 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
 
       _chatsSubscription = _firestore.collection('chats')
           .where('participants', arrayContains: event.userId)
+          .orderBy('lastTimestamp', descending: true)
           .snapshots()
           .listen((snapshot) async {
         List<PatientChatItem> chats = [];
@@ -42,6 +42,12 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
           if (otherMemberId.isNotEmpty) {
             final patientDoc = await _firestore.collection('patients').doc(otherMemberId).get();
             final patientData = patientDoc.data();
+            
+            // --- Obtener el estado de conexión del paciente ---
+            final userDoc = await _firestore.collection('users').doc(otherMemberId).get();
+            final userData = userDoc.data();
+            final bool isOnline = userData?['isOnline'] ?? false;
+            final Timestamp? lastSeenTimestamp = userData?['lastSeen'];
 
             if (patientData != null) {
               chats.add(
@@ -51,7 +57,8 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
                   lastMessage: data['lastMessage'] as String? ?? 'No hay mensajes',
                   lastMessageTime: (data['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
                   profileImageUrl: patientData['profile_picture_url'] as String? ?? 'https://via.placeholder.com/60',
-                  isOnline: false,
+                  isOnline: isOnline,
+                  lastSeen: lastSeenTimestamp?.toDate(),
                   unreadCount: 0,
                   isTyping: false,
                 ),
@@ -62,6 +69,7 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         add(ChatsUpdated(chats));
       });
     } catch (e) {
+      log('Error al cargar los chats: $e', name: 'ChatListBloc');
       emit(ChatListError('Error al cargar los chats: $e'));
     }
   }
