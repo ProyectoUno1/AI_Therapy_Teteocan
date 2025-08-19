@@ -11,8 +11,9 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SignInUseCase _signInUseCase;
@@ -24,10 +25,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required AuthRepository authRepository,
     required SignInUseCase signInUseCase,
     required RegisterUserUseCase registerUserUseCase,
-  })  : _authRepository = authRepository,
-        _signInUseCase = signInUseCase,
-        _registerUserUseCase = registerUserUseCase,
-        super(const AuthState.unknown()) {
+  }) : _authRepository = authRepository,
+       _signInUseCase = signInUseCase,
+       _registerUserUseCase = registerUserUseCase,
+       super(const AuthState.unknown()) {
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
     on<AuthRegisterPsychologistRequested>(_onAuthRegisterPsychologistRequested);
@@ -105,9 +106,64 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     log(
-      ' AuthBloc Event: AuthStarted recibido. No se emite estado aquí, la suscripción a authStateChanges lo maneja.',
+      ' AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
       name: 'AuthBloc',
     );
+
+    try {
+      emit(const AuthState.loading());
+
+      // Verificar si hay un usuario autenticado
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        log(
+          ' AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
+          name: 'AuthBloc',
+        );
+
+        // Obtener el perfil del usuario desde Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final userRole = userData['role'] as String?;
+
+          if (userRole == 'patient') {
+            final patient = PatientModel.fromFirestore(userDoc, null);
+            emit(
+              AuthState.authenticated(
+                userRole: UserRole.patient,
+                patient: patient,
+              ),
+            );
+          } else if (userRole == 'psychologist') {
+            final psychologist = PsychologistModel.fromFirestore(userData);
+            emit(
+              AuthState.authenticated(
+                userRole: UserRole.psychologist,
+                psychologist: psychologist,
+              ),
+            );
+          } else {
+            emit(const AuthState.unauthenticated());
+          }
+        } else {
+          emit(const AuthState.unauthenticated());
+        }
+      } else {
+        log(' AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
+        emit(const AuthState.unauthenticated());
+      }
+    } catch (e) {
+      log(' AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
+      emit(
+        const AuthState.error(errorMessage: 'Error verificando autenticación'),
+      );
+    }
   }
 
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
@@ -143,7 +199,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           );
           newState = AuthState.unauthenticated(
             errorMessage:
-                event.errorMessage ?? 'Rol o perfil inconsistente. Sesión cerrada.',
+                event.errorMessage ??
+                'Rol o perfil inconsistente. Sesión cerrada.',
           );
           _authRepository.signOut();
         }
@@ -328,7 +385,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         name: 'AuthBloc',
       );
 
-      
       emit(
         const AuthState.success(
           errorMessage: 'Registro completado exitosamente.',
@@ -362,13 +418,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
-        log('AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.', name: 'AuthBloc');
-        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
-          'isOnline': false,
-          'lastSeen': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        log(
+          'AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.',
+          name: 'AuthBloc',
+        );
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .set({
+              'isOnline': false,
+              'lastSeen': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
       }
-      
+
       await _authRepository.signOut();
       log(
         ' AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).',

@@ -8,6 +8,8 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/add_patient_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_detail_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 
 class PatientManagementScreen extends StatefulWidget {
   const PatientManagementScreen({super.key});
@@ -472,6 +474,56 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                 ),
               ],
             ],
+          ),
+        ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Botón para ver citas del paciente
+          IconButton(
+            icon: Icon(
+              Icons.calendar_today,
+              color: AppConstants.primaryColor,
+              size: 20,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BlocProvider<AppointmentBloc>(
+                    create: (context) => AppointmentBloc(),
+                    child: AppointmentsListScreen(
+                      psychologistId:
+                          context
+                              .read<AuthBloc>()
+                              .state
+                              .psychologist
+                              ?.username ??
+                          '',
+                    ),
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Ver citas del paciente',
+          ),
+          // Botón para ver detalles
+          IconButton(
+            icon: Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.grey[600],
+              size: 16,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PatientDetailScreen(patient: patient),
+                ),
+              ).then((_) => _loadPatients());
+            },
+            tooltip: 'Ver detalles',
           ),
         ],
       ),

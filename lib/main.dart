@@ -1,8 +1,5 @@
 // lib/main.dart
 
-import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,11 +7,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
 import 'package:timezone/data/latest.dart' as tzdata;
-import 'dart:async'; 
-import 'package:firebase_database/firebase_database.dart'; 
-import 'package:flutter_stripe/flutter_stripe.dart';
-
-// Importaciones de las capas de la arquitectura limpia
+import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
@@ -33,7 +28,6 @@ import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -53,7 +47,8 @@ void main() async {
 
   // --- Inicialización de la base de datos de zonas horarias ---
   tzdata.initializeTimeZones();
-  Stripe.publishableKey = 'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
+  Stripe.publishableKey =
+      'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
 
   // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
@@ -127,21 +122,18 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
-void dispose() {
-  final currentUser = FirebaseAuth.instance.currentUser;
-  if (currentUser != null) {
-    FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .set({
-      'isOnline': false,
-      'lastSeen': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
+  void dispose() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+        'isOnline': false,
+        'lastSeen': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
 
-  _authStateSubscription.cancel();
-  super.dispose();
-}
+    _authStateSubscription.cancel();
+    super.dispose();
+  }
 
   // Método que configura el estado de presencia del usuario
   void _setupUserPresence(String userId) async {
@@ -167,8 +159,6 @@ void dispose() {
       'isOnline': false,
       'lastSeen': ServerValue.timestamp,
     });
-
-    
   }
 
   // --- Temas de la aplicación usando FlexColorScheme ---
