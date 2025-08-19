@@ -1,10 +1,13 @@
 // lib/presentation/patient/views/psychologists_list_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/psychologist_chat_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/appointment_booking_screen.dart';
 
 class PsychologistsListScreen extends StatefulWidget {
   final bool showAppBar;
@@ -593,7 +596,7 @@ class _PsychologistDetailsModal extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                               psychologist.fullName ?? 'Psicólogo sin nombre',
+                              psychologist.fullName ?? 'Psicólogo sin nombre',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -700,12 +703,17 @@ class _PsychologistDetailsModal extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                            // Agendar cita
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Funcionalidad de agendar cita próximamente',
-                                ),
+                            // Navegar a la pantalla de agendamiento
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    BlocProvider<AppointmentBloc>(
+                                      create: (context) => AppointmentBloc(),
+                                      child: AppointmentBookingScreen(
+                                        psychologist: psychologist,
+                                      ),
+                                    ),
                               ),
                             );
                           },

@@ -631,8 +631,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }
 
   void _scheduleAppointment() {
+    // TODO: Implementar navegación a pantalla de agendamiento para psicólogos
+    // Esto podría ser una versión simplificada donde el psicólogo agenda directamente
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Función de agendar cita próximamente')),
+      const SnackBar(
+        content: Text('Función de agendar cita desde psicólogo próximamente'),
+      ),
     );
   }
 
