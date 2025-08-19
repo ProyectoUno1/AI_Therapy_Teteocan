@@ -450,11 +450,13 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
       // Simular delay
       await Future.delayed(const Duration(milliseconds: 500));
 
-      emit(AppointmentState.loaded(
-        appointments: List.from(_mockAppointments),
-      ));
+      emit(AppointmentState.loaded(appointments: List.from(_mockAppointments)));
     } catch (e) {
-      emit(AppointmentState.error(errorMessage: 'Error al cargar citas de muestra: $e'));
+      emit(
+        AppointmentState.error(
+          errorMessage: 'Error al cargar citas de muestra: $e',
+        ),
+      );
     }
   }
 }

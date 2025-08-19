@@ -593,7 +593,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             ),
             style: const TextStyle(fontFamily: 'Poppins'),
           ),
-          
+
           // Espacio adicional para evitar que el contenido quede pegado al botón
           const SizedBox(height: 80),
         ],
@@ -804,7 +804,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
               ],
             ),
           ),
-          
+
           // Espacio adicional para evitar que el contenido quede pegado al botón
           const SizedBox(height: 80),
         ],

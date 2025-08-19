@@ -109,11 +109,14 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                   psychologistId: psychologistId,
                   psychologistName: userName,
                   psychologistSpecialty: 'Psicología Clínica',
-                  scheduledDateTime: DateTime.now().add(const Duration(days: 1)),
+                  scheduledDateTime: DateTime.now().add(
+                    const Duration(days: 1),
+                  ),
                   type: AppointmentType.online,
                   status: AppointmentStatus.pending,
                   price: 500.0,
-                  notes: 'Sesión inicial para evaluación de ansiedad y depresión',
+                  notes:
+                      'Sesión inicial para evaluación de ansiedad y depresión',
                   createdAt: DateTime.now(),
                 );
 
@@ -122,7 +125,9 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => BlocProvider<AppointmentBloc>(
                       create: (context) => AppointmentBloc(),
-                      child: AppointmentConfirmationScreen(appointment: sampleAppointment),
+                      child: AppointmentConfirmationScreen(
+                        appointment: sampleAppointment,
+                      ),
                     ),
                   ),
                 );
