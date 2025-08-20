@@ -37,7 +37,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     _loadSubscriptionData();
   }
 
-  // ✅ MEJORADO - Cargar datos de la suscripción desde el backend
+  // Cargar datos de la suscripción desde el backend
   Future<void> _loadSubscriptionData() async {
     setState(() {
       isLoading = true;
@@ -58,7 +58,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  // ✅ FUNCIÓN PARA INICIAR EL PROCESO DE PAGO
+  // FUNCIÓN PARA INICIAR EL PROCESO DE PAGO
   Future<void> _startStripePayment({
     required String planId,
     required String planName,
@@ -72,7 +72,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return;
     }
 
-    // ✅ Verificar si ya tiene suscripción antes de proceder
+    // Verificar si ya tiene suscripción antes de proceder
     if (_subscriptionStatus?.hasSubscription == true) {
       _showSnackBar("Ya tienes una suscripción activa.");
       return;
