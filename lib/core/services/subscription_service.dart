@@ -45,7 +45,7 @@ class SubscriptionService {
     }
   }
 
-  //  VERIFICAR SI EL USUARIO TIENE SUSCRIPCIÓN ACTIVA
+  // VERIFICAR SI EL USUARIO TIENE SUSCRIPCIÓN ACTIVA
   static Future<bool> hasActiveSubscription() async {
     try {
       final status = await getUserSubscriptionStatus();
@@ -57,7 +57,7 @@ class SubscriptionService {
     }
   }
 
-  //  CANCELAR SUSCRIPCIÓN
+  // CANCELAR SUSCRIPCIÓN
   static Future<CancellationResult> cancelSubscription({
     bool immediate = false,
   }) async {
@@ -230,7 +230,6 @@ class SubscriptionService {
     if (additionalData != null) {
       updateData.addAll(additionalData);
     }
-
     
     await FirebaseFirestore.instance
         .collection('users')
