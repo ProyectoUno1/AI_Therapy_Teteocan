@@ -13,14 +13,18 @@ abstract class AppointmentEvent extends Equatable {
 class LoadAppointmentsEvent extends AppointmentEvent {
   final String userId;
   final bool isForPsychologist;
+  final DateTime startDate; 
+  final DateTime endDate;
 
   const LoadAppointmentsEvent({
     required this.userId,
     this.isForPsychologist = false,
+    required this.startDate,
+    required this.endDate,
   });
 
   @override
-  List<Object> get props => [userId, isForPsychologist];
+  List<Object> get props => [userId, isForPsychologist, startDate, endDate];
 }
 
 class BookAppointmentEvent extends AppointmentEvent {
@@ -28,6 +32,7 @@ class BookAppointmentEvent extends AppointmentEvent {
   final DateTime scheduledDateTime;
   final AppointmentType type;
   final String? notes;
+  
 
   const BookAppointmentEvent({
     required this.psychologistId,
@@ -44,6 +49,7 @@ class ConfirmAppointmentEvent extends AppointmentEvent {
   final String appointmentId;
   final String? psychologistNotes;
   final String? meetingLink;
+  
 
   const ConfirmAppointmentEvent({
     required this.appointmentId,
@@ -81,6 +87,7 @@ class RescheduleAppointmentEvent extends AppointmentEvent {
     this.reason,
   });
 
+ 
   @override
   List<Object?> get props => [appointmentId, newDateTime, reason];
 }
@@ -97,15 +104,17 @@ class CompleteAppointmentEvent extends AppointmentEvent {
 
 class LoadAvailableTimeSlotsEvent extends AppointmentEvent {
   final String psychologistId;
-  final DateTime date;
+  final DateTime startDate;
+  final DateTime endDate;
 
   const LoadAvailableTimeSlotsEvent({
     required this.psychologistId,
-    required this.date,
+    required this.startDate,
+    required this.endDate,
   });
 
   @override
-  List<Object> get props => [psychologistId, date];
+  List<Object> get props => [psychologistId, startDate, endDate];
 }
 
 class GetAppointmentDetailsEvent extends AppointmentEvent {

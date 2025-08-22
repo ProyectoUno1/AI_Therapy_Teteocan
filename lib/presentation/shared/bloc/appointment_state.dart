@@ -18,6 +18,7 @@ enum AppointmentStateStatus {
   completing,
   completed,
   error,
+  success, 
 }
 
 class TimeSlot {
@@ -59,6 +60,7 @@ class AppointmentState extends Equatable {
   final String? errorMessage;
   final String? successMessage;
   final bool isLoading;
+  final String? message; 
 
   const AppointmentState({
     this.status = AppointmentStateStatus.initial,
@@ -71,6 +73,7 @@ class AppointmentState extends Equatable {
     this.errorMessage,
     this.successMessage,
     this.isLoading = false,
+    this.message, 
   });
 
   AppointmentState copyWith({
@@ -84,6 +87,7 @@ class AppointmentState extends Equatable {
     String? errorMessage,
     String? successMessage,
     bool? isLoading,
+    String? message, 
   }) {
     return AppointmentState(
       status: status ?? this.status,
@@ -96,6 +100,7 @@ class AppointmentState extends Equatable {
       errorMessage: errorMessage,
       successMessage: successMessage,
       isLoading: isLoading ?? this.isLoading,
+      message: message, 
     );
   }
 
@@ -112,40 +117,16 @@ class AppointmentState extends Equatable {
   }
 
   factory AppointmentState.loaded({
-    required List<AppointmentModel> appointments,
+    required List<AppointmentModel> pendingAppointments,
+    required List<AppointmentModel> upcomingAppointments,
+    required List<AppointmentModel> pastAppointments,
   }) {
-    final now = DateTime.now();
-
-    // Filtrar citas pendientes (necesitan confirmación del psicólogo)
-    final pending = appointments
-        .where((apt) => apt.status == AppointmentStatus.pending)
-        .toList();
-
-    // Filtrar citas próximas (confirmadas y futuras)
-    final upcoming = appointments
-        .where(
-          (apt) =>
-              apt.status == AppointmentStatus.confirmed &&
-              apt.scheduledDateTime.isAfter(now),
-        )
-        .toList();
-
-    // Filtrar citas pasadas (completadas o pasadas)
-    final past = appointments
-        .where(
-          (apt) =>
-              apt.status == AppointmentStatus.completed ||
-              (apt.scheduledDateTime.isBefore(now) &&
-                  apt.status != AppointmentStatus.pending),
-        )
-        .toList();
-
     return AppointmentState(
       status: AppointmentStateStatus.loaded,
-      appointments: appointments,
-      pendingAppointments: pending,
-      upcomingAppointments: upcoming,
-      pastAppointments: past,
+      appointments: [...pendingAppointments, ...upcomingAppointments, ...pastAppointments],
+      pendingAppointments: pendingAppointments,
+      upcomingAppointments: upcomingAppointments,
+      pastAppointments: pastAppointments,
       isLoading: false,
     );
   }
@@ -207,6 +188,18 @@ class AppointmentState extends Equatable {
     );
   }
 
+  factory AppointmentState.completed({
+    required AppointmentModel appointment,
+    String? successMessage,
+  }) {
+    return AppointmentState(
+      status: AppointmentStateStatus.completed,
+      selectedAppointment: appointment,
+      successMessage: successMessage ?? 'Cita completada exitosamente',
+      isLoading: false,
+    );
+  }
+
   factory AppointmentState.error({required String errorMessage}) {
     return AppointmentState(
       status: AppointmentStateStatus.error,
@@ -236,12 +229,14 @@ class AppointmentState extends Equatable {
   bool get isCancelling => status == AppointmentStateStatus.cancelling;
   bool get isCancelled => status == AppointmentStateStatus.cancelled;
   bool get isError => status == AppointmentStateStatus.error;
+  bool get isSuccess => status == AppointmentStateStatus.success; 
 
   bool get hasAppointments => appointments.isNotEmpty;
   bool get hasPendingAppointments => pendingAppointments.isNotEmpty;
   bool get hasUpcomingAppointments => upcomingAppointments.isNotEmpty;
   bool get hasPastAppointments => pastAppointments.isNotEmpty;
   bool get hasAvailableTimeSlots => availableTimeSlots.isNotEmpty;
+
 
   int get totalAppointments => appointments.length;
   int get pendingCount => pendingAppointments.length;
@@ -260,5 +255,6 @@ class AppointmentState extends Equatable {
     errorMessage,
     successMessage,
     isLoading,
+    message,
   ];
 }

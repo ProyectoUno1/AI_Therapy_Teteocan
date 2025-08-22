@@ -28,6 +28,7 @@ import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -69,7 +70,7 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
-  runApp(
+ runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
@@ -88,6 +89,10 @@ void main() async {
               psychologistRemoteDataSource,
             ),
           ),
+        ),
+        // 🔥 AGREGAR EL APPOINTMENTBLOC AQUÍ
+        BlocProvider<AppointmentBloc>(
+          create: (context) => AppointmentBloc(),
         ),
       ],
       child: const MyApp(),

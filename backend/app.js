@@ -6,6 +6,7 @@ import psychologistsRoutes from "./routes/psychologists.js";
 import aiChatRoutes from "./routes/aiChatRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import psychologistProfessionalProfileRoutes from "./routes/psychologist_professional_profile.js";
+import appointmentsRoutes from "./routes/appointments.js"; // Nueva ruta
 import { verifyFirebaseToken } from "./middlewares/auth_middleware.js";
 import stripeRouter from "./routes/stripeRoutes.js";
 
@@ -17,29 +18,27 @@ const app = express();
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
-      ? [process.env.FRONTEND_URL, "https://tu-app-url.com"] // ← URLs de producción
+      ? [process.env.FRONTEND_URL, "https://tu-app-url.com"] // URLs de producción
       : ["http://localhost:3000", "http://10.0.2.2:3000"], // URLs de desarrollo
   credentials: true,
 };
 
 // --- Middlewares Globales ---
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
-
 app.get("/", (req, res) => {
-  res.send("¡Aurora Backend funcionando en modo DESARROLLO!");
+  res.send("Aurora Backend funcionando en modo DESARROLLO!");
 });
 
-
+// --- Rutas ---
 app.use("/api/patients", verifyFirebaseToken, patientsRoutes);
 app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes);
 app.use("/api/psychologists", verifyFirebaseToken, psychologistProfessionalProfileRoutes);
+app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes); 
 app.use("/api/ai", verifyFirebaseToken, aiRoutes);
 app.use("/api/chats/ai-chat", verifyFirebaseToken, aiChatRoutes);
 app.use("/api/chats", verifyFirebaseToken, chatRoutes);
-
 app.use("/api/stripe", stripeRouter);
 
 // --- Manejador de Errores Global ---

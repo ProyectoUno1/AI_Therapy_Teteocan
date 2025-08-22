@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:app_links/app_links.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ai_therapy_teteocan/core/services/subscription_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String planName;
@@ -27,18 +32,145 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  // Estado para controlar el proceso de pago
   bool _isProcessingPayment = false;
-  // Endpoint para crear una Checkout Session
-  final String backendUrl = 'http://10.0.2.2:3000/api/stripe/create-checkout-session';
+  String? _paymentResult; 
+  String? _paymentMessage;
+  
+  // Suscripción para escuchar los deep links
+  StreamSubscription<Uri>? _linkSubscription;
+
+  // Instancia para manejar los deep links
+  late AppLinks _appLinks;
+
+  
+  final String backendUrl =
+      'http://10.0.2.2:3000/api/stripe/create-checkout-session';
 
   @override
   void initState() {
     super.initState();
+    // Inicializar el listener de deep links al cargar la pantalla
+    _initDeepLinks();
+  }
+
+  // Método para inicializar el listener de deep link
+  void _initDeepLinks() async {
+    _appLinks = AppLinks();
+    // Escuchar deep links mientras la app está abierta
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (err) {
+        _setPaymentResult('error', 'Error procesando el resultado del pago');
+      },
+    );
+    //Manejar cuando la app se abre con un deep link
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) {
+        Future.delayed(Duration(milliseconds: 500), () {
+          _handleDeepLink(initialLink);
+        });
+      }
+    } catch (e) {
+      print('Error al obtener el link inicial: $e');
+    }
+  }
+
+  // Manejar el deep link recibido
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme == 'auroraapp') {
+      if (uri.host == 'success') {
+        final sessionId = uri.queryParameters['session_id'];
+        if (sessionId != null) {
+          _verifyPaymentAndUpdateFirebase(sessionId);
+        } else {
+          _setPaymentResult('error', 'No se pudo verificar el pago (sin session ID)');
+        }
+      } else if (uri.host == 'cancel') {
+        
+        _handlePaymentCancelled();
+      }
+    }
+  }
+
+  //  Verificación y actualización del pago
+  Future<void> _verifyPaymentAndUpdateFirebase(String sessionId) async {
+    try {
+      
+      
+      _setProcessingState(true);
+
+      //  Verificar estado de la sesión en Stripe
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:3000/api/stripe/verify-session'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'sessionId': sessionId}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+
+        if (data['paymentStatus'] == 'paid') {
+          
+          await Future.delayed(Duration(seconds: 2)); // Dar tiempo al webhook
+          
+          _setPaymentResult(
+            'success',
+            '¡Perfecto! Tu suscripción a ${widget.planName} ha sido activada.',
+          );
+        } else {
+          _setPaymentResult(
+            'error', 
+            'El pago no se completó correctamente. Estado: ${data['paymentStatus']}'
+          );
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        _setPaymentResult(
+          'error', 
+          'Error al verificar el pago: ${errorData['error'] ?? 'Error desconocido'}'
+        );
+      }
+    } catch (e) {
+     
+      _setPaymentResult('error', 'Error de conexión al verificar el pago');
+    } finally {
+      _setProcessingState(false);
+    }
+  }
+
+  // Manejar un pago cancelado
+  void _handlePaymentCancelled() {
+    _setPaymentResult('error', 'Has cancelado el proceso de pago.');
   }
 
   @override
   void dispose() {
+    // Cancelar la suscripción al deep link para evitar fugas de memoria
+    _linkSubscription?.cancel();
     super.dispose();
+  }
+
+  // Métodos para actualizar el estado de la pantalla
+  void _setProcessingState(bool isProcessing) {
+    if (mounted) {
+      setState(() {
+        _isProcessingPayment = isProcessing;
+      });
+    }
+  }
+
+  void _setPaymentResult(String result, String message) {
+    if (mounted) {
+      setState(() {
+        _paymentResult = result;
+        _paymentMessage = message;
+        // Resetear el estado de procesamiento
+        _isProcessingPayment = false;
+      });
+    }
   }
 
   @override
@@ -71,18 +203,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSubscriptionSummary(),
-            const SizedBox(height: 24),
-            _buildOrderSummary(),
-            const SizedBox(height: 32),
-            _buildCompleteButton(),
+            if (_paymentResult != null)
+              _buildResultWidget(),
+            if (_paymentResult == null) ...[
+              _buildSubscriptionSummary(),
+              const SizedBox(height: 24),
+              _buildOrderSummary(),
+              const SizedBox(height: 32),
+              _buildCompleteButton(),
+            ]
           ],
         ),
       ),
     );
   }
 
+  //   mostrar el resumen de la suscripción
   Widget _buildSubscriptionSummary() {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -117,6 +256,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               fontFamily: 'Poppins',
             ),
           ),
+          if (user?.email != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Facturado a: ${user!.email}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontFamily: 'Poppins',
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           Row(
             children: [
@@ -176,7 +327,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Hoy pagarás MXN 00.00',
+                    'La suscripción se renovará automáticamente',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.blue[700],
@@ -187,20 +338,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'A partir del ----- el precio total de tu suscripción será de MXN ${widget.price.replaceAll('\$', '')} al mes.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontFamily: 'Poppins',
-            ),
-          ),
         ],
       ),
     );
   }
 
+  //  mostrar el resumen de la orden
   Widget _buildOrderSummary() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -281,11 +424,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  //  botón para completar el pago
   Widget _buildCompleteButton() {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
+        // Deshabilitar el botón si el pago está en proceso
         onPressed: _isProcessingPayment ? null : _processStripePayment,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.primaryColor,
@@ -316,17 +461,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  //  para iniciar el proceso de pago
   Future<void> _processStripePayment() async {
     setState(() {
       _isProcessingPayment = true;
     });
 
     try {
-      print('1. Llamando a tu backend para crear la sesión de Checkout...');
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _setPaymentResult('error', 'Usuario no autenticado. Por favor, inicia sesión.');
+        return;
+      }
 
-      // ontener datos reales del usuario proximamente
-      final String userEmail = 'cliente_de_ejemplo@email.com'; 
-      final String userId = 'id_de_usuario_ejemplo';
+      final String userEmail = user.email!;
+      final String userId = user.uid;
+
+      //  Obtener el nombre del usuario desde Firebase
+      String? userName;
+      try {
+        final patientDoc = await FirebaseFirestore.instance
+            .collection('patients')
+            .doc(userId)
+            .get();
+        userName =
+            patientDoc.data()?['username'] ?? user.displayName ?? 'Usuario';
+      } catch (e) {
+        userName = user.displayName ?? 'Usuario';
+      }
 
       final url = Uri.parse(backendUrl);
       final response = await http.post(
@@ -336,127 +498,105 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'planId': widget.planId,
           'userEmail': userEmail,
           'userId': userId,
+          'userName': userName,
+          'planName': widget.planName,
         }),
       );
 
       if (response.statusCode != 200) {
-        print('Error del backend: ${response.body}');
+        final errorData = jsonDecode(response.body);
+
+        
+        if (errorData['error']?.contains('ya tiene una suscripción') == true) {
+          _setPaymentResult(
+            'error',
+            'Ya tienes una suscripción activa. Ve a la sección de suscripciones para ver los detalles.',
+          );
+          return;
+        }
+
         throw Exception('Error del servidor: ${response.statusCode}');
       }
 
-      print('2. Respuesta del backend recibida. Obteniendo la URL...');
       final sessionData = jsonDecode(response.body);
       final String? checkoutUrl = sessionData['checkoutUrl'];
 
       if (checkoutUrl == null) {
-        print('Error: checkoutUrl no recibido del backend.');
-        throw Exception('URL de Checkout no encontrada en la respuesta del servidor.');
-      }
-
-      print('3. Abriendo la URL de Checkout de Stripe en el navegador...');
-      await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
- //dialogos de exito o error proximamemnte
-
-    } catch (e) {
-      print('Error inesperado: $e');
-      _showErrorDialog('Un error inesperado ocurrió: $e');
-    } finally {
-      setState(() {
-        _isProcessingPayment = false;
-      });
-    }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                '¡Pago exitoso!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tu suscripción a Aurora Premium ha sido activada.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Continuar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        throw Exception(
+          'URL de Checkout no encontrada en la respuesta del servidor.',
         );
-      },
-    );
+      }
+      await launchUrl(
+        Uri.parse(checkoutUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      _setPaymentResult('error', 'Un error inesperado ocurrió: $e');
+    }
+   
   }
 
-  void _showErrorDialog(String error) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Error en el pago',
-            style: TextStyle(fontFamily: 'Poppins'),
+  // Widget para mostrar el resultado del pago
+  Widget _buildResultWidget() {
+    final isSuccess = _paymentResult == 'success';
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          isSuccess ? Icons.check_circle : Icons.error,
+          color: isSuccess ? Colors.green : Colors.red,
+          size: 100,
+        ),
+        const SizedBox(height: 20),
+        Text(
+          isSuccess ? '¡Pago exitoso!' : 'Error en el pago',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
           ),
-          content: Text(
-            'Hubo un problema procesando tu pago. Inténtalo de nuevo.',
-            style: TextStyle(fontFamily: 'Poppins'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Text(
+            _paymentMessage!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[700],
+              fontFamily: 'Poppins',
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cerrar',
-                style: TextStyle(
-                  color: AppConstants.primaryColor,
-                  fontFamily: 'Poppins',
-                ),
+        ),
+        const SizedBox(height: 40),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              //  Regresar con resultado exitoso para recargar la pantalla anterior
+              Navigator.of(context).pop(isSuccess);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: Text(
+              'Continuar',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 }

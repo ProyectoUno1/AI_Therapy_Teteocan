@@ -26,11 +26,15 @@ class AuthState extends Equatable {
   final PatientModel? patient;
   final PsychologistModel? psychologist;
 
-  
+  // 1. Añade un getter para el perfil del usuario
+  // Esto unifica el acceso al perfil, ya sea de paciente o psicólogo.
+  Object? get userProfile => patient ?? psychologist;
+
+  // Getters para verificar el estado
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
   bool get isLoading => status == AuthStatus.loading;
-  bool get isError => status == AuthStatus.error; 
+  bool get isError => status == AuthStatus.error;
   bool get isSuccess => status == AuthStatus.success;
   bool get isUnknown => status == AuthStatus.unknown;
 
@@ -93,7 +97,6 @@ class AuthState extends Equatable {
         patient = null,
         psychologist = null;
 
-  
   AuthState copyWith({
     AuthStatus? status,
     String? errorMessage,
