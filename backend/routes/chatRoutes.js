@@ -64,4 +64,6 @@ router.get('/messages/:chatId', verifyFirebaseToken, async (req, res) => {
     }
 });
 
+
+
 export default router;

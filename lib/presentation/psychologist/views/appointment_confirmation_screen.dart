@@ -37,13 +37,13 @@ class _AppointmentConfirmationScreenState
     try {
       _notesController.dispose();
     } catch (e) {
-      debugPrint('Error disposing notes controller: $e');
+      // Error disposing notes controller
     }
 
     try {
       _meetingLinkController.dispose();
     } catch (e) {
-      debugPrint('Error disposing meeting link controller: $e');
+      // Error disposing meeting link controller
     }
 
     super.dispose();
@@ -53,10 +53,9 @@ class _AppointmentConfirmationScreenState
     try {
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
-        debugPrint('Diálogo cerrado exitosamente');
       }
     } catch (e) {
-      debugPrint('Error al cerrar diálogo: $e');
+      // Error al cerrar diálogo
     }
   }
 
@@ -545,9 +544,10 @@ class _AppointmentConfirmationScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
+      )
+      );
+    }
+    
 
   Widget _buildConfirmationForm() {
     return Container(
@@ -737,7 +737,7 @@ class _AppointmentConfirmationScreenState
             child: OutlinedButton.icon(
               onPressed: () => _showCancelConfirmationDialog(),
               icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-              label: const Text(
+            label: const Text(
                 'Cancelar Cita',
                 style: TextStyle(
                   color: Colors.red,
@@ -850,8 +850,6 @@ class _AppointmentConfirmationScreenState
 
   void _showCancelConfirmationDialog() {
     final reasonController = TextEditingController();
-
-    debugPrint('Mostrando diálogo de confirmación de cancelación');
 
     showDialog<String>(
       context: context,
@@ -993,17 +991,11 @@ class _AppointmentConfirmationScreenState
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    debugPrint(
-                      'Botón entendido presionado en diálogo de confirmación',
-                    );
                     Navigator.of(dialogContext).pop();
                     if (mounted) {
                       // Usar un pequeño delay para asegurar que la navegación se complete correctamente
                       Future.delayed(const Duration(milliseconds: 100), () {
                         if (mounted && Navigator.of(context).canPop()) {
-                          debugPrint(
-                            'Navegando de vuelta después de confirmación',
-                          );
                           Navigator.of(context).pop(true);
                         }
                       });
@@ -1036,19 +1028,12 @@ class _AppointmentConfirmationScreenState
   void _showCancelledDialog() {
     if (!mounted) return;
 
-    debugPrint('Intentando mostrar diálogo de cancelación');
-
     showDialog(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) {
             return PopScope(
               canPop: false,
-              onPopInvoked: (didPop) {
-                if (didPop) {
-                  debugPrint('Diálogo de cancelación cerrado por gesto');
-                }
-              },
               child: AlertDialog(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -1094,18 +1079,11 @@ class _AppointmentConfirmationScreenState
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          debugPrint(
-                            'Botón entendido presionado en diálogo de cancelación',
-                          );
                           Navigator.of(dialogContext).pop();
 
                           // Delay para asegurar que el diálogo se cierre completamente
                           Future.delayed(const Duration(milliseconds: 200), () {
                             if (mounted && Navigator.of(context).canPop()) {
-                              debugPrint(
-                                'Navegando de vuelta después de cancelación',
-                              );
-                              
                               Navigator.of(context).pop(true);
                             }
                           });
@@ -1132,13 +1110,7 @@ class _AppointmentConfirmationScreenState
               ),
             );
           },
-        )
-        .then((_) {
-          debugPrint('Diálogo de cancelación cerrado');
-        })
-        .catchError((error) {
-          debugPrint('Error en diálogo de cancelación: $error');
-        });
+        );
   }
 
   void _showErrorSnackBar(String message) {
@@ -1153,7 +1125,7 @@ class _AppointmentConfirmationScreenState
         ),
       );
     } catch (e) {
-      debugPrint('Error showing snackbar: $e');
+      // Error showing snackbar
     }
   }
 }

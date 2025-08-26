@@ -1,83 +1,120 @@
 // lib/presentation/subscription/views/subscription_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/checkout_screen.dart';
-import 'package:ai_therapy_teteocan/core/services/subscription_service.dart';
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
+import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/views/checkout_screen.dart';
+import 'package:ai_therapy_teteocan/data/models/plan_model.dart';
+import 'package:ai_therapy_teteocan/core/services/plans_service.dart';
 
-const String backendUrl = 'http://10.0.2.2:3000';
-
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) =>
+          SubscriptionBloc(repository: SubscriptionRepositoryImpl())
+            ..add(LoadSubscriptionStatus()),
+      child: const SubscriptionView(),
+    );
+  }
 }
 
-String _formatDate(DateTime date) {
-  final formatter = DateFormat('dd/MM/yyyy');
-  return formatter.format(date);
+class SubscriptionView extends StatefulWidget {
+  const SubscriptionView({super.key});
+
+  @override
+  State<SubscriptionView> createState() => _SubscriptionViewState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  bool isLoading = true;
+class _SubscriptionViewState extends State<SubscriptionView> {
   int aiMessagesUsed = 15;
   int aiMessagesLimit = 20;
-  SubscriptionStatus? _subscriptionStatus;
+  late SubscriptionBloc _subscriptionBloc;
+  
+  final PlansService _plansService = PlansService();
+  List<PlanModel> _availablePlans = [];
+  bool _isLoadingPlans = false;
+  String? _plansError;
 
   @override
   void initState() {
     super.initState();
-    _loadSubscriptionData();
+    _subscriptionBloc = BlocProvider.of<SubscriptionBloc>(context);
+    _loadAvailablePlans();
   }
 
-  // Cargar datos de la suscripción desde el backend
-  Future<void> _loadSubscriptionData() async {
+  Future<void> _loadAvailablePlans() async {
     setState(() {
-      isLoading = true;
+      _isLoadingPlans = true;
+      _plansError = null;
     });
 
     try {
-      final status = await SubscriptionService.getUserSubscriptionStatus();
+      final plans = await _plansService.getAvailablePlans();
       setState(() {
-        _subscriptionStatus = status;
+        _availablePlans = plans;
+        _isLoadingPlans = false;
       });
     } catch (e) {
-      _showSnackBar("Error al cargar el estado de la suscripción.");
-      print('Error loading subscription data: $e');
-    } finally {
       setState(() {
-        isLoading = false;
+        _plansError = e.toString();
+        _isLoadingPlans = false;
+        _availablePlans = _getDefaultPlans();
       });
     }
   }
 
-  // FUNCIÓN PARA INICIAR EL PROCESO DE PAGO
-  Future<void> _startStripePayment({
+  List<PlanModel> _getDefaultPlans() {
+    return [
+      const PlanModel(
+        id: 'price_1RvpKc2Szsvtfc49E0VZHcAv',
+        productId: 'prod_default_monthly',
+        productName: 'Premium',
+        planName: 'Premium Mensual',
+        amount: 49900,
+        currency: 'mxn',
+        interval: 'month',
+        intervalCount: 1,
+        displayPrice: '\$499.00',
+        isAnnual: false,
+      ),
+      const PlanModel(
+        id: 'price_1RwQDS2Szsvtfc49voxyVem6',
+        productId: 'prod_default_annual',
+        productName: 'Premium',
+        planName: 'Premium Anual',
+        amount: 199900,
+        currency: 'mxn',
+        interval: 'year',
+        intervalCount: 1,
+        displayPrice: '\$1999.00',
+        isAnnual: true,
+      ),
+    ];
+  }
+
+  String _formatDate(DateTime date) {
+    final formatter = DateFormat('dd/MM/yyyy');
+    return formatter.format(date);
+  }
+
+  void _navigateToCheckoutScreen({
     required String planId,
     required String planName,
     required String price,
     required String period,
-    bool isAnnual = false,
-  }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showSnackBar("Debes iniciar sesión para comprar un plan.");
-      return;
-    }
-
-    // Verificar si ya tiene suscripción antes de proceder
-    if (_subscriptionStatus?.hasSubscription == true) {
-      _showSnackBar("Ya tienes una suscripción activa.");
-      return;
-    }
-
-    final result = await Navigator.of(context).push(
+    required bool isAnnual,
+  }) {
+    Navigator.push(
+      context,
       MaterialPageRoute(
         builder: (context) => CheckoutScreen(
           planName: planName,
@@ -85,96 +122,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           period: period,
           planId: planId,
           isAnnual: isAnnual,
+          subscriptionBloc: _subscriptionBloc,
         ),
       ),
     );
-    if (result == true) {
-      _showSnackBar("¡Suscripción activada exitosamente!");
-      // Dar tiempo extra para que el webhook procese completamente
-      await Future.delayed(Duration(seconds: 3));
-    }
-
-    await _loadSubscriptionData();
   }
 
-  // FUNCIÓN PARA CANCELAR LA SUSCRIPCIÓN
-  Future<void> _cancelSubscription() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showSnackBar("Error: Usuario no autenticado.");
-      return;
-    }
-
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Cancelar Suscripción',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          content: Text(
-            '¿Estás seguro de que quieres cancelar tu suscripción? Se mantendrá activa hasta el final del periodo actual.',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'No',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
-              ),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            ElevatedButton(
-              child: Text(
-                'Sí, Cancelar',
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm != true) {
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final result = await SubscriptionService.cancelSubscription();
-      if (result.success) {
-        _showSnackBar("Suscripción cancelada exitosamente.");
-      } else {
-        _showSnackBar("Error al cancelar la suscripción: ${result.message}");
-      }
-    } catch (e) {
-      _showSnackBar("Hubo un error al procesar la cancelación.");
-      print('Error canceling subscription: $e');
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-      _loadSubscriptionData();
-    }
-  }
-
-  void _showSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
-  // CONSTRUIR LA INTERFAZ DINÁMICAMENTE
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -200,50 +153,176 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         centerTitle: true,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  //  MOSTRAR ESTADO DE SUSCRIPCIÓN ACTIVA
-                  if (_subscriptionStatus != null &&
-                      _subscriptionStatus!.hasSubscription)
-                    _buildActiveSubscriptionCard()
-                  else ...[
-                    //  MOSTRAR PLAN GRATUITO Y OPCIONES DE UPGRADE
-                    _buildCurrentPlanCard(),
-                    const SizedBox(height: 30),
-                    _buildPremiumFeatures(),
-                    const Spacer(),
-                    _buildPricingSection(),
-                    const SizedBox(height: 20),
-                    _buildUpgradeButton(),
-                  ],
-                ],
+      body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
+        listener: (context, state) {
+          if (state is SubscriptionError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
               ),
+            );
+          } else if (state is CheckoutSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          } else if (state is PaymentVerificationSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _subscriptionBloc.add(LoadSubscriptionStatus());
+          } else if (state is SubscriptionCancellationSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is SubscriptionLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (state is SubscriptionLoaded && state.hasActiveSubscription)
+                  _buildActiveSubscriptionCard(state.subscriptionData!)
+                else ...[
+                  _buildCurrentPlanCard(),
+                  const SizedBox(height: 30),
+                  _buildPremiumFeatures(),
+                  const Spacer(),
+                  _buildDynamicPricingSection(),
+                  const SizedBox(height: 20),
+                  _buildUpgradeButton(context, state),
+                ],
+              ],
             ),
+          );
+        },
+      ),
     );
   }
 
-  // TARJETA PARA MOSTRAR SUSCRIPCIÓN ACTIVA
-  Widget _buildActiveSubscriptionCard() {
-    final subscription = _subscriptionStatus!.subscription!;
+  Widget _buildDynamicPricingSection() {
+    // Buscar plan mensual para mostrar como precio principal
+    final monthlyPlan = _availablePlans.where((plan) => !plan.isAnnual).firstOrNull;
+    
+    if (monthlyPlan == null) {
+      return _buildStaticPricingSection();
+    }
 
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              monthlyPlan.displayPrice,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.headlineMedium?.color,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            Text(
+              '/${monthlyPlan.interval ?? 'mes'}',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Cancela cuando quieras • Sin compromisos',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withOpacity(0.7),
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStaticPricingSection() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              '\$499.00',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.headlineMedium?.color,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            Text(
+              '/mes',
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Cancela cuando quieras • Sin compromisos',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withOpacity(0.7),
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveSubscriptionCard(SubscriptionData subscription) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header de la suscripción
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                  AppConstants.primaryColor,
+                  AppConstants.primaryColor.withOpacity(0.7),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -255,7 +334,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 24),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       'Suscripción Activa',
@@ -301,10 +384,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Detalles de la suscripción
           Expanded(
             child: Container(
               width: double.infinity,
@@ -312,9 +392,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.2),
-                ),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +407,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   _buildDetailRow('Plan', subscription.planName ?? 'Premium'),
                   _buildDetailRow('Estado', subscription.status.toUpperCase()),
                   if (subscription.userEmail != null)
@@ -339,10 +416,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       'Próxima facturación',
                       _formatDate(subscription.currentPeriodEnd!),
                     ),
-
                   const SizedBox(height: 20),
-
-                  // Beneficios activos
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -380,30 +454,43 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       ],
                     ),
                   ),
-
                   const Spacer(),
-
-                  // Botón de cancelar
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _cancelSubscription,
-                      icon: Icon(Icons.cancel_outlined),
-                      label: Text(
-                        'Cancelar Suscripción',
-                        style: TextStyle(fontFamily: 'Poppins'),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[50],
-                        foregroundColor: Colors.red[700],
-                        side: BorderSide(color: Colors.red[200]!),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  BlocBuilder<SubscriptionBloc, SubscriptionState>(
+                    builder: (context, state) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: state is SubscriptionCancellationInProgress
+                              ? null
+                              : () => _showCancelConfirmation(context),
+                          icon: state is SubscriptionCancellationInProgress
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.cancel_outlined),
+                          label: Text(
+                            state is SubscriptionCancellationInProgress
+                                ? 'Cancelando...'
+                                : 'Cancelar Suscripción',
+                            style: const TextStyle(fontFamily: 'Poppins'),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[50],
+                            foregroundColor: Colors.red[700],
+                            side: BorderSide(color: Colors.red[200]!),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
                         ),
-                        elevation: 0,
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -424,9 +511,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+              color: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.color
+                  ?.withOpacity(0.7),
               fontFamily: 'Poppins',
             ),
           ),
@@ -464,7 +553,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  
   Widget _buildCurrentPlanCard() {
     final usagePercentage = aiMessagesUsed / aiMessagesLimit;
     return Container(
@@ -533,7 +621,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             value: usagePercentage,
             backgroundColor: Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary,
+              AppConstants.primaryColor,
             ),
             borderRadius: BorderRadius.circular(8),
             minHeight: 8,
@@ -543,9 +631,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             'Hoy has usado $aiMessagesUsed de $aiMessagesLimit mensajes con IA disponibles',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+              color: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.color
+                  ?.withOpacity(0.7),
               fontFamily: 'Poppins',
             ),
           ),
@@ -600,14 +690,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withOpacity(0.1),
+                    color: AppConstants.primaryColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     feature['icon'] as IconData,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: AppConstants.primaryColor,
                     size: 16,
                   ),
                 ),
@@ -621,9 +709,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(
-                            context,
-                          ).textTheme.headlineMedium?.color,
+                          color: Theme.of(context).textTheme.headlineMedium?.color,
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -632,9 +718,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         feature['description'] as String,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.color
+                              ?.withOpacity(0.7),
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -649,55 +737,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildPricingSection() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '\$499.00',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.headlineMedium?.color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            Text(
-              '/mes',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Cancela cuando quieras • Sin compromisos',
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpgradeButton() {
+  Widget _buildUpgradeButton(BuildContext context, SubscriptionState state) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () => _showPricingPlans(),
+        onPressed: state is CheckoutInProgress ? null : () => _showPricingPlans(context),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -705,35 +751,82 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
           elevation: 0,
         ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.rocket_launch, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Actualizar a Premium',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
+        child: state is CheckoutInProgress
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.rocket_launch, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Actualizar a Premium',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  void _showPricingPlans() {
+  void _showCancelConfirmation(BuildContext context) {
+    showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Cancelar Suscripción',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
+          content: const Text(
+            '¿Estás seguro de que quieres cancelar tu suscripción? Se mantendrá activa hasta el final del periodo actual.',
+            style: TextStyle(fontFamily: 'Poppins'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'No',
+                style: TextStyle(color: AppConstants.primaryColor),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _subscriptionBloc.add(CancelSubscription());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sí, Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPricingPlans(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildPricingModal(),
+      builder: (context) => _buildDynamicPricingModal(),
     );
   }
 
-  Widget _buildPricingModal() {
+  Widget _buildDynamicPricingModal() {
     return Container(
       height: MediaQuery.of(context).size.height * 0.6,
       decoration: BoxDecoration(
@@ -771,51 +864,59 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _buildPlanOption(
-                    title: 'Plan Mensual',
-                    subtitle: 'Perfecto para empezar',
-                    price: '\$499.00',
-                    period: '/mes',
-                    isPopular: false,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _startStripePayment(
-                        planId: 'price_1RvpKc2Szsvtfc49E0VZHcAv',
-                        planName: 'Premium Mensual',
-                        price: '\$499.00',
-                        period: '/mes',
-                        isAnnual: false,
-                      );
-                    },
+                  
+                  if (_isLoadingPlans)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_plansError != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange[700], size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Usando planes por defecto (sin conexión)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange[700],
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _availablePlans.length,
+                      itemBuilder: (context, index) {
+                        final plan = _availablePlans[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildDynamicPlanOption(plan),
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildPlanOption(
-                    title: 'Plan Anual',
-                    subtitle: '2 meses gratis',
-                    price: '\$1999.00',
-                    period: '/año',
-                    originalPrice: '\$119.88',
-                    isPopular: true,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _startStripePayment(
-                        planId: 'price_1RwQDS2Szsvtfc49voxyVem6',
-                        planName: 'Premium Anual',
-                        price: '\$1999.00',
-                        period: '/año',
-                        isAnnual: true,
-                      );
-                    },
-                  ),
-                  const Spacer(),
+                  
                   Text(
                     'Al suscribirte, aceptas nuestros términos y condiciones. Tu suscripción se renovará automáticamente.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.6),
                       fontFamily: 'Poppins',
                     ),
                   ),
@@ -828,24 +929,39 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildPlanOption({
-    required String title,
-    required String subtitle,
-    required String price,
-    required String period,
-    required bool isPopular,
-    required VoidCallback onTap,
-    String? originalPrice,
-  }) {
+
+  Widget _buildDynamicPlanOption(PlanModel plan) {
+    final isPopular = plan.isAnnual; 
+    
+    String? originalPrice;
+    String subtitle = plan.isAnnual ? '2 meses gratis' : 'Perfecto para empezar';
+    
+    if (plan.isAnnual) {
+      
+      final monthlyEquivalent = (plan.amount * 1.2).round(); 
+      originalPrice = NumberFormat.currency(
+        locale: 'es_MX',
+        symbol: '/ ',
+        decimalDigits: 2,
+      ).format(monthlyEquivalent / 100);
+    }
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        Navigator.pop(context);
+        _navigateToCheckoutScreen(
+          planId: plan.id,
+          planName: plan.planName,
+          price: plan.displayPrice,
+          period: plan.isAnnual ? '/año' : '/mes',
+          isAnnual: plan.isAnnual,
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isPopular
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey[300]!,
+            color: isPopular ? AppConstants.primaryColor : Colors.grey[300]!,
             width: isPopular ? 2 : 1,
           ),
           color: Theme.of(context).cardColor,
@@ -862,7 +978,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
+                    color: AppConstants.primaryColor,
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(8),
                       bottomRight: Radius.circular(8),
@@ -893,13 +1009,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              title,
+                              plan.planName,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.headlineMedium?.color,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.color,
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -908,9 +1025,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               subtitle,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withOpacity(0.7),
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -926,9 +1045,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 decoration: TextDecoration.lineThrough,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withOpacity(0.5),
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -938,25 +1059,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             textBaseline: TextBaseline.alphabetic,
                             children: [
                               Text(
-                                price,
+                                plan.displayPrice,
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: isPopular
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(
-                                          context,
-                                        ).textTheme.headlineMedium?.color,
+                                      ? AppConstants.primaryColor
+                                      : Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.color,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
                               Text(
-                                period,
+                                plan.isAnnual ? '/año' : '/mes',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.color,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
@@ -970,17 +1093,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: onTap,
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _navigateToCheckoutScreen(
+                          planId: plan.id,
+                          planName: plan.planName,
+                          price: plan.displayPrice,
+                          period: plan.isAnnual ? '/año' : '/mes',
+                          isAnnual: plan.isAnnual,
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isPopular
-                            ? Theme.of(context).colorScheme.primary
+                            ? AppConstants.primaryColor
                             : Colors.transparent,
                         foregroundColor: isPopular
                             ? Colors.white
-                            : Theme.of(context).colorScheme.primary,
+                            : AppConstants.primaryColor,
                         side: !isPopular
                             ? BorderSide(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: AppConstants.primaryColor,
                                 width: 1,
                               )
                             : null,

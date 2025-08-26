@@ -6,10 +6,9 @@ import psychologistsRoutes from "./routes/psychologists.js";
 import aiChatRoutes from "./routes/aiChatRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import psychologistProfessionalProfileRoutes from "./routes/psychologist_professional_profile.js";
-import appointmentsRoutes from "./routes/appointments.js"; // Nueva ruta
+import appointmentsRoutes from "./routes/appointments.js";
 import { verifyFirebaseToken } from "./middlewares/auth_middleware.js";
 import stripeRouter from "./routes/stripeRoutes.js";
-
 import { auth, db } from "./firebase-admin.js";
 
 const app = express();
@@ -23,9 +22,12 @@ const corsOptions = {
   credentials: true,
 };
 
+// --- Middleware específico para el webhook de Stripe ---
+app.use("/api/stripe/stripe-webhook", express.raw({ type: 'application/json' }));
+
 // --- Middlewares Globales ---
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json()); 
 
 app.get("/", (req, res) => {
   res.send("Aurora Backend funcionando en modo DESARROLLO!");
@@ -35,7 +37,7 @@ app.get("/", (req, res) => {
 app.use("/api/patients", verifyFirebaseToken, patientsRoutes);
 app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes);
 app.use("/api/psychologists", verifyFirebaseToken, psychologistProfessionalProfileRoutes);
-app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes); 
+app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes);
 app.use("/api/ai", verifyFirebaseToken, aiRoutes);
 app.use("/api/chats/ai-chat", verifyFirebaseToken, aiChatRoutes);
 app.use("/api/chats", verifyFirebaseToken, chatRoutes);
