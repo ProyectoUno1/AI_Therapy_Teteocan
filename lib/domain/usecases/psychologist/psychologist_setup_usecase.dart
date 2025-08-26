@@ -41,7 +41,7 @@ class PsychologistSetupUseCase {
         isAvailable: isAvailable,
       );
     } catch (e) {
-      debugPrint('Error en PsychologistSetupUseCase: $e');
+      
       rethrow;
     }
   }
