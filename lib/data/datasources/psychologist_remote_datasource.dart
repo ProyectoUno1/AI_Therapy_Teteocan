@@ -93,7 +93,7 @@ class PsychologistRemoteDataSource {
 
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
+        Uri.parse('$_baseUrl/psychologists/$uid/public'),
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
@@ -105,7 +105,7 @@ class PsychologistRemoteDataSource {
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
+        Uri.parse('$_baseUrl/psychologists/$uid/public'),
         headers: await _getHeaders(),
       );
 

@@ -1,9 +1,8 @@
-import express from "express";
-import stripe from "stripe";
 import dotenv from "dotenv";
-import { Buffer } from 'node:buffer';
-import { db } from '../firebase-admin.js';
+import express from "express";
 import { FieldValue } from 'firebase-admin/firestore';
+import stripe from "stripe";
+import { db } from '../firebase-admin.js';
 
 dotenv.config();
 
@@ -274,34 +273,19 @@ stripeRouter.post("/stripe-webhook", async (req, res) => {
 
   console.log(`Webhook recibido: ${event.type}`);
 
-  switch (event.type) {
-    case 'checkout.session.completed':
-      await handleCheckoutCompleted(event.data.object);
-      break;
-      
-    case 'customer.subscription.created':
-      await handleSubscriptionCreated(event.data.object);
-      break;
-      
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(event.data.object);
-      break;
-      
-    case 'customer.subscription.deleted':
-      await handleSubscriptionDeleted(event.data.object);
-      break;
-      
-    case 'invoice.payment_succeeded':
-      await handlePaymentSucceeded(event.data.object);
-      break;
-      
-    case 'invoice.payment_failed':
-      await handlePaymentFailed(event.data.object);
-      break;
-    
-    default:
-      console.log(`Evento no manejado: ${event.type}`);
-  }
+        switch (event.type) {
+            case 'checkout.session.completed':
+                await handleCheckoutSessionCompleted(event.data.object);
+                break;
+
+            case 'customer.subscription.updated':
+                await handleSubscriptionUpdated(event.data.object);
+                break;
+
+            case 'customer.subscription.deleted':
+                await handleSubscriptionDeleted(event.data.object);
+                break;
+        }
 
   res.status(200).send();
 });
@@ -382,15 +366,18 @@ async function handleSubscriptionCreated(subscription) {
 }
 
 async function handleSubscriptionUpdated(subscription) {
-  console.log(`Suscripción actualizada: ${subscription.id} - Estado: ${subscription.status}`);
-  
-  try {
-    const updateData = {
-      status: subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      updatedAt: FieldValue.serverTimestamp()
-    };
+    try {
+        console.log('🔍 Debug - subscription updated completa:', {
+            current_period_end: subscription.current_period_end,
+            current_period_start: subscription.current_period_start,
+            status: subscription.status
+        });
+        
+        const updateData = {
+            status: subscription.status,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            updatedAt: FieldValue.serverTimestamp()
+        };
 
     // SI LA SUSCRIPCIÓN FUE CANCELADA
     if (subscription.status === 'canceled') {
@@ -398,7 +385,7 @@ async function handleSubscriptionUpdated(subscription) {
       updateData.cancelReason = subscription.cancellation_details?.reason || 'unknown';
     }
 
-    await db.collection('subscriptions').doc(subscription.id).update(updateData);
+        await db.collection('subscriptions').doc(subscription.id).update(updateData);
 
     // BUSCAR USUARIO Y ACTUALIZAR SU ESTADO
     const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
@@ -418,6 +405,7 @@ async function handleSubscriptionUpdated(subscription) {
   }
 }
 
+// Handler para eliminación de suscripción 
 async function handleSubscriptionDeleted(subscription) {
   console.log(`Suscripción eliminada: ${subscription.id}`);
   

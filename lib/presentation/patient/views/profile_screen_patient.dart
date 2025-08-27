@@ -6,7 +6,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/subscription_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';

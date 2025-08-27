@@ -93,47 +93,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
             ],
           ),
           actions: [
-            // BOTÓN TEMPORAL PARA VER PANTALLA DE CONFIRMACIÓN
-            IconButton(
-              icon: Icon(
-                Icons.calendar_view_day,
-                color: Theme.of(context).appBarTheme.iconTheme?.color,
-              ),
-              onPressed: () {
-                // Crear una cita de ejemplo para mostrar la pantalla de confirmación
-                final sampleAppointment = AppointmentModel(
-                  id: 'sample_appointment_001',
-                  patientId: 'patient_001',
-                  patientName: 'María García',
-                  patientEmail: 'maria.garcia@email.com',
-                  psychologistId: psychologistId,
-                  psychologistName: userName,
-                  psychologistSpecialty: 'Psicología Clínica',
-                  scheduledDateTime: DateTime.now().add(
-                    const Duration(days: 1),
-                  ),
-                  type: AppointmentType.online,
-                  status: AppointmentStatus.pending,
-                  price: 500.0,
-                  notes:
-                      'Sesión inicial para evaluación de ansiedad y depresión',
-                  createdAt: DateTime.now(),
-                );
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BlocProvider<AppointmentBloc>(
-                      create: (context) => AppointmentBloc(),
-                      child: AppointmentConfirmationScreen(
-                        appointment: sampleAppointment,
-                      ),
-                    ),
-                  ),
-                );
-              },
-              tooltip: 'Ver Pantalla de Confirmación (Prueba)',
-            ),
+            
             IconButton(
               icon: Icon(
                 Icons.notifications_none,

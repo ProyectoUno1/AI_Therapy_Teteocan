@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
@@ -64,6 +65,16 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         listener: (context, state) {
           if (state.isBooked) {
             _showSuccessDialog();
+
+            // RECARGAR LAS CITAS DESPUÉS DE AGENDAR
+            context.read<AppointmentBloc>().add(
+              LoadAppointmentsEvent(
+                userId: FirebaseAuth.instance.currentUser!.uid,
+                isForPsychologist: false,
+                startDate: DateTime.now(),
+                endDate: DateTime.now().add(const Duration(days: 60)),
+              ),
+            );
           } else if (state.isError) {
             _showErrorSnackBar(state.errorMessage!);
           }
@@ -298,28 +309,27 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: CalendarDatePicker(
-        initialDate: _selectedDate ?? today.add(const Duration(days: 1)),
-        firstDate: today.add(
-          const Duration(days: 1),
-        ), // No permitir citas para hoy
-        lastDate: today.add(const Duration(days: 60)), // Hasta 2 meses adelante
+        initialDate: _selectedDate ?? today,
+        firstDate: today, // PERMITIR SELECCIONAR HOY
+        lastDate: today.add(const Duration(days: 60)),
         onDateChanged: (date) {
           setState(() {
             _selectedDate = date;
-            _selectedTimeSlot = null; // Reset time selection
+            _selectedTimeSlot = null;
           });
 
           // Cargar slots de tiempo para la fecha seleccionada
           context.read<AppointmentBloc>().add(
             LoadAvailableTimeSlotsEvent(
               psychologistId: widget.psychologist.uid,
-              date: date,
+              startDate: date,
+              endDate: date,
             ),
           );
         },
         selectableDayPredicate: (date) {
-          // No permitir fines de semana
-          return date.weekday != 6 && date.weekday != 7;
+          // Permitir fines de semana también
+          return date.isAfter(now.subtract(const Duration(days: 1)));
         },
       ),
     );
@@ -594,7 +604,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             style: const TextStyle(fontFamily: 'Poppins'),
           ),
 
-          // Espacio adicional para evitar que el contenido quede pegado al botón
           const SizedBox(height: 80),
         ],
       ),
@@ -805,7 +814,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             ),
           ),
 
-          // Espacio adicional para evitar que el contenido quede pegado al botón
           const SizedBox(height: 80),
         ],
       ),
@@ -960,7 +968,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       case 1:
         return _selectedTimeSlot != null;
       case 2:
-        return true; // Siempre se puede proceder desde detalles
+        return true; 
       case 3:
         return _selectedDate != null && _selectedTimeSlot != null;
       default:

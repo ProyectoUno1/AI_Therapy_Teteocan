@@ -32,6 +32,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
       LoadAppointmentsEvent(
         userId: widget.psychologistId,
         isForPsychologist: true,
+        startDate: DateTime.now().subtract(const Duration(days: 30)),
+        endDate: DateTime.now(),
       ),
     );
   }
@@ -55,6 +57,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
           onPressed: () => Navigator.pop(context),
+          onLongPress: _refreshAppointments,
         ),
         title: Text(
           'Mis Citas',
@@ -91,6 +94,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 LoadAppointmentsEvent(
                   userId: widget.psychologistId,
                   isForPsychologist: true,
+                  startDate: DateTime.now().subtract(const Duration(days: 30)),
+                  endDate: DateTime.now(),
                 ),
               );
             },
@@ -135,6 +140,10 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                         LoadAppointmentsEvent(
                           userId: widget.psychologistId,
                           isForPsychologist: true,
+                          startDate: DateTime.now().subtract(
+                            const Duration(days: 30),
+                          ),
+                          endDate: DateTime.now(),
                         ),
                       );
                     },
@@ -166,15 +175,27 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                   labelStyle: const TextStyle(
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
+                    fontSize: 12, 
                   ),
+                  isScrollable:
+                      true, 
                   tabs: [
                     Tab(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.schedule),
-                          const SizedBox(width: 8),
-                          Text('Pendientes (${state.pendingCount})'),
+                          const Icon(
+                            Icons.schedule,
+                            size: 16,
+                          ), 
+                          const SizedBox(width: 4), 
+                          Flexible(
+                            child: Text(
+                              'Pendientes (${state.pendingCount})',
+                              overflow: TextOverflow
+                                  .ellipsis, 
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -182,9 +203,14 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.event_available),
-                          const SizedBox(width: 8),
-                          Text('Próximas (${state.upcomingCount})'),
+                          const Icon(Icons.event_available, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Próximas (${state.upcomingCount})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -192,9 +218,14 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history),
-                          const SizedBox(width: 8),
-                          Text('Pasadas (${state.pastCount})'),
+                          const Icon(Icons.history, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Pasadas (${state.pastCount})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -405,23 +436,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
   Widget _buildAppointmentCard(AppointmentModel appointment) {
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BlocProvider<AppointmentBloc>(
-              create: (context) => AppointmentBloc(),
-              child: AppointmentConfirmationScreen(appointment: appointment),
-            ),
-          ),
-        ).then((_) {
-          // Recargar citas después de volver
-          context.read<AppointmentBloc>().add(
-            LoadAppointmentsEvent(
-              userId: widget.psychologistId,
-              isForPsychologist: true,
-            ),
-          );
-        });
+        _navigateToConfirmationScreen(context, appointment);
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -620,7 +635,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               ],
             ),
 
-            // Notas del paciente (si existen)
+            // Notas del paciente 
             if (appointment.patientNotes != null) ...[
               const SizedBox(height: 8),
               Container(
@@ -715,5 +730,36 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         createdAt: now.subtract(const Duration(hours: 2)),
       ),
     ];
+  }
+
+  void _refreshAppointments() {
+    context.read<AppointmentBloc>().add(
+      LoadAppointmentsEvent(
+        userId: widget.psychologistId,
+        isForPsychologist: true,
+        startDate: DateTime.now().subtract(const Duration(days: 365)),
+        endDate: DateTime.now().add(const Duration(days: 365)),
+      ),
+    );
+  }
+
+  void _navigateToConfirmationScreen(
+    BuildContext context,
+    AppointmentModel appointment,
+  ) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlocProvider.value(
+          value: context.read<AppointmentBloc>(),
+          child: AppointmentConfirmationScreen(appointment: appointment),
+        ),
+      ),
+    );
+
+    // refresca la lista.
+    if (result == true && mounted) {
+      _refreshAppointments();
+    }
   }
 }

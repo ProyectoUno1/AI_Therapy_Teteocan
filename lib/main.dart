@@ -1,39 +1,39 @@
-// lib/main.dart
+//lib/main.dart
 
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:developer';
-import 'package:timezone/data/latest.dart' as tzdata;
 import 'dart:async';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
+import 'dart:developer';
+
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
+import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/repositories/auth_repository_impl.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
-import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
-import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
-
+import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
-import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
-import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
-
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
-import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
+import 'package:timezone/data/latest.dart' as tzdata;
 
 import 'firebase_options.dart';
 
@@ -69,7 +69,7 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
-  runApp(
+ runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
@@ -88,6 +88,10 @@ void main() async {
               psychologistRemoteDataSource,
             ),
           ),
+        ),
+        // 🔥 AGREGAR EL APPOINTMENTBLOC AQUÍ
+        BlocProvider<AppointmentBloc>(
+          create: (context) => AppointmentBloc(),
         ),
       ],
       child: const MyApp(),
@@ -294,3 +298,4 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+
