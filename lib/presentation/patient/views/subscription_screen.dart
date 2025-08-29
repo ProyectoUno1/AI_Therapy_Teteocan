@@ -1,11 +1,7 @@
 // lib/presentation/subscription/views/subscription_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/views/checkout_screen.dart';
 import 'package:ai_therapy_teteocan/core/services/subscription_service.dart';
@@ -470,7 +466,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  
   Widget _buildCurrentPlanCard() {
     final usagePercentage = aiMessagesUsed / aiMessagesLimit;
     return Container(

@@ -69,7 +69,7 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
- runApp(
+  runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
@@ -90,9 +90,7 @@ void main() async {
           ),
         ),
         // 🔥 AGREGAR EL APPOINTMENTBLOC AQUÍ
-        BlocProvider<AppointmentBloc>(
-          create: (context) => AppointmentBloc(),
-        ),
+        BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
       ],
       child: const MyApp(),
     ),
@@ -298,4 +296,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-

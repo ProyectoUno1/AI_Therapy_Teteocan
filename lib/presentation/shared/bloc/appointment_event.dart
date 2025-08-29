@@ -13,7 +13,7 @@ abstract class AppointmentEvent extends Equatable {
 class LoadAppointmentsEvent extends AppointmentEvent {
   final String userId;
   final bool isForPsychologist;
-  final DateTime startDate; 
+  final DateTime startDate;
   final DateTime endDate;
 
   const LoadAppointmentsEvent({
@@ -32,7 +32,6 @@ class BookAppointmentEvent extends AppointmentEvent {
   final DateTime scheduledDateTime;
   final AppointmentType type;
   final String? notes;
-  
 
   const BookAppointmentEvent({
     required this.psychologistId,
@@ -49,7 +48,6 @@ class ConfirmAppointmentEvent extends AppointmentEvent {
   final String appointmentId;
   final String? psychologistNotes;
   final String? meetingLink;
-  
 
   const ConfirmAppointmentEvent({
     required this.appointmentId,
@@ -87,7 +85,6 @@ class RescheduleAppointmentEvent extends AppointmentEvent {
     this.reason,
   });
 
- 
   @override
   List<Object?> get props => [appointmentId, newDateTime, reason];
 }
@@ -134,4 +131,20 @@ class LoadSampleAppointmentsEvent extends AppointmentEvent {
 
   @override
   List<Object> get props => [appointments];
+}
+
+// EVENTO PARA CALIFICAR CITAS - Preparado para backend
+class RateAppointmentEvent extends AppointmentEvent {
+  final String appointmentId;
+  final int rating; // 1-5 stars
+  final String? comment;
+
+  const RateAppointmentEvent({
+    required this.appointmentId,
+    required this.rating,
+    this.comment,
+  });
+
+  @override
+  List<Object?> get props => [appointmentId, rating, comment];
 }

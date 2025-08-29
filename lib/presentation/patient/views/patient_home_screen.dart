@@ -3,6 +3,8 @@ import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dar
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,6 +23,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
     const PsychologistsListScreen(),
+    BlocProvider<AppointmentBloc>(
+      create: (context) => AppointmentBloc(),
+      child: const PatientAppointmentsListScreen(),
+    ),
     ProfileScreenPatient(),
   ];
 
@@ -104,6 +110,14 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.psychology),
+            label: 'Psicólogos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Citas',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
