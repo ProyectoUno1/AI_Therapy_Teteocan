@@ -9,7 +9,7 @@ import 'dart:developer';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
+import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
 import 'package:ai_therapy_teteocan/data/datasources/user_remote_datasource.dart';
@@ -29,6 +29,9 @@ import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_impl.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/admin/views/psychologists_list_page.dart';
+import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -90,10 +93,15 @@ void main() async {
             ),
           ),
         ),
-        // 🔥 AGREGAR EL APPOINTMENTBLOC AQUÍ
         BlocProvider<AppointmentBloc>(
           create: (context) => AppointmentBloc(),
         ),
+        BlocProvider<PsychologistBloc>(
+      create: (context) => PsychologistBloc(
+        repository: PsychologistRepository(),
+      ),
+        ),
+        
       ],
       child: const MyApp(),
     ),
@@ -293,7 +301,8 @@ class _MyAppState extends State<MyApp> {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: const AuthWrapper(),
+          home: //const AuthWrapper(),
+          const AdminPanel(),
         );
       },
     );
