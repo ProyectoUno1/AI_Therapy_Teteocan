@@ -1,145 +1,277 @@
-import express from "express";
-import stripe from "stripe";
 import dotenv from "dotenv";
+import express from "express";
+import { FieldValue } from 'firebase-admin/firestore';
+import stripe from "stripe";
 import { db } from '../firebase-admin.js';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 dotenv.config();
 
 const stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
 const stripeRouter = express.Router();
 
-function createTimestampFromUnixSeconds(unixSeconds) {
-    if (!unixSeconds || typeof unixSeconds !== 'number') {
-        console.warn(' Valor inválido para timestamp:', unixSeconds);
-        return null;
-    }
-    
-    try {
-        return Timestamp.fromMillis(unixSeconds * 1000);
-    } catch (error) {
-        console.error('Error al crear timestamp:', error);
-        return null;
-    }
-}
-
-stripeRouter.get("/plans", async (req, res) => {
-    try {
-        const planIds = [
-            'price_1RvpKc2Szsvtfc49E0VZHcAv', // Plan mensual
-            'price_1RwQDS2Szsvtfc49voxyVem6'  // Plan anual
-        ];
-
-        const plans = [];
-
-        for (const priceId of planIds) {
-            const price = await stripeClient.prices.retrieve(priceId, {
-                expand: ['product']
-            });
-
-            // Crear nombre descriptivo basado en el producto e intervalo
-            let planName;
-            if (price.recurring?.interval === 'year') {
-                planName = `${price.product.name} Anual`;
-            } else if (price.recurring?.interval === 'month') {
-                planName = `${price.product.name} Mensual`;
-            } else {
-                planName = price.product.name;
-            }
-
-            plans.push({
-                id: price.id,
-                productId: price.product.id,
-                productName: price.product.name,
-                planName: planName,
-                amount: price.unit_amount,
-                currency: price.currency.toUpperCase(),
-                interval: price.recurring?.interval,
-                intervalCount: price.recurring?.interval_count,
-                displayPrice: formatCurrency(price.unit_amount, price.currency),
-                isAnnual: price.recurring?.interval === 'year',
-            });
-        }
-
-        res.json({ plans });
-
-    } catch (e) {
-        console.error("Error al obtener planes:", e);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// Función helper para formatear moneda
-function formatCurrency(amount, currency) {
-    const formatter = new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: currency.toUpperCase(),
-        minimumFractionDigits: 2
-    });
-    return formatter.format(amount / 100);
-}
+stripeRouter.use('/stripe-webhook', express.raw({type: 'application/json'}));
 
 // Endpoint para crear la sesión de checkout
 stripeRouter.post("/create-checkout-session", async (req, res) => {
-    const { planId, userEmail, userId, userName } = req.body;
+  const { planId, userEmail, userId, userName, planName } = req.body;
 
-    if (!planId || !userEmail || !userId) {
-        return res.status(400).json({ error: "planId, userEmail, and userId are required." });
+  if (!planId || !userEmail || !userId) {
+    return res.status(400).json({
+      error: "planId, userEmail, and userId are required."
+    });
+  }
+
+  try {
+    console.log(`Creando sesión de checkout para usuario: ${userEmail} (${userId})`);
+    
+    // Verificar si ya tiene suscripción activa
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (userDoc.exists && userDoc.data().hasSubscription) {
+      return res.status(400).json({
+        error: "El usuario ya tiene una suscripción activa"
+      });
     }
+    
+    // Buscar o crear cliente de Stripe con email del usuario autenticado
+    let customer;
+    const existingCustomers = await stripeClient.customers.list({
+      email: userEmail,
+      limit: 1
+    });
 
-    try {
-        let customer;
-        const existingCustomers = await stripeClient.customers.list({ email: userEmail, limit: 1 });
-
-        if (existingCustomers.data.length > 0) {
-            customer = existingCustomers.data[0];
-        } else {
-            customer = await stripeClient.customers.create({
-                email: userEmail,
-            });
-        }
-
-        const session = await stripeClient.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'subscription',
-            line_items: [{
-                price: planId,
-                quantity: 1,
-            }],
-            customer: customer.id,
-            client_reference_id: userId,
-            metadata: {
-                userName: userName || 'Usuario'
-            },
-            success_url: 'auroraapp://success?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url: 'auroraapp://cancel',
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+      console.log(`Cliente existente encontrado: ${customer.id}`);
+      
+      // Actualizar datos del cliente si es necesario
+      if (userName && (!customer.name || customer.name !== userName)) {
+        customer = await stripeClient.customers.update(customer.id, {
+          name: userName,
+          metadata: {
+            firebase_uid: userId,
+            updated_at: new Date().toISOString()
+          }
         });
-
-        res.json({ checkoutUrl: session.url });
-
-    } catch (e) {
-        console.error("Error al crear la sesión de Checkout:", e);
-        res.status(500).json({ error: e.message });
+        console.log(`Cliente actualizado con nombre: ${userName}`);
+      }
+    } else {
+      // Crear nuevo cliente con datos completos
+      customer = await stripeClient.customers.create({
+        email: userEmail,
+        name: userName || 'Usuario',
+        metadata: {
+          firebase_uid: userId,
+          created_from: 'mobile_app',
+          created_at: new Date().toISOString()
+        }
+      });
+      console.log(`Nuevo cliente creado: ${customer.id}`);
     }
+
+    // Crear sesión de checkout con metadatos completos
+    const session = await stripeClient.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{
+        price: planId,
+        quantity: 1,
+      }],
+      customer: customer.id,
+      client_reference_id: userId,
+      metadata: {
+        firebase_uid: userId,
+        user_email: userEmail,
+        user_name: userName || 'Usuario',
+        plan_id: planId,
+        plan_name: planName || 'Premium',
+        source: 'mobile_app'
+      },
+      success_url: 'auroraapp://success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'auroraapp://cancel',
+      // Configuraciones adicionales para mejor UX
+      billing_address_collection: 'auto',
+      customer_update: {
+        address: 'auto',
+        name: 'auto'
+      },
+      // Personalización del checkout
+      custom_text: {
+        submit: {
+          message: 'Tu suscripción se activará inmediatamente después del pago.'
+        }
+      }
+    });
+
+    console.log(`Sesión de checkout creada: ${session.id}`);
+    res.json({
+      checkoutUrl: session.url,
+      sessionId: session.id
+    });
+
+  } catch (e) {
+    console.error("Error al crear la sesión de Checkout:", e);
+    res.status(500).json({
+      error: e.message,
+      details: process.env.NODE_ENV === 'development' ? e.stack : undefined
+    });
+  }
 });
 
-// Endpoint del webhook de Stripe
-stripeRouter.post("/stripe-webhook", express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
+// Endpoint para verificar el estado de una sesión
+stripeRouter.post("/verify-session", async (req, res) => {
+  const { sessionId } = req.body;
 
-    if (!sig) {
-        console.error('No se encontró firma de Stripe');
-        return res.status(400).send('Stripe signature missing');
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId is required" });
+  }
+
+  try {
+    console.log(`Verificando sesión: ${sessionId}`);
+    
+    // Obtener sesión con datos expandidos
+    const session = await stripeClient.checkout.sessions.retrieve(sessionId, {
+      expand: ['subscription', 'customer']
+    });
+    
+    console.log(`Estado de sesión ${sessionId}: ${session.payment_status}`);
+
+    if (session.payment_status === 'paid' && session.status === 'complete') {
+      const metadata = session.metadata;
+      const userId = metadata?.firebase_uid || session.client_reference_id;
+      
+      if (userId) {
+        try {
+          // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE
+          await db.collection('users').doc(userId).set({
+            hasSubscription: true,
+            subscriptionId: session.subscription?.id || session.subscription,
+            stripeCustomerId: session.customer?.id || session.customer,
+            subscriptionStartDate: FieldValue.serverTimestamp(),
+            lastPaymentDate: FieldValue.serverTimestamp(),
+            email: metadata?.user_email || session.customer?.email,
+            name: metadata?.user_name,
+            planId: metadata?.plan_id,
+            planName: metadata?.plan_name,
+          }, { merge: true });
+
+          // CREAR REGISTRO DE SUSCRIPCIÓN EN COLECCIÓN DEDICADA
+          await db.collection('subscriptions').doc(session.subscription?.id || session.subscription).set({
+            userId: userId,
+            userName: metadata?.user_name,
+            userEmail: metadata?.user_email,
+            customerId: session.customer?.id || session.customer,
+            planId: metadata?.plan_id,
+            planName: metadata?.plan_name,
+            status: 'active',
+            amountTotal: session.amount_total,
+            currency: session.currency,
+            checkoutSessionId: session.id,
+            metadata: session.metadata,
+            createdAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          console.log(`Suscripción registrada/actualizada para usuario ${userId} a través de /verify-session`);
+        } catch (firebaseError) {
+          console.error(`Error al actualizar Firebase desde /verify-session:`, firebaseError);
+        }
+      }
     }
 
-    let event;
+    // Respuesta más completa
+    res.json({
+      paymentStatus: session.payment_status,
+      sessionStatus: session.status,
+      subscriptionId: session.subscription?.id || session.subscription,
+      subscriptionStatus: session.subscription?.status,
+      customerId: session.customer?.id || session.customer,
+      customerEmail: session.customer_details?.email || session.customer?.email,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+      metadata: session.metadata
+    });
+  } catch (error) {
+    console.error("Error verificando sesión:", error);
+    res.status(500).json({
+      error: "Error al verificar la sesión",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
-    try {
-        event = stripeClient.webhooks.constructEvent(
-            req.body,
-            sig,
-            process.env.STRIPE_WEBHOOK_SECRET
-        );
+// Endpoint para cancelar suscripción
+stripeRouter.post("/cancel-subscription", async (req, res) => {
+  const { userId, immediate = false } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  try {
+    // Obtener suscripción del usuario
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists || !userDoc.data().subscriptionId) {
+      return res.status(404).json({ error: "No se encontró suscripción activa" });
+    }
+
+    const subscriptionId = userDoc.data().subscriptionId;
+
+    // Cancelar en Stripe
+    const canceledSubscription = await stripeClient.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: !immediate,
+      metadata: {
+        canceled_by: 'user',
+        canceled_from: 'mobile_app',
+        canceled_at: new Date().toISOString()
+      }
+    });
+
+    // Si es cancelación inmediata
+    if (immediate) {
+      await stripeClient.subscriptions.cancel(subscriptionId);
+    }
+
+    console.log(`Suscripción ${subscriptionId} ${immediate ? 'cancelada inmediatamente' : 'programada para cancelar'}`);
+
+    res.json({
+      success: true,
+      message: immediate ?
+        'Suscripción cancelada inmediatamente' :
+        'Suscripción se cancelará al final del período actual',
+      subscription: {
+        id: subscriptionId,
+        status: canceledSubscription.status,
+        cancelAtPeriodEnd: canceledSubscription.cancel_at_period_end,
+        currentPeriodEnd: new Date(canceledSubscription.current_period_end * 1000)
+      }
+    });
+
+  } catch (error) {
+    console.error("Error cancelando suscripción:", error);
+    res.status(500).json({
+      error: "Error al cancelar suscripción",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Webhook de Stripe con manejo completo de eventos
+stripeRouter.post("/stripe-webhook", async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripeClient.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error(`Webhook signature verification failed.`, err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log(`Webhook recibido: ${event.type}`);
 
         switch (event.type) {
             case 'checkout.session.completed':
@@ -155,69 +287,84 @@ stripeRouter.post("/stripe-webhook", express.raw({ type: 'application/json' }), 
                 break;
         }
 
-        res.status(200).send();
-    } catch (err) {
-        console.error(' Error en webhook:', err.message);
-        res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+  res.status(200).send();
 });
 
-// Handler para checkout.session.completed y almacenamiento en firebase
-async function handleCheckoutSessionCompleted(session) {
-    const userId = session.client_reference_id;
-    const subscriptionId = session.subscription;
+// FUNCIONES AUXILIARES PARA MANEJAR EVENTOS
 
-    if (!userId || !subscriptionId) {
-        console.error('Datos faltantes: userId o subscriptionId');
-        return;
-    }
-    try {
-        const subscription = await stripeClient.subscriptions.retrieve(subscriptionId, {
-            expand: ['items.data.price', 'items.data.price.product']
-        });
-        const price = subscription.items.data[0].price;
-        const product = price.product;
-        let currentPeriodEndTimestamp = createTimestampFromUnixSeconds(subscription.current_period_end);
-        
-        if (!currentPeriodEndTimestamp) {
-            console.warn('current_period_end no disponible, usando created como fallback');
-            // Calcular un período de 30 días desde created si current_period_end no está disponible
-            const fallbackEndTime = subscription.created + (30 * 24 * 60 * 60); 
-            currentPeriodEndTimestamp = createTimestampFromUnixSeconds(fallbackEndTime);
-        }
-        const planName = price.nickname || 
-                        `${product.name} ${price.recurring?.interval === 'year' ? 'Anual' : 'Mensual'}` ||
-                        'Premium Plan';
+async function handleCheckoutCompleted(session) {
+  console.log(`Procesando checkout completado: ${session.id}`);
+  
+  const userId = session.client_reference_id || session.metadata?.firebase_uid;
+  const userEmail = session.customer_details?.email || session.metadata?.user_email;
+  const userName = session.metadata?.user_name || 'Usuario';
+  const planName = session.metadata?.plan_name || 'Premium';
+  const planId = session.metadata?.plan_id;
+  const subscriptionId = session.subscription;
+  const customerId = session.customer;
 
-        const subscriptionData = {
-            userId: userId,
-            stripeSubscriptionId: subscriptionId,
-            stripeCustomerId: subscription.customer,
-            status: subscription.status,
-            planId: price.id,
-            planName: planName, 
-            productName: product.name,
-            currentPeriodEnd: currentPeriodEndTimestamp,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-            amount: price.unit_amount / 100,
-            currency: price.currency.toUpperCase(),
-            interval: price.recurring?.interval,
-            intervalCount: price.recurring?.interval_count,
-            userEmail: session.customer_details?.email,
-            userName: session.metadata?.userName || 'Usuario',
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp()
-        };
+  if (!userId) {
+    console.error('No se encontró userId en el checkout session');
+    return;
+  }
 
-        await db.collection('subscriptions').doc(subscriptionId).set(subscriptionData);
+  try {
+    // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE
+    await db.collection('users').doc(userId).set({
+      hasSubscription: true,
+      subscriptionId: subscriptionId,
+      stripeCustomerId: customerId,
+      subscriptionStartDate: FieldValue.serverTimestamp(),
+      lastPaymentDate: FieldValue.serverTimestamp(),
+      email: userEmail,
+      name: userName,
+      planId: planId,
+      planName: planName
+    }, { merge: true });
 
-    } catch (error) {
-        console.error('Error crítico al procesar checkout session:', error);
-        throw error;
-    }
+    // CREAR REGISTRO DE SUSCRIPCIÓN EN COLECCIÓN DEDICADA
+    await db.collection('subscriptions').doc(subscriptionId).set({
+      userId: userId,
+      userName: userName,
+      userEmail: userEmail,
+      customerId: customerId,
+      planId: planId,
+      planName: planName,
+      status: 'active',
+      amountTotal: session.amount_total,
+      currency: session.currency,
+      checkoutSessionId: session.id,
+      metadata: session.metadata,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    console.log(`Suscripción registrada exitosamente para usuario: ${userId}`);
+  } catch (error) {
+    console.error(`Error al procesar checkout completado:`, error);
+    throw error;
+  }
 }
 
-// Handler para actualizaciones de suscripción 
+async function handleSubscriptionCreated(subscription) {
+  console.log(`Suscripción creada: ${subscription.id}`);
+  
+  try {
+    const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
+    if(subscriptionDoc.exists) {
+      await db.collection('subscriptions').doc(subscription.id).update({
+        status: subscription.status,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        subscriptionCreated: FieldValue.serverTimestamp()
+      });
+    }
+
+    console.log(`Estado de suscripción creada actualizado: ${subscription.id}`);
+  } catch (error) {
+    console.error(`Error al actualizar suscripción creada:`, error);
+  }
+}
+
 async function handleSubscriptionUpdated(subscription) {
     try {
         console.log('🔍 Debug - subscription updated completa:', {
@@ -232,162 +379,199 @@ async function handleSubscriptionUpdated(subscription) {
             updatedAt: FieldValue.serverTimestamp()
         };
 
-        const currentPeriodEndTimestamp = createTimestampFromUnixSeconds(subscription.current_period_end);
-        if (currentPeriodEndTimestamp) {
-            updateData.currentPeriodEnd = currentPeriodEndTimestamp;
-        } else {
-            console.warn('No se pudo actualizar currentPeriodEnd, mantener el valor existente');
-        }
+    // SI LA SUSCRIPCIÓN FUE CANCELADA
+    if (subscription.status === 'canceled') {
+      updateData.canceledAt = FieldValue.serverTimestamp();
+      updateData.cancelReason = subscription.cancellation_details?.reason || 'unknown';
+    }
 
         await db.collection('subscriptions').doc(subscription.id).update(updateData);
 
-        console.log(`Suscripción ${subscription.id} actualizada:`, updateData);
-    } catch (error) {
-        console.error('Error al actualizar suscripción:', error);
+    // BUSCAR USUARIO Y ACTUALIZAR SU ESTADO
+    const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
+    if (subscriptionDoc.exists) {
+      const userIdFromDoc = subscriptionDoc.data().userId;
+      
+      await db.collection('users').doc(userIdFromDoc).update({
+        hasSubscription: subscription.status === 'active',
+        subscriptionStatus: subscription.status,
+        lastSubscriptionUpdate: FieldValue.serverTimestamp()
+      });
+
+      console.log(`Usuario ${userIdFromDoc} actualizado con estado: ${subscription.status}`);
     }
+  } catch (error) {
+    console.error(`Error al actualizar suscripción:`, error);
+  }
 }
 
 // Handler para eliminación de suscripción 
 async function handleSubscriptionDeleted(subscription) {
-    try {
-        await db.collection('subscriptions').doc(subscription.id).update({
-            status: 'canceled',
-            canceledAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp()
-        });
+  console.log(`Suscripción eliminada: ${subscription.id}`);
+  
+  try {
+    // BUSCAR EL DOCUMENTO DE LA SUSCRIPCIÓN
+    const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
+    
+    if (subscriptionDoc.exists) {
+      const userIdFromDoc = subscriptionDoc.data().userId;
+      
+      // ACTUALIZAR USUARIO - REMOVER SUSCRIPCIÓN
+      await db.collection('users').doc(userIdFromDoc).update({
+        hasSubscription: false,
+        subscriptionId: null,
+        subscriptionStatus: 'canceled',
+        subscriptionCanceledAt: FieldValue.serverTimestamp()
+      });
+      
+      // ACTUALIZAR DOCUMENTO DE SUSCRIPCIÓN
+      await subscriptionDoc.ref.update({
+        status: 'deleted',
+        deletedAt: FieldValue.serverTimestamp(),
+        cancelReason: subscription.cancellation_details?.reason || 'subscription_deleted'
+      });
 
-        console.log(`Suscripción ${subscription.id} marcada como cancelada`);
-    } catch (error) {
-        console.error('Error al eliminar suscripción:', error);
+      console.log(`Suscripción ${subscription.id} marcada como eliminada`);
     }
+  } catch (error) {
+    console.error(`Error al eliminar suscripción:`, error);
+  }
 }
 
-// Endpoint para verificar el estado de una sesión
-stripeRouter.post("/verify-session", async (req, res) => {
-    const { sessionId } = req.body;
+async function handlePaymentSucceeded(invoice) {
+  console.log(`Pago exitoso: ${invoice.id} para suscripción: ${invoice.subscription}`);
+  
+  try {
+    // REGISTRAR PAGO EXITOSO
+    await db.collection('payments').add({
+      invoiceId: invoice.id,
+      subscriptionId: invoice.subscription,
+      customerId: invoice.customer,
+      amountPaid: invoice.amount_paid,
+      currency: invoice.currency,
+      status: 'succeeded',
+      paymentDate: new Date(invoice.status_transitions.paid_at * 1000),
+      periodStart: new Date(invoice.period_start * 1000),
+      periodEnd: new Date(invoice.period_end * 1000),
+      createdAt: FieldValue.serverTimestamp()
+    });
 
-    if (!sessionId) {
-        return res.status(400).json({ error: "sessionId is required" });
+    // ACTUALIZAR ÚLTIMA FECHA DE PAGO DEL USUARIO
+    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
+    if (subscriptionDoc.exists) {
+      const userIdFromDoc = subscriptionDoc.data().userId;
+      
+      await db.collection('users').doc(userIdFromDoc).update({
+        lastPaymentDate: FieldValue.serverTimestamp(),
+        hasSubscription: true // REACTIVAR SI ESTABA SUSPENDIDA
+      });
+
+      console.log(`Pago registrado para usuario: ${userIdFromDoc}`);
+    }
+  } catch (error) {
+    console.error(`Error al procesar pago exitoso:`, error);
+  }
+}
+
+async function handlePaymentFailed(invoice) {
+  console.log(`Pago fallido: ${invoice.id} para suscripción: ${invoice.subscription}`);
+  
+  try {
+    // REGISTRAR PAGO FALLIDO
+    await db.collection('payments').add({
+      invoiceId: invoice.id,
+      subscriptionId: invoice.subscription,
+      customerId: invoice.customer,
+      amountDue: invoice.amount_due,
+      currency: invoice.currency,
+      status: 'failed',
+      failureReason: invoice.last_finalization_error?.message || 'unknown',
+      attemptedAt: new Date(invoice.status_transitions.finalized_at * 1000),
+      createdAt: FieldValue.serverTimestamp()
+    });
+
+    // NOTIFICAR AL USUARIO (OPCIONAL)
+    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
+    if (subscriptionDoc.exists) {
+      const userIdFromDoc = subscriptionDoc.data().userId;
+      
+      await db.collection('users').doc(userIdFromDoc).update({
+        lastPaymentFailure: FieldValue.serverTimestamp(),
+        paymentStatus: 'failed'
+      });
+
+      console.log(`Pago fallido registrado para usuario: ${userIdFromDoc}`);
+    }
+  } catch (error) {
+    console.error(`Error al procesar pago fallido:`, error);
+  }
+}
+
+// Endpoint para obtener estado de suscripción del usuario
+stripeRouter.get("/subscription-status/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  try {
+    // Obtener datos del usuario
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    try {
-        const session = await stripeClient.checkout.sessions.retrieve(sessionId, {
-            expand: ['subscription', 'subscription.latest_invoice.payment_intent']
-        });
-
-        // Si el pago fue exitoso, esperar a que el webhook procese
-        if (session.payment_status === 'paid' && session.subscription) {
-            const subscriptionId = session.subscription.id;
-
-            // Esperar hasta 10 segundos a que aparezca en Firestore
-            let subscriptionInFirestore = null;
-            let attempts = 0;
-            const maxAttempts = 10;
-
-            while (!subscriptionInFirestore && attempts < maxAttempts) {
-                attempts++;
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                subscriptionInFirestore = await db.collection('subscriptions')
-                    .doc(subscriptionId)
-                    .get();
-            }
-        }
-
-        res.json({
-            paymentStatus: session.payment_status,
-            sessionStatus: session.status,
-            subscriptionId: session.subscription?.id,
-            subscriptionStatus: session.subscription?.status,
-            customerId: session.customer,
-            customerEmail: session.customer_details?.email,
-            amountTotal: session.amount_total,
-            currency: session.currency,
-            planName: session.metadata?.planName || 'Premium'
-        });
-
-    } catch (e) {
-        console.error("Error al verificar sesión:", e);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// Endpoint para cancelar suscripción
-stripeRouter.post("/cancel-subscription", async (req, res) => {
-    const { subscriptionId, immediate = false } = req.body;
-    if (!subscriptionId) {
-        return res.status(400).json({ error: "subscriptionId is required" });
-    }
-    try {
-        let subscription;
-        if (immediate) {
-            // Cancelación inmediata
-            subscription = await stripeClient.subscriptions.cancel(subscriptionId);
-        } else {
-            // Cancelación al final del período
-            subscription = await stripeClient.subscriptions.update(subscriptionId, {
-                cancel_at_period_end: true
-            });
-        }
-        const currentPeriodEndTimestamp = createTimestampFromUnixSeconds(subscription.current_period_end);
+    const userData = userDoc.data();
+    
+    // Si tiene suscripción, obtener detalles
+    if (userData.hasSubscription && userData.subscriptionId) {
+      const subscriptionDoc = await db.collection('subscriptions').doc(userData.subscriptionId).get();
+      
+      if (subscriptionDoc.exists) {
+        const subscriptionData = subscriptionDoc.data();
         
-        const updateData = {
-            status: subscription.status,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-            updatedAt: FieldValue.serverTimestamp()
-        };
-
-        if (currentPeriodEndTimestamp) {
-            updateData.currentPeriodEnd = currentPeriodEndTimestamp;
+        // Verificar estado en Stripe también
+        let stripeSubscription = null;
+        try {
+          stripeSubscription = await stripeClient.subscriptions.retrieve(userData.subscriptionId);
+        } catch (stripeError) {
+          console.log(`No se pudo obtener suscripción de Stripe: ${stripeError.message}`);
         }
 
-        await db.collection('subscriptions').doc(subscriptionId).update(updateData);
-
-        res.json({
-            message: immediate ?
-                'Suscripción cancelada inmediatamente' :
-                'Suscripción se cancelará al final del período',
-            subscription: {
-                id: subscription.id,
-                status: subscription.status,
-                cancelAtPeriodEnd: subscription.cancel_at_period_end,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000)
-            }
+        return res.json({
+          hasSubscription: true,
+          subscription: {
+            id: userData.subscriptionId,
+            status: stripeSubscription?.status || subscriptionData.status,
+            planName: subscriptionData.planName || userData.planName || 'Premium',
+            planId: subscriptionData.planId || userData.planId,
+            currentPeriodEnd: stripeSubscription?.current_period_end ?
+              new Date(stripeSubscription.current_period_end * 1000) :
+              subscriptionData.currentPeriodEnd,
+            cancelAtPeriodEnd: stripeSubscription?.cancel_at_period_end || false,
+            userName: subscriptionData.userName || userData.name,
+            userEmail: subscriptionData.userEmail || userData.email,
+            ...subscriptionData
+          }
         });
-
-    } catch (e) {
-        console.error("Error al cancelar suscripción:", e);
-        res.status(500).json({ error: e.message });
+      }
     }
-});
 
-stripeRouter.get("/check-subscription/:userId", async (req, res) => {
-    const { userId } = req.params;
+    // Sin suscripción activa
+    res.json({
+      hasSubscription: false,
+      subscription: null
+    });
 
-    try {
-        const subscription = await db.collection('subscriptions')
-            .where('userId', '==', userId)
-            .where('status', 'in', ['active', 'trialing'])
-            .limit(1)
-            .get();
-
-        if (subscription.empty) {
-            return res.json({ exists: false });
-        }
-
-        const subData = subscription.docs[0].data();
-        res.json({
-            exists: true,
-            subscription: {
-                id: subscription.docs[0].id,
-                ...subData
-            }
-        });
-
-    } catch (e) {
-        console.error("Error al verificar suscripción:", e);
-        res.status(500).json({ error: e.message });
-    }
+  } catch (error) {
+    console.error("Error obteniendo estado de suscripción:", error);
+    res.status(500).json({
+      error: "Error al obtener estado de suscripción",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 export default stripeRouter;

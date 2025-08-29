@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
 import 'package:provider/provider.dart';
 
+
 class DetallePsicologoModal extends StatelessWidget {
   final Map<String, dynamic> psicologo;
 
@@ -10,6 +11,7 @@ class DetallePsicologoModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextStyle titleStyle = const TextStyle(fontWeight: FontWeight.bold);
+
 
     // Lógica para manejar el campo de educación de forma robusta
     final educationData = psicologo["education"];
@@ -89,3 +91,4 @@ class DetallePsicologoModal extends StatelessWidget {
     );
   }
 }
+
