@@ -1,12 +1,10 @@
-// lib/presentation/patient/views/patient_home_screen.dart
-
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -17,6 +15,7 @@ class PatientHomeScreen extends StatefulWidget {
 
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
+  bool _notificationsEnabled = true; // Estado local de notificaciones
 
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
@@ -25,18 +24,15 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     ProfileScreenPatient(),
   ];
 
-  // Función para cambiar el índice de la barra de navegación
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // función para navegar a la pantalla de psicólogos
   void _goToPsychologistsScreen() {
     setState(() {
-      _selectedIndex =
-          2; // El índice 2 corresponde a la pestaña de 'Psicólogos'
+      _selectedIndex = 2;
     });
   }
 
@@ -55,7 +51,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Buen dia, $userName 👋',
+          'Buen día, $userName 👋',
           style: TextStyle(
             color: Theme.of(context).textTheme.headlineMedium?.color,
             fontSize: 18,
@@ -66,12 +62,24 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         actions: [
           IconButton(
             icon: Icon(
-              Icons.notifications_none,
+              _notificationsEnabled
+                  ? Icons.notifications_none // activado
+                  : Icons.notifications_off,  // desactivado
               color: Theme.of(context).iconTheme.color,
             ),
             onPressed: () {
+              setState(() {
+                _notificationsEnabled = !_notificationsEnabled; // alterna
+              });
+
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ver notificaciones')),
+                SnackBar(
+                  content: Text(
+                    _notificationsEnabled
+                        ? 'Notificaciones activadas'
+                        : 'Notificaciones desactivadas',
+                  ),
+                ),
               );
             },
           ),
@@ -80,15 +88,9 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
       body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.backgroundColor,
-        selectedItemColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.selectedItemColor,
-        unselectedItemColor: Theme.of(
-          context,
-        ).bottomNavigationBarTheme.unselectedItemColor,
+        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'Poppins',
@@ -102,10 +104,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.psychology),
-            label: 'Psicólogos',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
