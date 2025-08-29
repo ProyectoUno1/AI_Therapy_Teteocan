@@ -7,6 +7,8 @@ import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_pa
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -22,6 +24,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
     const PsychologistsListScreen(),
+    BlocProvider<AppointmentBloc>(
+      create: (context) => AppointmentBloc(),
+      child: const PatientAppointmentsListScreen(),
+    ),
     ProfileScreenPatient(),
   ];
 
@@ -105,6 +111,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.psychology),
             label: 'Psicólogos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Citas',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],

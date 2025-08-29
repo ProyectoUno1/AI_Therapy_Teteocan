@@ -1,20 +1,13 @@
 // lib/presentation/subscription/views/checkout_screen.dart
 
 import 'dart:async';
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/core/services/subscription_service.dart';
-import 'package:app_links/app_links.dart';
-import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -23,7 +16,6 @@ class CheckoutScreen extends StatefulWidget {
   final String period;
   final bool isAnnual;
   final String planId;
-  final SubscriptionBloc subscriptionBloc;
 
   const CheckoutScreen({
     super.key,
@@ -31,7 +23,6 @@ class CheckoutScreen extends StatefulWidget {
     required this.price,
     required this.period,
     required this.planId,
-    required this.subscriptionBloc,
     this.isAnnual = false,
   });
 
@@ -43,128 +34,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // Estado para controlar el proceso de pago
   bool _isProcessingPayment = false;
 
-  
-  String? _paymentResult; 
+  String? _paymentResult;
   String? _paymentMessage;
-  
-  // Suscripción para escuchar los deep links
-  StreamSubscription<Uri>? _linkSubscription;
 
-  // Instancia para manejar los deep links
-  late AppLinks _appLinks;
-
-  
   final String backendUrl =
       'http://10.0.2.2:3000/api/stripe/create-checkout-session';
 
   @override
   void initState() {
     super.initState();
-    // Inicializar el listener de deep links al cargar la pantalla
-    _initDeepLinks();
-  }
-
-  //  Método para inicializar el listener de deep links
-  void _initDeepLinks() async {
-    _appLinks = AppLinks();
-
-    // Escuchar deep links mientras la app está abierta
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-      _handleDeepLink,
-      onError: (err) {
-        print(' Error en deep link: $err');
-        _setPaymentResult('error', 'Error procesando el resultado del pago');
-      },
-    );
-
-    //  Manejar cuando la app se abre con un deep link
-    try {
-      final initialLink = await _appLinks.getInitialLink();
-      if (initialLink != null) {
-        Future.delayed(Duration(milliseconds: 500), () {
-          _handleDeepLink(initialLink);
-        });
-      }
-    } catch (e) {
-      print(' Error obteniendo link inicial: $e');
-    }
-  }
-
-  // Manejar el deep link recibido
-  void _handleDeepLink(Uri uri) {
-    
-    if (uri.scheme == 'auroraapp') {
-      if (uri.host == 'success') {
-        final sessionId = uri.queryParameters['session_id'];
-        
-        if (sessionId != null) {
-          _verifyPaymentAndUpdateFirebase(sessionId);
-        } else {
-          _setPaymentResult('error', 'No se pudo verificar el pago (sin session ID)');
-        }
-      } else if (uri.host == 'cancel') {
-        
-        _handlePaymentCancelled();
-      }
-    }
-  }
-
-  //  Verificación y actualización del pago
-  Future<void> _verifyPaymentAndUpdateFirebase(String sessionId) async {
-    try {
-      
-      
-      _setProcessingState(true);
-
-      // 1. Verificar estado de la sesión en Stripe
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2:3000/api/stripe/verify-session'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'sessionId': sessionId}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-
-        if (data['paymentStatus'] == 'paid') {
-          
-          await Future.delayed(Duration(seconds: 2)); // Dar tiempo al webhook
-          
-          _setPaymentResult(
-            'success',
-            '¡Perfecto! Tu suscripción a ${widget.planName} ha sido activada.',
-          );
-        } else {
-          _setPaymentResult(
-            'error', 
-            'El pago no se completó correctamente. Estado: ${data['paymentStatus']}'
-          );
-        }
-      } else {
-        final errorData = jsonDecode(response.body);
-        _setPaymentResult(
-          'error', 
-          'Error al verificar el pago: ${errorData['error'] ?? 'Error desconocido'}'
-        );
-      }
-    } catch (e) {
-     
-      _setPaymentResult('error', 'Error de conexión al verificar el pago');
-    } finally {
-      _setProcessingState(false);
-    }
-  }
-
-  // Manejar un pago cancelado
-  void _handlePaymentCancelled() {
-    _setPaymentResult('error', 'Has cancelado el proceso de pago.');
   }
 
   @override
   void dispose() {
-    // Cancelar la suscripción al deep link para evitar fugas de memoria
-    _linkSubscription?.cancel();
     super.dispose();
   }
 
@@ -218,15 +100,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_paymentResult != null)
-              _buildResultWidget(),
+            if (_paymentResult != null) _buildResultWidget(),
             if (_paymentResult == null) ...[
               _buildSubscriptionSummary(),
               const SizedBox(height: 24),
               _buildOrderSummary(),
               const SizedBox(height: 32),
               _buildCompleteButton(),
-            ]
+            ],
           ],
         ),
       ),
@@ -309,7 +190,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.headlineMedium?.color,
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.color,
                         fontFamily: 'Poppins',
                       ),
                     ),
@@ -484,7 +367,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       print('1. Obteniendo datos del usuario autenticado...');
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        _setPaymentResult('error', 'Usuario no autenticado. Por favor, inicia sesión.');
+        _setPaymentResult(
+          'error',
+          'Usuario no autenticado. Por favor, inicia sesión.',
+        );
         return;
       }
 
@@ -524,7 +410,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         print('Error del backend: ${response.body}');
         final errorData = jsonDecode(response.body);
 
-        
         if (errorData['error']?.contains('ya tiene una suscripción') == true) {
           _setPaymentResult(
             'error',
@@ -555,7 +440,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       print('Error inesperado: $e');
       _setPaymentResult('error', 'Un error inesperado ocurrió: $e');
     }
-   
   }
 
   // Widget para mostrar el resultado del pago

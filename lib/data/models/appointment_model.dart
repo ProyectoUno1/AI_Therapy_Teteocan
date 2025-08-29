@@ -2,7 +2,14 @@
 
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus { pending, confirmed, cancelled, completed, rescheduled }
+enum AppointmentStatus {
+  pending,
+  confirmed,
+  cancelled,
+  completed,
+  rescheduled,
+  rated,
+}
 
 enum AppointmentType { online, inPerson }
 
@@ -19,6 +26,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return 'Completada';
       case AppointmentStatus.rescheduled:
         return 'Reagendada';
+      case AppointmentStatus.rated:
+        return 'Calificada';
     }
   }
 
@@ -34,6 +43,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return '🎯';
       case AppointmentStatus.rescheduled:
         return '🔄';
+      case AppointmentStatus.rated:
+        return '⭐';
     }
   }
 }
@@ -84,6 +95,11 @@ class AppointmentModel extends Equatable {
   final String? meetingLink;
   final String? address;
 
+  // Rating properties - Preparado para backend
+  final int? rating; // 1-5 stars
+  final String? ratingComment;
+  final DateTime? ratedAt;
+
   const AppointmentModel({
     required this.id,
     required this.patientId,
@@ -109,6 +125,10 @@ class AppointmentModel extends Equatable {
     this.completedAt,
     this.meetingLink,
     this.address,
+    // Rating properties
+    this.rating,
+    this.ratingComment,
+    this.ratedAt,
   });
 
   AppointmentModel copyWith({
@@ -136,6 +156,10 @@ class AppointmentModel extends Equatable {
     DateTime? completedAt,
     String? meetingLink,
     String? address,
+    // Rating properties
+    int? rating,
+    String? ratingComment,
+    DateTime? ratedAt,
   }) {
     return AppointmentModel(
       id: id ?? this.id,
@@ -164,6 +188,10 @@ class AppointmentModel extends Equatable {
       completedAt: completedAt ?? this.completedAt,
       meetingLink: meetingLink ?? this.meetingLink,
       address: address ?? this.address,
+      // Rating properties
+      rating: rating ?? this.rating,
+      ratingComment: ratingComment ?? this.ratingComment,
+      ratedAt: ratedAt ?? this.ratedAt,
     );
   }
 

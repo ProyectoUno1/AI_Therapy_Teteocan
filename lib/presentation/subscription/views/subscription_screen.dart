@@ -38,7 +38,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
   int aiMessagesUsed = 15;
   int aiMessagesLimit = 20;
   late SubscriptionBloc _subscriptionBloc;
-  
+
   final PlansService _plansService = PlansService();
   List<PlanModel> _availablePlans = [];
   bool _isLoadingPlans = false;
@@ -122,7 +122,6 @@ class _SubscriptionViewState extends State<SubscriptionView> {
           period: period,
           planId: planId,
           isAnnual: isAnnual,
-          subscriptionBloc: _subscriptionBloc,
         ),
       ),
     );
@@ -217,8 +216,10 @@ class _SubscriptionViewState extends State<SubscriptionView> {
 
   Widget _buildDynamicPricingSection() {
     // Buscar plan mensual para mostrar como precio principal
-    final monthlyPlan = _availablePlans.where((plan) => !plan.isAnnual).firstOrNull;
-    
+    final monthlyPlan = _availablePlans
+        .where((plan) => !plan.isAnnual)
+        .firstOrNull;
+
     if (monthlyPlan == null) {
       return _buildStaticPricingSection();
     }
@@ -254,11 +255,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
           'Cancela cuando quieras • Sin compromisos',
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.color
-                ?.withOpacity(0.7),
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.color?.withOpacity(0.7),
             fontFamily: 'Poppins',
           ),
         ),
@@ -298,11 +297,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
           'Cancela cuando quieras • Sin compromisos',
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.color
-                ?.withOpacity(0.7),
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.color?.withOpacity(0.7),
             fontFamily: 'Poppins',
           ),
         ),
@@ -511,11 +508,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.color
-                  ?.withOpacity(0.7),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
               fontFamily: 'Poppins',
             ),
           ),
@@ -631,11 +626,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             'Hoy has usado $aiMessagesUsed de $aiMessagesLimit mensajes con IA disponibles',
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.color
-                  ?.withOpacity(0.7),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
               fontFamily: 'Poppins',
             ),
           ),
@@ -709,7 +702,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(context).textTheme.headlineMedium?.color,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.headlineMedium?.color,
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -718,11 +713,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                         feature['description'] as String,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.color
-                              ?.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -741,7 +734,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: state is CheckoutInProgress ? null : () => _showPricingPlans(context),
+        onPressed: state is CheckoutInProgress
+            ? null
+            : () => _showPricingPlans(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
@@ -864,7 +859,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   if (_isLoadingPlans)
                     const Center(child: CircularProgressIndicator())
                   else if (_plansError != null)
@@ -878,7 +873,11 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.warning, color: Colors.orange[700], size: 20),
+                          Icon(
+                            Icons.warning,
+                            color: Colors.orange[700],
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -893,7 +892,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                         ],
                       ),
                     ),
-                  
+
                   Expanded(
                     child: ListView.builder(
                       itemCount: _availablePlans.length,
@@ -906,17 +905,15 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                       },
                     ),
                   ),
-                  
+
                   Text(
                     'Al suscribirte, aceptas nuestros términos y condiciones. Tu suscripción se renovará automáticamente.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.color
-                          ?.withOpacity(0.6),
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withOpacity(0.6),
                       fontFamily: 'Poppins',
                     ),
                   ),
@@ -929,16 +926,16 @@ class _SubscriptionViewState extends State<SubscriptionView> {
     );
   }
 
-
   Widget _buildDynamicPlanOption(PlanModel plan) {
-    final isPopular = plan.isAnnual; 
-    
+    final isPopular = plan.isAnnual;
+
     String? originalPrice;
-    String subtitle = plan.isAnnual ? '2 meses gratis' : 'Perfecto para empezar';
-    
+    String subtitle = plan.isAnnual
+        ? '2 meses gratis'
+        : 'Perfecto para empezar';
+
     if (plan.isAnnual) {
-      
-      final monthlyEquivalent = (plan.amount * 1.2).round(); 
+      final monthlyEquivalent = (plan.amount * 1.2).round();
       originalPrice = NumberFormat.currency(
         locale: 'es_MX',
         symbol: '/ ',
@@ -1013,10 +1010,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.headlineMedium?.color,
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -1025,11 +1021,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                               subtitle,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color
-                                    ?.withOpacity(0.7),
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -1045,11 +1039,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                               style: TextStyle(
                                 fontSize: 12,
                                 decoration: TextDecoration.lineThrough,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color
-                                    ?.withOpacity(0.5),
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color?.withOpacity(0.5),
                                 fontFamily: 'Poppins',
                               ),
                             ),
@@ -1065,10 +1057,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                                   fontWeight: FontWeight.bold,
                                   color: isPopular
                                       ? AppConstants.primaryColor
-                                      : Theme.of(context)
-                                          .textTheme
-                                          .headlineMedium
-                                          ?.color,
+                                      : Theme.of(
+                                          context,
+                                        ).textTheme.headlineMedium?.color,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
@@ -1076,10 +1067,9 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                                 plan.isAnnual ? '/año' : '/mes',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
