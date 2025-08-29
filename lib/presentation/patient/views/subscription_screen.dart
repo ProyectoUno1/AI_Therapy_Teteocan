@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/views/checkout_screen.dart';
 import 'package:ai_therapy_teteocan/core/services/subscription_service.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.dart';
 
 // URL de tu servidor de backend
 const String backendUrl = 'http://10.0.2.2:3000';
@@ -84,6 +86,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           period: period,
           planId: planId,
           isAnnual: isAnnual,
+          subscriptionBloc: SubscriptionBloc(repository: SubscriptionRepositoryImpl()),
         ),
       ),
     );

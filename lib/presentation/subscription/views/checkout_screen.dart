@@ -1,9 +1,10 @@
 // lib/presentation/subscription/views/checkout_screen.dart
-
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
+import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

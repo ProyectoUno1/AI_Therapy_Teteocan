@@ -71,11 +71,25 @@ class SubscriptionService {
       if (user == null) {
         throw Exception('Usuario no autenticado');
       }
-
       final response = await http.post(
         Uri.parse('$baseUrl/cancel-subscription'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'userId': user.uid, 'immediate': immediate}),
+      // Obtener el ID de la suscripción actual
+      final subscriptionStatus = await getUserSubscriptionStatus();
+      if (subscriptionStatus?.subscription?.id == null) {
+        throw Exception('No se encontró suscripción activa');
+      }
+
+      final subscriptionId = subscriptionStatus!.subscription!.id;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/cancel-subscription'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'subscriptionId': subscriptionId,
+          'immediate': immediate
+        }),
       );
 
       final data = jsonDecode(response.body);
