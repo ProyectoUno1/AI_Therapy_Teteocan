@@ -35,7 +35,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
+import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:timezone/data/latest.dart' as tzdata;
 
 import 'firebase_options.dart';
@@ -72,7 +72,7 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
- runApp(
+  runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
@@ -100,7 +100,6 @@ void main() async {
         repository: PsychologistRepository(),
       ),
         ),
-        
       ],
       child: const MyApp(),
     ),
@@ -149,10 +148,6 @@ class _MyAppState extends State<MyApp> {
 
   // Método que configura el estado de presencia del usuario
   void _setupUserPresence(String userId) async {
-    // Referencia a Firestore y Realtime Database
-    final userFirestoreRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId);
     final userRealtimeRef = FirebaseDatabase.instance.ref('status/$userId');
 
     // 1. Establecer el estado inicial en línea en Realtime Database
@@ -295,11 +290,10 @@ class _MyAppState extends State<MyApp> {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: //const AuthWrapper(),
-          const AdminPanel(),
+          home:const AuthWrapper(),
+              //const AdminPanel(),
         );
       },
     );
   }
 }
-

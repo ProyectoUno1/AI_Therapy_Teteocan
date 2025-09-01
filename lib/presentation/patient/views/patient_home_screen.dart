@@ -3,6 +3,8 @@ import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dar
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_content.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/profile_screen_patient.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/psychologists_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,13 +17,14 @@ class PatientHomeScreen extends StatefulWidget {
 
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
-  bool _notificationsEnabled = true; // Estado local de notificaciones
+  bool _notificationsEnabled = true;
 
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
     const PsychologistsListScreen(),
-    ProfileScreenPatient(),
+    const PatientAppointmentsListScreen(),
+    const ProfileScreenPatient(),
   ];
 
   void _onItemTapped(int index) {
@@ -63,13 +66,13 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           IconButton(
             icon: Icon(
               _notificationsEnabled
-                  ? Icons.notifications_none // activado
-                  : Icons.notifications_off,  // desactivado
+                  ? Icons.notifications_none
+                  : Icons.notifications_off,
               color: Theme.of(context).iconTheme.color,
             ),
             onPressed: () {
               setState(() {
-                _notificationsEnabled = !_notificationsEnabled; // alterna
+                _notificationsEnabled = !_notificationsEnabled;
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +88,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           ),
         ],
       ),
-      body: _widgetOptions[_selectedIndex],
+      body: BlocProvider(
+        create: (context) => AppointmentBloc(),
+        child: _widgetOptions[_selectedIndex],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
@@ -105,6 +111,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
           BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Citas',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),

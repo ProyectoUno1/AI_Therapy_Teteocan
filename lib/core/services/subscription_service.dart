@@ -1,10 +1,9 @@
 // lib/core/services/subscription_service.dart
 
 import 'dart:convert';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubscriptionService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
@@ -64,31 +63,41 @@ static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {
   }
 
   // CANCELAR SUSCRIPCIÓN
-  static Future<CancellationResult> cancelSubscription({
-    bool immediate = false,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('Usuario no autenticado');
-      }
+static Future<CancellationResult> cancelSubscription({
+  bool immediate = false,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado');
+    }
 
-      // Obtener el ID de la suscripción actual
-      final subscriptionStatus = await getUserSubscriptionStatus();
-      if (subscriptionStatus?.subscription?.id == null) {
-        throw Exception('No se encontró suscripción activa');
-      }
+    // Primero buscar la suscripción activa del usuario
+    final subscriptionDocs = await FirebaseFirestore.instance
+        .collection('subscriptions')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', whereIn: ['active', 'trialing'])
+        .limit(1)
+        .get();
 
-      final subscriptionId = subscriptionStatus!.subscription!.id;
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/cancel-subscription'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'subscriptionId': subscriptionId,
-          'immediate': immediate
-        }),
+    if (subscriptionDocs.docs.isEmpty) {
+      return CancellationResult(
+        success: false,
+        message: 'No se encontró una suscripción activa',
+        subscription: null,
       );
+    }
+
+    final subscriptionId = subscriptionDocs.docs.first.id;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/cancel-subscription'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'subscriptionId': subscriptionId,
+        'immediate': immediate
+      }),
+    );
 
     final data = jsonDecode(response.body);
 

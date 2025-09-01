@@ -2,7 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus { pending, confirmed, cancelled, completed, rescheduled }
+enum AppointmentStatus { pending, confirmed, cancelled, completed, rescheduled, rated, in_progress,}
 
 enum AppointmentType { online, inPerson }
 
@@ -19,6 +19,10 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return 'Completada';
       case AppointmentStatus.rescheduled:
         return 'Reagendada';
+      case AppointmentStatus.rated:
+        return 'Calificada';
+      case AppointmentStatus.in_progress:
+        return 'En Progreso';
     }
   }
 
@@ -34,6 +38,10 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return '🎯';
       case AppointmentStatus.rescheduled:
         return '🔄';
+      case AppointmentStatus.rated:
+        return '⭐';
+      case AppointmentStatus.in_progress:
+        return '▶️';
     }
   }
 }
@@ -77,12 +85,18 @@ class AppointmentModel extends Equatable {
   final String? patientNotes;
   final String? psychologistNotes;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final DateTime? confirmedAt;
   final DateTime? cancelledAt;
   final String? cancellationReason;
   final DateTime? completedAt;
   final String? meetingLink;
   final String? address;
+  // CAMPOS DE RATING AGREGADOS
+  final int? rating;
+  final String? ratingComment;
+  final DateTime? ratedAt;
+  final String? scheduledBy;
 
   const AppointmentModel({
     required this.id,
@@ -103,12 +117,18 @@ class AppointmentModel extends Equatable {
     this.patientNotes,
     this.psychologistNotes,
     required this.createdAt,
+    required this.updatedAt, 
     this.confirmedAt,
     this.cancelledAt,
     this.cancellationReason,
     this.completedAt,
     this.meetingLink,
     this.address,
+    // INICIALIZAR CAMPOS DE RATING
+    this.rating,
+    this.ratingComment,
+    this.ratedAt,
+    this.scheduledBy,
   });
 
   AppointmentModel copyWith({
@@ -130,12 +150,18 @@ class AppointmentModel extends Equatable {
     String? patientNotes,
     String? psychologistNotes,
     DateTime? createdAt,
+    DateTime? updatedAt,
     DateTime? confirmedAt,
     DateTime? cancelledAt,
     String? cancellationReason,
     DateTime? completedAt,
     String? meetingLink,
     String? address,
+    // CAMPOS DE RATING EN COPYWITH
+    int? rating,
+    String? ratingComment,
+    DateTime? ratedAt,
+    String? scheduledBy,
   }) {
     return AppointmentModel(
       id: id ?? this.id,
@@ -158,12 +184,18 @@ class AppointmentModel extends Equatable {
       patientNotes: patientNotes ?? this.patientNotes,
       psychologistNotes: psychologistNotes ?? this.psychologistNotes,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt, 
       confirmedAt: confirmedAt ?? this.confirmedAt,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       cancellationReason: cancellationReason ?? this.cancellationReason,
       completedAt: completedAt ?? this.completedAt,
       meetingLink: meetingLink ?? this.meetingLink,
       address: address ?? this.address,
+      // CAMPOS DE RATING
+      rating: rating ?? this.rating,
+      ratingComment: ratingComment ?? this.ratingComment,
+      ratedAt: ratedAt ?? this.ratedAt,
+      scheduledBy: scheduledBy ?? this.scheduledBy,
     );
   }
 
@@ -173,6 +205,9 @@ class AppointmentModel extends Equatable {
   bool get isCancelled => status == AppointmentStatus.cancelled;
   bool get isCompleted => status == AppointmentStatus.completed;
   bool get isRescheduled => status == AppointmentStatus.rescheduled;
+  bool get isRated => status == AppointmentStatus.rated;
+  bool get isInProgress => status == AppointmentStatus.in_progress;
+  bool get isPast => scheduledDateTime.isBefore(DateTime.now());
 
   bool get isToday {
     final now = DateTime.now();
@@ -279,12 +314,18 @@ class AppointmentModel extends Equatable {
       'patientNotes': patientNotes,
       'psychologistNotes': psychologistNotes,
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(), 
       'confirmedAt': confirmedAt?.toIso8601String(),
       'cancelledAt': cancelledAt?.toIso8601String(),
       'cancellationReason': cancellationReason,
       'completedAt': completedAt?.toIso8601String(),
       'meetingLink': meetingLink,
       'address': address,
+      // CAMPOS DE RATING EN TOJSON
+      'rating': rating,
+      'ratingComment': ratingComment,
+      'ratedAt': ratedAt?.toIso8601String(),
+      'scheduledBy': scheduledBy,
     };
   }
 
@@ -314,6 +355,9 @@ class AppointmentModel extends Equatable {
       patientNotes: json['patientNotes'] as String?,
       psychologistNotes: json['psychologistNotes'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.parse(json['createdAt'] as String), 
       confirmedAt: json['confirmedAt'] != null
           ? DateTime.parse(json['confirmedAt'] as String)
           : null,
@@ -326,6 +370,13 @@ class AppointmentModel extends Equatable {
           : null,
       meetingLink: json['meetingLink'] as String?,
       address: json['address'] as String?,
+      // CAMPOS DE RATING EN FROMJSON
+      rating: json['rating'] as int?,
+      ratingComment: json['ratingComment'] as String?,
+      ratedAt: json['ratedAt'] != null
+          ? DateTime.parse(json['ratedAt'] as String)
+          : null,
+      scheduledBy: json['scheduledBy'] as String?,
     );
   }
 
@@ -349,11 +400,16 @@ class AppointmentModel extends Equatable {
     patientNotes,
     psychologistNotes,
     createdAt,
+    updatedAt, 
     confirmedAt,
     cancelledAt,
     cancellationReason,
     completedAt,
     meetingLink,
     address,
+    rating,
+    ratingComment,
+    ratedAt,
+    scheduledBy,
   ];
 }

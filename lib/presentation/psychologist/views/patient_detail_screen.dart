@@ -3,6 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_management_model.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/schedule_appointment_form.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final PatientManagementModel patient;
@@ -349,9 +353,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           Text(
             'Historial de Sesiones',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                ),
           ),
           const SizedBox(height: 16),
 
@@ -447,9 +451,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               Text(
                 'Notas del Paciente',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
               ),
               IconButton(
                 onPressed: () => _addNote(),
@@ -631,11 +635,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }
 
   void _scheduleAppointment() {
-    // TODO: Implementar navegación a pantalla de agendamiento para psicólogos
-    // Esto podría ser una versión simplificada donde el psicólogo agenda directamente
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Función de agendar cita desde psicólogo próximamente'),
+    final psychologistId = context.read<AuthBloc>().state.psychologist?.uid;
+    final patient = widget.patient;
+    
+
+    if (psychologistId == null || patient.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Error: No se pudo obtener el ID del usuario.')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScheduleAppointmentForm(
+          psychologistId: psychologistId,
+          patient: patient,
+        ),
       ),
     );
   }

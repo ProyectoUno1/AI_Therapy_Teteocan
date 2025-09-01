@@ -5,49 +5,74 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 const router = express.Router();
 
+router.use(verifyFirebaseToken);
+
+
 // Crear nueva cita 
+
 router.post('/', verifyFirebaseToken, async (req, res) => {
     try {
-        const patientId = req.firebaseUser.uid;
+        // Obtener el ID del usuario autenticado
+        const authenticatedUserId = req.firebaseUser.uid;
+        
         const {
             psychologistId,
+            patientId, 
             scheduledDateTime,
             type,
             notes
         } = req.body;
 
-        if (!psychologistId || !scheduledDateTime || !type) {
+        if (!psychologistId || !patientId || !scheduledDateTime || !type) {
             return res.status(400).json({
-                error: 'psychologistId, scheduledDateTime y type son requeridos'
+                error: 'psychologistId, patientId, scheduledDateTime y type son requeridos'
             });
         }
 
-        let appointmentId; 
+        let finalPatientId;
+        let isSchedulingForOtherPatient = false;
+      
+        if (patientId !== authenticatedUserId) {
+            
+            if (psychologistId !== authenticatedUserId) {
+                return res.status(403).json({
+                    error: 'Solo el psicólogo puede agendar citas para sus pacientes'
+                });
+            }
+            finalPatientId = patientId;
+            isSchedulingForOtherPatient = true;
+        } else {
+            
+            finalPatientId = authenticatedUserId;
+        }
+
+        let appointmentId;
 
         await db.runTransaction(async (transaction) => {
             const appointmentDate = new Date(scheduledDateTime);
-            
             appointmentDate.setMinutes(appointmentDate.getMinutes() - appointmentDate.getTimezoneOffset());
-            
+
             const startOfHour = new Date(appointmentDate);
             startOfHour.setMinutes(0, 0, 0);
-            
+
             const endOfHour = new Date(appointmentDate);
             endOfHour.setMinutes(59, 59, 999);
 
+            // Verificar disponibilidad del horario
             const existingAppointmentsRef = db.collection('appointments')
                 .where('psychologistId', '==', psychologistId)
                 .where('scheduledDateTime', '>=', startOfHour)
                 .where('scheduledDateTime', '<=', endOfHour)
                 .where('status', 'in', ['pending', 'confirmed']);
-            
+
             const existingAppointmentsSnapshot = await transaction.get(existingAppointmentsRef);
 
             if (!existingAppointmentsSnapshot.empty) {
                 throw new Error('El horario seleccionado no está disponible');
             }
 
-            const patientRef = db.collection('patients').doc(patientId);
+            // Obtener datos del paciente y psicólogo
+            const patientRef = db.collection('patients').doc(finalPatientId);
             const psychologistRef = db.collection('psychologists').doc(psychologistId);
             const psychologistProfRef = db.collection('psychologist_professional_info').doc(psychologistId);
 
@@ -65,7 +90,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             const psychologistProfData = psychologistProfDoc.exists ? psychologistProfDoc.data() : {};
 
             const appointmentData = {
-                patientId,
+                patientId: finalPatientId,
                 patientName: patientData.username || 'Usuario desconocido',
                 patientEmail: patientData.email,
                 patientProfileUrl: patientData.profilePictureUrl || null,
@@ -73,18 +98,19 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                 psychologistName: psychologistProfData.fullName || 'Psicólogo desconocido',
                 psychologistSpecialty: psychologistProfData.specialty || 'Psicología General',
                 psychologistProfileUrl: psychologistData.profilePictureUrl || null,
-                scheduledDateTime: appointmentDate, 
+                scheduledDateTime: appointmentDate,
                 durationMinutes: 60,
                 type,
-                status: 'pending',
+                status: isSchedulingForOtherPatient ? 'confirmed' : 'pending',
                 price: psychologistProfData.hourlyRate || 80.0,
                 patientNotes: notes || null,
+                scheduledBy: authenticatedUserId,
                 createdAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp()
             };
 
             const appointmentRef = db.collection('appointments').doc();
-            appointmentId = appointmentRef.id; // Guardar el ID
+            appointmentId = appointmentRef.id;
             transaction.set(appointmentRef, appointmentData);
         });
 
@@ -93,7 +119,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         }
 
         const appointmentDoc = await db.collection('appointments').doc(appointmentId).get();
-        
+
         if (!appointmentDoc.exists) {
             throw new Error('La cita no se creó correctamente');
         }
@@ -114,14 +140,14 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 
         res.status(201).json({
             message: 'Cita creada exitosamente',
-            appointment: responseData // Retornar la cita completa
+            appointment: responseData
         });
 
     } catch (error) {
         console.error('Error al crear cita:', error);
-        const statusCode = error.message.includes('disponible') || 
-                          error.message.includes('encontrado') || 
-                          error.message.includes('No se pudo obtener') ? 409 : 500;
+        const statusCode = error.message.includes('disponible') ||
+            error.message.includes('encontrado') ||
+            error.message.includes('No se pudo obtener') ? 409 : 500;
         res.status(statusCode).json({
             error: 'Error al agendar la cita',
             details: error.message
@@ -149,7 +175,7 @@ router.get('/', verifyFirebaseToken, async (req, res) => {
                 userRole = 'psychologist';
             }
         }
-        
+
         let query = db.collection('appointments');
 
         if (userRole === 'psychologist') {
@@ -171,15 +197,25 @@ router.get('/', verifyFirebaseToken, async (req, res) => {
 
         appointmentsSnapshot.forEach(doc => {
             const appointmentData = doc.data();
+            const patientName = appointmentData.patientName ?? 'Nombre no disponible';
+            const psychologistName = appointmentData.psychologistName ?? 'Nombre no disponible';
+            const patientEmail = appointmentData.patientEmail ?? 'Email no disponible';
+            const psychologistSpecialty = appointmentData.psychologistSpecialty ?? 'Especialidad no disponible';
+
             appointments.push({
                 id: doc.id,
                 ...appointmentData,
-                scheduledDateTime: appointmentData.scheduledDateTime.toDate(),
-                createdAt: appointmentData.createdAt.toDate(),
-                updatedAt: appointmentData.updatedAt.toDate(),
-                confirmedAt: appointmentData.confirmedAt?.toDate() || null,
-                cancelledAt: appointmentData.cancelledAt?.toDate() || null,
-                completedAt: appointmentData.completedAt?.toDate() || null
+                patientName: patientName,
+                patientEmail: patientEmail,
+                psychologistName: psychologistName,
+                psychologistSpecialty: psychologistSpecialty,
+                scheduledDateTime: appointmentData.scheduledDateTime?.toDate()?.toISOString() ?? null,
+                createdAt: appointmentData.createdAt?.toDate()?.toISOString() ?? null,
+                updatedAt: appointmentData.updatedAt?.toDate()?.toISOString() ?? null,
+                confirmedAt: appointmentData.confirmedAt?.toDate()?.toISOString() ?? null,
+                cancelledAt: appointmentData.cancelledAt?.toDate()?.toISOString() ?? null,
+                completedAt: appointmentData.completedAt?.toDate()?.toISOString() ?? null,
+                ratedAt: appointmentData.ratedAt?.toDate()?.toISOString() ?? null,
             });
         });
 
@@ -206,7 +242,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
         }
         const start = new Date(startDate + 'T00:00:00Z'); // UTC
         const end = new Date(endDate + 'T23:59:59Z');     // UTC
-        
+
 
         if (isNaN(start) || isNaN(end) || start > end) {
             return res.status(400).json({ error: 'Rango de fechas inválido' });
@@ -228,7 +264,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
         const occupiedSlots = new Set();
         existingAppointments.forEach(data => {
             const appointmentTime = data.scheduledDateTime.toDate();
-            const hour = appointmentTime.getUTCHours(); 
+            const hour = appointmentTime.getUTCHours();
             const date = appointmentTime.toISOString().split('T')[0];
             occupiedSlots.add(`${date}-${hour}`);
             console.log('🔍 Horario ocupado:', `${date}-${hour}`);
@@ -236,7 +272,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
 
         const availableSlots = [];
         const now = new Date();
-        const nowUTC = new Date(now.toISOString()); 
+        const nowUTC = new Date(now.toISOString());
 
         for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
             const currentDate = new Date(d);
@@ -249,7 +285,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
                     currentDate.getUTCDate(),
                     hour, 0, 0
                 ));
-                
+
                 const isOccupied = occupiedSlots.has(`${dateStr}-${hour}`);
                 const isPast = slotDateTime <= nowUTC;
                 const isAvailable = !isOccupied && !isPast;
@@ -370,7 +406,7 @@ router.patch('/:id/complete', verifyFirebaseToken, async (req, res) => {
         if (appointmentData.psychologistId !== req.firebaseUser.uid) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
-        
+
         const updateData = {
             status: 'completed',
             psychologistNotes: notes || null,
@@ -384,6 +420,123 @@ router.patch('/:id/complete', verifyFirebaseToken, async (req, res) => {
 
     } catch (error) {
         console.error('Error al completar cita:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    }
+});
+
+// Calificar cita
+router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+
+        const appointmentRef = db.collection('appointments').doc(id);
+        const appointmentDoc = await appointmentRef.get();
+
+        if (!appointmentDoc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+
+        const appointmentData = appointmentDoc.data();
+        // Verificar que el usuario es el paciente
+        if (appointmentData.patientId !== req.firebaseUser.uid) {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+        // Verificar que la cita está completada
+        if (appointmentData.status !== 'completed') {
+            return res.status(400).json({ error: 'Solo se pueden calificar citas completadas' });
+        }
+
+        const updateData = {
+            status: 'rated',
+            rating: rating,
+            ratingComment: comment || null,
+            ratedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        await appointmentRef.update(updateData);
+
+        res.status(200).json({ message: 'Cita calificada exitosamente' });
+
+    } catch (error) {
+        console.error('Error al calificar cita:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    }
+});
+
+router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const appointmentRef = db.collection('appointments').doc(id);
+        const appointmentDoc = await appointmentRef.get();
+
+        if (!appointmentDoc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+
+        const appointmentData = appointmentDoc.data();
+
+        // Verificar que el usuario es el psicólogo
+        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        // Verificar que la cita está confirmada
+        if (appointmentData.status !== 'confirmed') {
+            return res.status(400).json({ error: 'Solo se pueden iniciar sesiones de citas confirmadas' });
+        }
+        const updateData = {
+            status: 'in_progress',
+            sessionStartedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+        await appointmentRef.update(updateData);
+        res.status(200).json({ message: 'Sesión iniciada exitosamente' });
+
+    } catch (error) {
+        console.error('Error al iniciar sesión:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    }
+});
+
+// Para completar sesión
+router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+
+        const appointmentRef = db.collection('appointments').doc(id);
+        const appointmentDoc = await appointmentRef.get();
+        if (!appointmentDoc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+
+        const appointmentData = appointmentDoc.data();
+        // Verificar que el usuario es el psicólogo
+        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+
+        // Verificar que la cita está en progreso
+        if (appointmentData.status !== 'in_progress') {
+            return res.status(400).json({ error: 'Solo se pueden completar sesiones en progreso' });
+        }
+
+        const updateData = {
+            status: 'completed',
+            psychologistNotes: notes || null,
+            completedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        await appointmentRef.update(updateData);
+
+        res.status(200).json({ message: 'Sesión completada exitosamente' });
+
+    } catch (error) {
+        console.error('Error al completar sesión:', error);
         res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
 });

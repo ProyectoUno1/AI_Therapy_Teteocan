@@ -11,7 +11,6 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
   AppointmentBloc({AppointmentService? appointmentService})
     : _appointmentService = appointmentService ?? AppointmentService(),
       super(AppointmentState.initial()) {
-    
     on<LoadAppointmentsEvent>(_onLoadAppointments);
     on<BookAppointmentEvent>(_onBookAppointment);
     on<ConfirmAppointmentEvent>(_onConfirmAppointment);
@@ -20,18 +19,221 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
     on<CompleteAppointmentEvent>(_onCompleteAppointment);
     on<LoadAvailableTimeSlotsEvent>(_onLoadAvailableTimeSlots);
     on<GetAppointmentDetailsEvent>(_onGetAppointmentDetails);
+    on<RateAppointmentEvent>(_onRateAppointment);
+    on<StartAppointmentSessionEvent>(_onStartAppointmentSession);
+    on<CompleteAppointmentSessionEvent>(_onCompleteAppointmentSession);
+    
   }
 
   Future<void> _onLoadAppointments(
-    LoadAppointmentsEvent event,
+  LoadAppointmentsEvent event,
+  Emitter<AppointmentState> emit,
+) async {
+  try {
+    if (isClosed) return;
+    emit(state.copyWith(status: AppointmentStateStatus.loading));
+
+    final allAppointments = await _appointmentService.getAppointments(
+      role: event.isForPsychologist ? 'psychologist' : 'patient',
+    );
+
+    if (isClosed) return;
+
+    final now = DateTime.now();
+
+    final pendingAppointments = allAppointments
+        .where((apt) => apt.status == AppointmentStatus.pending)
+        .toList();
+
+    final inProgressAppointments = allAppointments
+        .where((apt) => apt.status == AppointmentStatus.in_progress)
+        .toList();
+
+    final upcomingAppointments = allAppointments
+        .where((apt) =>
+            (apt.status == AppointmentStatus.confirmed ||
+                apt.status == AppointmentStatus.rescheduled) &&
+            apt.scheduledDateTime.isAfter(now))
+        .toList();
+
+    final pastAppointments = allAppointments
+        .where((apt) =>
+            apt.status == AppointmentStatus.completed ||
+            apt.status == AppointmentStatus.cancelled ||
+            apt.status == AppointmentStatus.rated ||
+            ((apt.status == AppointmentStatus.confirmed ||
+                    apt.status == AppointmentStatus.rescheduled) &&
+                apt.scheduledDateTime.isBefore(now)))
+        .toList();
+
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.loaded,
+          pendingAppointments: pendingAppointments,
+          inProgressAppointments: inProgressAppointments,
+          upcomingAppointments: upcomingAppointments,
+          pastAppointments: pastAppointments,
+          appointments: allAppointments,
+        ),
+      );
+    }
+  } catch (e) {
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.error,
+          errorMessage: 'Error al cargar las citas: $e',
+        ),
+      );
+    }
+  }
+}
+
+  Future<void> _onBookAppointment(
+    BookAppointmentEvent event,
     Emitter<AppointmentState> emit,
   ) async {
     try {
       if (isClosed) return;
-      emit(state.copyWith(status: AppointmentStateStatus.loading));
+      emit(state.copyWith(status: AppointmentStateStatus.booking));
+
+      final appointment = await _appointmentService.createAppointment(
+        psychologistId: event.psychologistId,
+        patientId: event.patientId,
+        scheduledDateTime: event.scheduledDateTime,
+        type: event.type,
+        notes: event.notes,
+      );
+
+      if (isClosed) return;
+      final updatedPendingList = List<AppointmentModel>.from(
+        state.pendingAppointments,
+      )..add(appointment);
+
+      final allAppointments = [...state.appointments, appointment];
+
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            status: AppointmentStateStatus.booked,
+            message: 'Cita agendada exitosamente',
+            appointments: allAppointments,
+            pendingAppointments: updatedPendingList,
+            selectedAppointment: appointment,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            status: AppointmentStateStatus.error,
+            errorMessage: 'Error al agendar cita: ${e.toString()}',
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onConfirmAppointment(
+    ConfirmAppointmentEvent event,
+    Emitter<AppointmentState> emit,
+  ) async {
+    try {
+      if (isClosed) return;
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      emit(state.copyWith(status: AppointmentStateStatus.confirming));
+
+      await _appointmentService.confirmAppointment(
+        appointmentId: event.appointmentId,
+        psychologistNotes: event.psychologistNotes,
+        meetingLink: event.meetingLink,
+      );
+
+      if (isClosed) return;
 
       final allAppointments = await _appointmentService.getAppointments(
-        role: event.isForPsychologist ? 'psychologist' : 'patient',
+        role: 'psychologist',
+      );
+
+      final now = DateTime.now();
+
+      final pendingAppointments = allAppointments
+          .where((apt) => apt.status == AppointmentStatus.pending)
+          .toList();
+
+      final upcomingAppointments = allAppointments
+          .where(
+            (apt) =>
+                (apt.status == AppointmentStatus.confirmed ||
+                    apt.status == AppointmentStatus.rescheduled) &&
+                apt.scheduledDateTime.isAfter(now),
+          )
+          .toList();
+
+      final pastAppointments = allAppointments
+          .where(
+            (apt) =>
+                apt.status == AppointmentStatus.completed ||
+                apt.status == AppointmentStatus.cancelled ||
+                (apt.status == AppointmentStatus.confirmed &&
+                    apt.scheduledDateTime.isBefore(now)),
+          )
+          .toList();
+
+      final confirmedAppointment = allAppointments.firstWhere(
+        (apt) => apt.id == event.appointmentId,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            status: AppointmentStateStatus.confirmed,
+            pendingAppointments: pendingAppointments,
+            upcomingAppointments: upcomingAppointments,
+            pastAppointments: pastAppointments,
+            appointments: allAppointments,
+            message: 'Cita confirmada exitosamente',
+            selectedAppointment: confirmedAppointment,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!isClosed) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        emit(
+          state.copyWith(
+            status: AppointmentStateStatus.error,
+            errorMessage: 'Error al confirmar la cita: ${e.toString()}',
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onCancelAppointment(
+    CancelAppointmentEvent event,
+    Emitter<AppointmentState> emit,
+  ) async {
+    try {
+      if (isClosed) return;
+      await Future.delayed(const Duration(milliseconds: 50));
+      emit(state.copyWith(status: AppointmentStateStatus.cancelling));
+
+      await _appointmentService.cancelAppointment(
+        appointmentId: event.appointmentId,
+        reason: event.reason,
+      );
+
+      if (isClosed) return;
+
+      final allAppointments = await _appointmentService.getAppointments(
+        role: 'psychologist',
       );
 
       if (isClosed) return;
@@ -61,244 +263,38 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
           )
           .toList();
 
+     
+      final cancelledAppointment = allAppointments.firstWhere(
+        (apt) => apt.id == event.appointmentId,
+      );
+      // Pequeño delay antes de emitir el estado final
+      await Future.delayed(const Duration(milliseconds: 100));
+
       if (!isClosed) {
         emit(
           state.copyWith(
-            status: AppointmentStateStatus.loaded,
+            status: AppointmentStateStatus.cancelled,
             pendingAppointments: pendingAppointments,
             upcomingAppointments: upcomingAppointments,
             pastAppointments: pastAppointments,
-          ),
-        );
-      }
-
-    } catch (e) {
-
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            status: AppointmentStateStatus.error,
-            errorMessage: 'Error al cargar las citas: $e',
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _onBookAppointment(
-    BookAppointmentEvent event,
-    Emitter<AppointmentState> emit,
-  ) async {
-    try {
-      if (isClosed) return;
-      emit(state.copyWith(status: AppointmentStateStatus.booking));
-
-      final appointment = await _appointmentService.createAppointment(
-        psychologistId: event.psychologistId,
-        scheduledDateTime: event.scheduledDateTime,
-        type: event.type,
-        notes: event.notes,
-      );
-
-      if (isClosed) return;
-
-      // ACTUALIZAR TODAS LAS LISTAS DE CITAS
-      final updatedPendingList = List<AppointmentModel>.from(
-        state.pendingAppointments,
-      )..add(appointment);
-
-      final allAppointments = [...state.appointments, appointment];
-
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            status: AppointmentStateStatus.booked,
-            message: 'Cita agendada exitosamente',
             appointments: allAppointments,
-            pendingAppointments: updatedPendingList,
-            selectedAppointment: appointment,
+            message: 'Cita cancelada exitosamente',
+            selectedAppointment: cancelledAppointment,
           ),
         );
       }
-
     } catch (e) {
       if (!isClosed) {
+        await Future.delayed(const Duration(milliseconds: 100));
         emit(
           state.copyWith(
             status: AppointmentStateStatus.error,
-            errorMessage: 'Error al agendar cita: ${e.toString()}',
+            errorMessage: 'Error al cancelar la cita: ${e.toString()}',
           ),
         );
       }
     }
   }
-
-  Future<void> _onConfirmAppointment(
-  ConfirmAppointmentEvent event,
-  Emitter<AppointmentState> emit,
-) async {
-  try {
-    if (isClosed) return;
-    
-    await Future.delayed(const Duration(milliseconds: 50));
-    
-    emit(state.copyWith(status: AppointmentStateStatus.confirming));
-
-    await _appointmentService.confirmAppointment(
-      appointmentId: event.appointmentId,
-      psychologistNotes: event.psychologistNotes,
-      meetingLink: event.meetingLink,
-    );
-
-    if (isClosed) return;
-
-    // RECARGAR todas las citas después de confirmar
-    final allAppointments = await _appointmentService.getAppointments(
-      role: 'psychologist',
-    );
-
-    final now = DateTime.now();
-
-    final pendingAppointments = allAppointments
-        .where((apt) => apt.status == AppointmentStatus.pending)
-        .toList();
-
-    final upcomingAppointments = allAppointments
-        .where(
-          (apt) =>
-              (apt.status == AppointmentStatus.confirmed ||
-                  apt.status == AppointmentStatus.rescheduled) &&
-              apt.scheduledDateTime.isAfter(now),
-        )
-        .toList();
-
-    final pastAppointments = allAppointments
-        .where(
-          (apt) =>
-              apt.status == AppointmentStatus.completed ||
-              apt.status == AppointmentStatus.cancelled ||
-              (apt.status == AppointmentStatus.confirmed &&
-                  apt.scheduledDateTime.isBefore(now)),
-        )
-        .toList();
-
-    
-    final confirmedAppointment = allAppointments.firstWhere(
-  (apt) => apt.id == event.appointmentId,
-);
-
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    if (!isClosed) {
-      emit(
-        state.copyWith(
-          status: AppointmentStateStatus.confirmed,
-          pendingAppointments: pendingAppointments,
-          upcomingAppointments: upcomingAppointments,
-          pastAppointments: pastAppointments,
-          appointments: allAppointments,
-          message: 'Cita confirmada exitosamente',
-          selectedAppointment: confirmedAppointment,
-        ),
-      );
-    }
-
-  } catch (e) {
-
-    if (!isClosed) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      emit(
-        state.copyWith(
-          status: AppointmentStateStatus.error,
-          errorMessage: 'Error al confirmar la cita: ${e.toString()}',
-        ),
-      );
-    }
-  }
-}
-
-Future<void> _onCancelAppointment(
-  CancelAppointmentEvent event,
-  Emitter<AppointmentState> emit,
-) async {
-  try {
-    if (isClosed) return;
-    await Future.delayed(const Duration(milliseconds: 50));
-    emit(state.copyWith(status: AppointmentStateStatus.cancelling));
-
-    // 1. Ejecutar la operación de Firebase
-    await _appointmentService.cancelAppointment(
-      appointmentId: event.appointmentId,
-      reason: event.reason,
-    );
-
-    if (isClosed) return;
-
-    // 2. RECARGAR TODAS LAS CITAS para asegurar consistencia
-    final allAppointments = await _appointmentService.getAppointments(
-      role: 'psychologist', 
-    );
-
-    if (isClosed) return;
-
-    final now = DateTime.now();
-
-    // 3. RECALCULAR todas las listas con los nuevos datos
-    final pendingAppointments = allAppointments
-        .where((apt) => apt.status == AppointmentStatus.pending)
-        .toList();
-
-    final upcomingAppointments = allAppointments
-        .where(
-          (apt) =>
-              (apt.status == AppointmentStatus.confirmed ||
-                  apt.status == AppointmentStatus.rescheduled) &&
-              apt.scheduledDateTime.isAfter(now),
-        )
-        .toList();
-
-    final pastAppointments = allAppointments
-        .where(
-          (apt) =>
-              apt.status == AppointmentStatus.completed ||
-              apt.status == AppointmentStatus.cancelled ||
-              (apt.status == AppointmentStatus.confirmed &&
-                  apt.scheduledDateTime.isBefore(now)),
-        )
-        .toList();
-
-    // 4. Buscar la cita cancelada para selectedAppointment
-    final cancelledAppointment = allAppointments.firstWhere(
-  (apt) => apt.id == event.appointmentId,
-);
-    // Pequeño delay antes de emitir el estado final
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    if (!isClosed) {
-      emit(
-        state.copyWith(
-          status: AppointmentStateStatus.cancelled,
-          pendingAppointments: pendingAppointments,
-          upcomingAppointments: upcomingAppointments,
-          pastAppointments: pastAppointments,
-          appointments: allAppointments, 
-          message: 'Cita cancelada exitosamente',
-          selectedAppointment: cancelledAppointment,
-        ),
-      );
-    }
-  } catch (e) {
-    if (!isClosed) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      emit(
-        state.copyWith(
-          status: AppointmentStateStatus.error,
-          errorMessage: 'Error al cancelar la cita: ${e.toString()}',
-        ),
-      );
-    }
-  }
-}
 
   Future<void> _onRescheduleAppointment(
     RescheduleAppointmentEvent event,
@@ -492,11 +488,16 @@ Future<void> _onCancelAppointment(
         )
         .toList();
 
+    final inProgressAppointments = allAppointments
+        .where((apt) => apt.status == AppointmentStatus.in_progress)
+        .toList();
+
     final pastAppointments = allAppointments
         .where(
           (apt) =>
               apt.status == AppointmentStatus.completed ||
               apt.status == AppointmentStatus.cancelled ||
+              apt.status == AppointmentStatus.rated ||
               (apt.status == AppointmentStatus.confirmed &&
                   apt.scheduledDateTime.isBefore(now)),
         )
@@ -506,6 +507,7 @@ Future<void> _onCancelAppointment(
       state.copyWith(
         pendingAppointments: pendingAppointments,
         upcomingAppointments: upcomingAppointments,
+        inProgressAppointments: inProgressAppointments, 
         pastAppointments: pastAppointments,
         appointments: allAppointments,
       ),
@@ -525,4 +527,135 @@ Future<void> _onCancelAppointment(
     if (state.pastAppointments.isNotEmpty) all.addAll(state.pastAppointments);
     return all;
   }
+
+  Future<void> _onRateAppointment(
+    RateAppointmentEvent event,
+    Emitter<AppointmentState> emit,
+  ) async {
+    try {
+      emit(state.copyWith(status: AppointmentStateStatus.loading));
+
+      // Llamar al servicio para calificar
+      await _appointmentService.rateAppointment(
+        appointmentId: event.appointmentId,
+        rating: event.rating,
+        comment: event.comment,
+      );
+
+      final allAppointments = await _appointmentService.getAppointments(
+        role: 'patient', 
+      );
+
+      final now = DateTime.now();
+      final pendingAppointments = allAppointments
+          .where((apt) => apt.status == AppointmentStatus.pending)
+          .toList();
+      final upcomingAppointments = allAppointments
+          .where(
+            (apt) =>
+                apt.status == AppointmentStatus.confirmed &&
+                apt.scheduledDateTime.isAfter(now),
+          )
+          .toList();
+      final pastAppointments = allAppointments
+          .where(
+            (apt) =>
+                apt.status == AppointmentStatus.completed ||
+                apt.status == AppointmentStatus.rated,
+          )
+          .toList();
+
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.success,
+          message: 'Calificación enviada exitosamente',
+          pendingAppointments: pendingAppointments,
+          upcomingAppointments: upcomingAppointments,
+          pastAppointments: pastAppointments,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.error,
+          errorMessage: 'Error al calificar: $e',
+        ),
+      );
+    }
+  }
+Future<void> _onStartAppointmentSession(
+  StartAppointmentSessionEvent event,
+  Emitter<AppointmentState> emit,
+) async {
+  try {
+    if (isClosed) return;
+    emit(state.copyWith(status: AppointmentStateStatus.startingSession));
+
+    await _appointmentService.startAppointmentSession(
+      appointmentId: event.appointmentId,
+    );
+
+    if (isClosed) return;
+
+    // Recargar todas las citas
+    await _reloadAppointments(emit);
+
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.sessionStarted,
+          message: 'Sesión iniciada exitosamente',
+        ),
+      );
+    }
+  } catch (e) {
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.error,
+          errorMessage: 'Error al iniciar la sesión: ${e.toString()}',
+        ),
+      );
+    }
+  }
+}
+
+Future<void> _onCompleteAppointmentSession(
+  CompleteAppointmentSessionEvent event,
+  Emitter<AppointmentState> emit,
+) async {
+  try {
+    if (isClosed) return;
+    emit(state.copyWith(status: AppointmentStateStatus.completingSession));
+
+    await _appointmentService.completeAppointmentSession(
+      appointmentId: event.appointmentId,
+      notes: event.notes,
+    );
+
+    if (isClosed) return;
+
+    // Recargar todas las citas
+    await _reloadAppointments(emit);
+
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.sessionCompleted,
+          message: 'Sesión completada exitosamente',
+        ),
+      );
+    }
+  } catch (e) {
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: AppointmentStateStatus.error,
+          errorMessage: 'Error al completar la sesión: ${e.toString()}',
+        ),
+      );
+    }
+  }
+}
+
 }

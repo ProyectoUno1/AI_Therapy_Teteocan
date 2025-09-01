@@ -1,25 +1,14 @@
 // lib/presentation/patient/views/patient_home_content.dart
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:ai_therapy_teteocan/data/models/feeling_model.dart'; 
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart'; 
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_state.dart'; 
-
-
-class Appointment {
-  final String doctorName;
-  final String specialty;
-  final String date;
-  final String time;
-
-  Appointment({
-    required this.doctorName,
-    required this.specialty,
-    required this.date,
-    required this.time,
-  });
-}
+import 'package:ai_therapy_teteocan/data/models/feeling_model.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_state.dart';
+import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
 
 class Article {
   final String title;
@@ -40,16 +29,8 @@ class PatientHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-   
-    final Appointment upcomingAppointment = Appointment(
-      doctorName: 'Dr. Emily ',
-      specialty: 'Anciedad y depresión',
-      date: 'Sábado, Julio 26',
-      time: '10:00 AM',
-    );
 
     final List<Article> articles = [
-      
       Article(
         title: 'Cómo afrontar el estrés: estrategias prácticas',
         author: 'Dr. Alex Rodriguez',
@@ -69,7 +50,6 @@ class PatientHomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           const Text(
             'Frase del día',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
@@ -88,13 +68,11 @@ class PatientHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          
           const Text(
             '¿Cómo te sientes?',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
           ),
           const SizedBox(height: 8),
-          
           BlocBuilder<HomeContentCubit, HomeContentState>(
             builder: (context, state) {
               return Card(
@@ -113,8 +91,8 @@ class PatientHomeContent extends StatelessWidget {
                           _FeelingIcon(
                             icon: Icons.thumb_down_alt_outlined,
                             label: 'Terrible',
-                            isSelected: state.selectedFeeling == Feeling.terrible, 
-                            onTap: () => context.read<HomeContentCubit>().selectFeeling(Feeling.terrible), 
+                            isSelected: state.selectedFeeling == Feeling.terrible,
+                            onTap: () => context.read<HomeContentCubit>().selectFeeling(Feeling.terrible),
                           ),
                           _FeelingIcon(
                             icon: Icons.sentiment_dissatisfied,
@@ -150,7 +128,6 @@ class PatientHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          
           const Text(
             'Ejercicio rápido',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
@@ -166,11 +143,13 @@ class PatientHomeContent extends StatelessWidget {
               ),
               title: const Text('Respiración profunda', style: TextStyle(fontFamily: 'Poppins')),
               subtitle: const Text('3 min', style: TextStyle(fontFamily: 'Poppins')),
+              onTap: () {
+                // TODO: Navegar a la pantalla de ejercicios de respiración.
+              },
             ),
           ),
           const SizedBox(height: 24),
 
-         
           const Text(
             'Tips de Psicología Semanales',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
@@ -180,16 +159,30 @@ class PatientHomeContent extends StatelessWidget {
             height: 130,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              children: const [
-                _TipCard(title: 'Practica la atención plena'),
-                _TipCard(title: 'Desconexión digital'),
-                _TipCard(title: 'Diario de gratitud'),
+              children: [
+                _TipCard(
+                  title: 'Practica la atención plena',
+                  onTap: () {
+                    // TODO: Navegar a la pantalla de tips o de un tip específico.
+                  },
+                ),
+                _TipCard(
+                  title: 'Desconexión digital',
+                  onTap: () {
+                    // TODO: Navegar a la pantalla de tips o de un tip específico.
+                  },
+                ),
+                _TipCard(
+                  title: 'Diario de gratitud',
+                  onTap: () {
+                    // TODO: Navegar a la pantalla de tips o de un tip específico.
+                  },
+                ),
               ],
             ),
           ),
           const SizedBox(height: 24),
 
-          
           const Text(
             'Próxima cita',
             style: TextStyle(
@@ -199,61 +192,31 @@ class PatientHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    upcomingAppointment.doctorName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      fontFamily: 'Poppins',
+          BlocBuilder<AppointmentBloc, AppointmentState>(
+            builder: (context, state) {
+              if (state.upcomingAppointments.isNotEmpty) {
+                final upcomingAppointment = state.upcomingAppointments.first;
+                // Línea corregida: se eliminó 'const'
+                return _AppointmentCard(appointment: upcomingAppointment);
+              } else {
+                return Card(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        'No tienes citas próximas.',
+                        style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    upcomingAppointment.specialty,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 8),
-                      Text(
-                        upcomingAppointment.date,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 8),
-                      Text(
-                        upcomingAppointment.time,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+                );
+              }
+            },
           ),
           const SizedBox(height: 24),
 
-        
           const Text(
             'Artículos de psicólogos',
             style: TextStyle(
@@ -269,7 +232,12 @@ class PatientHomeContent extends StatelessWidget {
             itemCount: articles.length,
             itemBuilder: (context, index) {
               final article = articles[index];
-              return _ArticleCard(article: article);
+              return _ArticleCard(
+                article: article,
+                onTap: () {
+                  // TODO: Navegar a la pantalla de detalle del artículo.
+                },
+              );
             },
           ),
           const SizedBox(height: 24),
@@ -279,25 +247,86 @@ class PatientHomeContent extends StatelessWidget {
   }
 }
 
+class _AppointmentCard extends StatelessWidget {
+  final AppointmentModel appointment;
+
+  const _AppointmentCard({required this.appointment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              appointment.psychologistName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              appointment.psychologistSpecialty,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Text(
+                  '${appointment.scheduledDateTime.day}/${appointment.scheduledDateTime.month}/${appointment.scheduledDateTime.year}',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Text(
+                  '${appointment.scheduledDateTime.hour}:${appointment.scheduledDateTime.minute}',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _FeelingIcon extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
-  final VoidCallback onTap;  
+  final VoidCallback onTap;
 
   const _FeelingIcon({
     required this.icon,
     required this.label,
     this.isSelected = false,
-    required this.onTap, 
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = isSelected ? AppConstants.lightAccentColor : Colors.grey;
-    return GestureDetector( 
-      onTap: onTap, 
+    return GestureDetector(
+      onTap: onTap,
       child: Column(
         children: [
           CircleAvatar(
@@ -312,109 +341,115 @@ class _FeelingIcon extends StatelessWidget {
   }
 }
 
-
 class _TipCard extends StatelessWidget {
   final String title;
+  final VoidCallback? onTap;
 
-  const _TipCard({required this.title});
+  const _TipCard({required this.title, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppConstants.lightAccentColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppConstants.lightAccentColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(title, style: const TextStyle(fontSize: 14, fontFamily: 'Poppins')),
       ),
-      child: Text(title, style: const TextStyle(fontSize: 14, fontFamily: 'Poppins')),
     );
   }
 }
 
-
 class _ArticleCard extends StatelessWidget {
   final Article article;
+  final VoidCallback? onTap;
 
-  const _ArticleCard({required this.article});
+  const _ArticleCard({required this.article, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Image.network(
-              article.imageUrl,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey),
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  article.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'By ${article.author}',
-                      style: const TextStyle(
-                        color: AppConstants.lightAccentColor,
-                        fontSize: 12,
-                        fontFamily: 'Poppins',
-                      ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: Image.network(
+                article.imageUrl,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                          : null,
                     ),
-                    Text(
-                      article.date,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                        fontFamily: 'Poppins',
-                      ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Icon(Icons.broken_image, color: Colors.grey),
                     ),
-                  ],
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    article.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'By ${article.author}',
+                        style: const TextStyle(
+                          color: AppConstants.lightAccentColor,
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      Text(
+                        article.date,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
