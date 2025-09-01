@@ -1,54 +1,54 @@
 // lib/core/services/subscription_service.dart
 
 import 'dart:convert';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubscriptionService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
 
   // OBTENER ESTADO DE SUSCRIPCIÓN DEL USUARIO
-  static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
+static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
 
-      // Buscar SOLO en la colección 'subscriptions'
-      final subscriptionDocs = await FirebaseFirestore.instance
-          .collection('subscriptions')
-          .where('userId', isEqualTo: user.uid)
-          .where('status', whereIn: ['active', 'trialing'])
-          .limit(1)
-          .get();
+    // Buscar SOLO en la colección 'subscriptions'
+    final subscriptionDocs = await FirebaseFirestore.instance
+        .collection('subscriptions')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', whereIn: ['active', 'trialing'])
+        .limit(1)
+        .get();
 
-      if (subscriptionDocs.docs.isNotEmpty) {
-        final subscriptionData = subscriptionDocs.docs.first.data();
-        final subscriptionDoc = subscriptionDocs.docs.first;
-
-        return SubscriptionStatus(
-          hasSubscription: true,
-          subscription: SubscriptionData.fromJson({
-            'id': subscriptionDoc.id,
-            'status': subscriptionData['status'] ?? 'active',
-            'currentPeriodEnd': subscriptionData['currentPeriodEnd']?.toDate(),
-            'cancelAtPeriodEnd': subscriptionData['cancelAtPeriodEnd'] ?? false,
-            'userId': subscriptionData['userId'],
-            'userEmail': subscriptionData['userEmail'] ?? user.email,
-            'userName': subscriptionData['userName'] ?? user.displayName,
-            'planName': subscriptionData['planName'] ?? 'Premium',
-          }),
-        );
-      }
-
-      // Si no encuentra suscripción activa, retornar null
-      return null;
-    } catch (e) {
-      print("Error al obtener el estado de la suscripción: $e");
-      return null;
+    if (subscriptionDocs.docs.isNotEmpty) {
+      final subscriptionData = subscriptionDocs.docs.first.data();
+      final subscriptionDoc = subscriptionDocs.docs.first;
+      
+      return SubscriptionStatus(
+        hasSubscription: true,
+        subscription: SubscriptionData.fromJson({
+          'id': subscriptionDoc.id,
+          'status': subscriptionData['status'] ?? 'active',
+          'currentPeriodEnd': subscriptionData['currentPeriodEnd']?.toDate(),
+          'cancelAtPeriodEnd': subscriptionData['cancelAtPeriodEnd'] ?? false,
+          'userId': subscriptionData['userId'],
+          'userEmail': subscriptionData['userEmail'] ?? user.email,
+          'userName': subscriptionData['userName'] ?? user.displayName,
+          'planName': subscriptionData['planName'] ?? 'Premium'
+        })
+      );
     }
+
+    // Si no encuentra suscripción activa, retornar null
+    return null;
+
+  } catch (e) {
+    print("Error al obtener el estado de la suscripción: $e");
+    return null;
   }
+}
 
   // VERIFICAR SI EL USUARIO TIENE SUSCRIPCIÓN ACTIVA
   static Future<bool> hasActiveSubscription() async {
@@ -63,61 +63,68 @@ class SubscriptionService {
   }
 
   // CANCELAR SUSCRIPCIÓN
-  static Future<CancellationResult> cancelSubscription({
-    bool immediate = false,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('Usuario no autenticado');
-      }
-      final response = await http.post(
-        Uri.parse('$baseUrl/cancel-subscription'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.uid, 'immediate': immediate}),
-      // Obtener el ID de la suscripción actual
-      final subscriptionStatus = await getUserSubscriptionStatus();
-      if (subscriptionStatus?.subscription?.id == null) {
-        throw Exception('No se encontró suscripción activa');
-      }
+static Future<CancellationResult> cancelSubscription({
+  bool immediate = false,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado');
+    }
 
-      final subscriptionId = subscriptionStatus!.subscription!.id;
+    // Primero buscar la suscripción activa del usuario
+    final subscriptionDocs = await FirebaseFirestore.instance
+        .collection('subscriptions')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', whereIn: ['active', 'trialing'])
+        .limit(1)
+        .get();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/cancel-subscription'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'subscriptionId': subscriptionId,
-          'immediate': immediate
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return CancellationResult(
-          success: true,
-          message: data['message'],
-          subscription: data['subscription'] != null
-              ? SubscriptionData.fromJson(data['subscription'])
-              : null,
-        );
-      } else {
-        return CancellationResult(
-          success: false,
-          message: data['error'] ?? 'Error desconocido',
-          subscription: null,
-        );
-      }
-    } catch (e) {
-      print('Error cancelando suscripción: $e');
+    if (subscriptionDocs.docs.isEmpty) {
       return CancellationResult(
         success: false,
-        message: 'Error al cancelar suscripción: $e',
+        message: 'No se encontró una suscripción activa',
         subscription: null,
       );
     }
+
+    final subscriptionId = subscriptionDocs.docs.first.id;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/cancel-subscription'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'subscriptionId': subscriptionId,
+        'immediate': immediate
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return CancellationResult(
+        success: true,
+        message: data['message'],
+        subscription: data['subscription'] != null
+            ? SubscriptionData.fromJson(data['subscription'])
+            : null,
+      );
+    } else {
+      return CancellationResult(
+        success: false,
+        message: data['error'] ?? 'Error desconocido',
+        subscription: null,
+      );
+    }
+  } catch (e) {
+    print('Error cancelando suscripción: $e');
+    return CancellationResult(
+      success: false,
+      message: 'Error al cancelar suscripción: $e',
+      subscription: null,
+    );
   }
+}
 
   // CREAR SESIÓN DE CHECKOUT
   static Future<CheckoutResult> createCheckoutSession({
@@ -151,6 +158,7 @@ class SubscriptionService {
           'userEmail': user.email!,
           'userId': user.uid,
           'userName': userName,
+          
         }),
       );
 
@@ -224,40 +232,41 @@ class SubscriptionService {
   }
 
   static Future<void> updateLocalSubscriptionStatus({
-    required bool hasSubscription,
-    String? subscriptionId,
-    String? customerId,
-    Map<String, dynamic>? additionalData,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+  required bool hasSubscription,
+  String? subscriptionId,
+  String? customerId,
+  Map<String, dynamic>? additionalData,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-      final Map<String, Object?> updateData = {
-        'hasSubscription': hasSubscription,
-        'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
-      };
+    final Map<String, Object?> updateData = {
+      'hasSubscription': hasSubscription,
+      'subscriptionUpdatedAt': FieldValue.serverTimestamp(),
+    };
 
-      if (subscriptionId != null) {
-        updateData['subscriptionId'] = subscriptionId;
-      }
-
-      if (customerId != null) {
-        updateData['stripeCustomerId'] = customerId;
-      }
-
-      if (additionalData != null) {
-        updateData.addAll(additionalData);
-      }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(updateData, SetOptions(merge: true));
-    } catch (e) {
-      print('Error actualizando estado local: $e');
+    if (subscriptionId != null) {
+      updateData['subscriptionId'] = subscriptionId;
     }
+
+    if (customerId != null) {
+      updateData['stripeCustomerId'] = customerId;
+    }
+
+    if (additionalData != null) {
+      updateData.addAll(additionalData);
+    }
+    
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .set(updateData, SetOptions(merge: true));
+
+  } catch (e) {
+    print('Error actualizando estado local: $e');
   }
+}
 }
 
 // MODELOS DE DATOS

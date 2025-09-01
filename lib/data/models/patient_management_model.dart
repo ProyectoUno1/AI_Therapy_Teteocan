@@ -1,4 +1,31 @@
 // lib/data/models/patient_management_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+enum PatientStatus {
+  pending('⏳', 'Pendiente'),
+  accepted('✅', 'Aceptado'),
+  inTreatment('🔄', 'En Tratamiento'),
+  completed('🎓', 'Completado'),
+  cancelled('❌', 'Cancelado');
+
+  final String icon;
+  final String displayName;
+
+  const PatientStatus(this.icon, this.displayName);
+}
+
+enum ContactMethod {
+  appointment('📅', 'Por Cita'),
+  email('📧', 'Email'),
+  phone('📞', 'Teléfono'),
+  whatsapp('💬', 'WhatsApp'),
+  manual('✏️', 'Manual');
+
+  final String icon;
+  final String displayName;
+
+  const ContactMethod(this.icon, this.displayName);
+}
 
 class PatientManagementModel {
   final String id;
@@ -37,32 +64,32 @@ class PatientManagementModel {
 
   factory PatientManagementModel.fromJson(Map<String, dynamic> json) {
     return PatientManagementModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      phoneNumber: json['phone_number'],
-      dateOfBirth: json['date_of_birth'] != null
-          ? DateTime.parse(json['date_of_birth'])
+      id: json['id'],
+      name: json['name'],
+      email: json['email'],
+      phoneNumber: json['phoneNumber'],
+      dateOfBirth: json['dateOfBirth'] != null 
+          ? DateTime.parse(json['dateOfBirth'])
           : null,
-      profilePictureUrl: json['profile_picture_url'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      profilePictureUrl: json['profilePictureUrl'],
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
       status: PatientStatus.values.firstWhere(
-        (e) => e.toString().split('.').last == json['status'],
+        (e) => e.toString() == 'PatientStatus.${json['status']}',
         orElse: () => PatientStatus.pending,
       ),
       notes: json['notes'],
-      lastAppointment: json['last_appointment'] != null
-          ? DateTime.parse(json['last_appointment'])
+      lastAppointment: json['lastAppointment'] != null
+          ? DateTime.parse(json['lastAppointment'])
           : null,
-      nextAppointment: json['next_appointment'] != null
-          ? DateTime.parse(json['next_appointment'])
+      nextAppointment: json['nextAppointment'] != null
+          ? DateTime.parse(json['nextAppointment'])
           : null,
-      totalSessions: json['total_sessions'] ?? 0,
-      isActive: json['is_active'] ?? true,
+      totalSessions: json['totalSessions'] ?? 0,
+      isActive: json['isActive'] ?? false,
       contactMethod: ContactMethod.values.firstWhere(
-        (e) => e.toString().split('.').last == json['contact_method'],
-        orElse: () => ContactMethod.manual,
+        (e) => e.toString() == 'ContactMethod.${json['contactMethod']}',
+        orElse: () => ContactMethod.appointment,
       ),
     );
   }
@@ -72,18 +99,18 @@ class PatientManagementModel {
       'id': id,
       'name': name,
       'email': email,
-      'phone_number': phoneNumber,
-      'date_of_birth': dateOfBirth?.toIso8601String(),
-      'profile_picture_url': profilePictureUrl,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'phoneNumber': phoneNumber,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'profilePictureUrl': profilePictureUrl,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'status': status.toString().split('.').last,
       'notes': notes,
-      'last_appointment': lastAppointment?.toIso8601String(),
-      'next_appointment': nextAppointment?.toIso8601String(),
-      'total_sessions': totalSessions,
-      'is_active': isActive,
-      'contact_method': contactMethod.toString().split('.').last,
+      'lastAppointment': lastAppointment?.toIso8601String(),
+      'nextAppointment': nextAppointment?.toIso8601String(),
+      'totalSessions': totalSessions,
+      'isActive': isActive,
+      'contactMethod': contactMethod.toString().split('.').last,
     };
   }
 
@@ -121,76 +148,5 @@ class PatientManagementModel {
       isActive: isActive ?? this.isActive,
       contactMethod: contactMethod ?? this.contactMethod,
     );
-  }
-}
-
-enum PatientStatus {
-  pending, // Solicitud pendiente
-  accepted, // Paciente aceptado
-  inTreatment, // En tratamiento activo
-  completed, // Tratamiento completado
-  cancelled, // Cancelado
-}
-
-enum ContactMethod {
-  manual, // Agregado manualmente por el psicólogo
-  appointment, // Solicitud de cita del paciente
-  chat, // Iniciado por chat
-}
-
-// Extensiones para facilitar el uso
-extension PatientStatusExtension on PatientStatus {
-  String get displayName {
-    switch (this) {
-      case PatientStatus.pending:
-        return 'Pendiente';
-      case PatientStatus.accepted:
-        return 'Aceptado';
-      case PatientStatus.inTreatment:
-        return 'En Tratamiento';
-      case PatientStatus.completed:
-        return 'Completado';
-      case PatientStatus.cancelled:
-        return 'Cancelado';
-    }
-  }
-
-  String get icon {
-    switch (this) {
-      case PatientStatus.pending:
-        return '⏳';
-      case PatientStatus.accepted:
-        return '✅';
-      case PatientStatus.inTreatment:
-        return '🔄';
-      case PatientStatus.completed:
-        return '🎉';
-      case PatientStatus.cancelled:
-        return '❌';
-    }
-  }
-}
-
-extension ContactMethodExtension on ContactMethod {
-  String get displayName {
-    switch (this) {
-      case ContactMethod.manual:
-        return 'Agregado Manualmente';
-      case ContactMethod.appointment:
-        return 'Solicitud de Cita';
-      case ContactMethod.chat:
-        return 'Iniciado por Chat';
-    }
-  }
-
-  String get icon {
-    switch (this) {
-      case ContactMethod.manual:
-        return '👨‍⚕️';
-      case ContactMethod.appointment:
-        return '📅';
-      case ContactMethod.chat:
-        return '💬';
-    }
   }
 }

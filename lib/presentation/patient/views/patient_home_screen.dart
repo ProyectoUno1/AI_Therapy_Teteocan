@@ -17,17 +17,14 @@ class PatientHomeScreen extends StatefulWidget {
 
 class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
-  bool _notificationsEnabled = true; // Estado local de notificaciones
+  bool _notificationsEnabled = true;
 
   late final List<Widget> _widgetOptions = <Widget>[
     const PatientHomeContent(),
     ChatListScreen(onGoToPsychologists: _goToPsychologistsScreen),
     const PsychologistsListScreen(),
-    BlocProvider<AppointmentBloc>(
-      create: (context) => AppointmentBloc(),
-      child: const PatientAppointmentsListScreen(),
-    ),
-    ProfileScreenPatient(),
+    const PatientAppointmentsListScreen(),
+    const ProfileScreenPatient(),
   ];
 
   void _onItemTapped(int index) {
@@ -69,13 +66,13 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           IconButton(
             icon: Icon(
               _notificationsEnabled
-                  ? Icons.notifications_none // activado
-                  : Icons.notifications_off,  // desactivado
+                  ? Icons.notifications_none
+                  : Icons.notifications_off,
               color: Theme.of(context).iconTheme.color,
             ),
             onPressed: () {
               setState(() {
-                _notificationsEnabled = !_notificationsEnabled; // alterna
+                _notificationsEnabled = !_notificationsEnabled;
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +88,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
           ),
         ],
       ),
-      body: _widgetOptions[_selectedIndex],
+      body: BlocProvider(
+        create: (context) => AppointmentBloc(),
+        child: _widgetOptions[_selectedIndex],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
@@ -110,15 +110,11 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.psychology),
-            label: 'Psicólogos',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Citas',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'Psicólogos'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),

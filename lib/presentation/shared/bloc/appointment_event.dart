@@ -1,5 +1,3 @@
-// lib/presentation/shared/bloc/appointment_event.dart
-
 import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 
@@ -13,7 +11,7 @@ abstract class AppointmentEvent extends Equatable {
 class LoadAppointmentsEvent extends AppointmentEvent {
   final String userId;
   final bool isForPsychologist;
-  final DateTime startDate;
+  final DateTime startDate; 
   final DateTime endDate;
 
   const LoadAppointmentsEvent({
@@ -29,25 +27,28 @@ class LoadAppointmentsEvent extends AppointmentEvent {
 
 class BookAppointmentEvent extends AppointmentEvent {
   final String psychologistId;
+  final String patientId;
   final DateTime scheduledDateTime;
   final AppointmentType type;
   final String? notes;
-
+  
   const BookAppointmentEvent({
     required this.psychologistId,
+    required this.patientId,
     required this.scheduledDateTime,
     required this.type,
     this.notes,
   });
 
   @override
-  List<Object?> get props => [psychologistId, scheduledDateTime, type, notes];
+  List<Object?> get props => [psychologistId, patientId, scheduledDateTime, type, notes];
 }
 
 class ConfirmAppointmentEvent extends AppointmentEvent {
   final String appointmentId;
   final String? psychologistNotes;
   final String? meetingLink;
+  
 
   const ConfirmAppointmentEvent({
     required this.appointmentId,
@@ -85,6 +86,7 @@ class RescheduleAppointmentEvent extends AppointmentEvent {
     this.reason,
   });
 
+  
   @override
   List<Object?> get props => [appointmentId, newDateTime, reason];
 }
@@ -123,7 +125,6 @@ class GetAppointmentDetailsEvent extends AppointmentEvent {
   List<Object> get props => [appointmentId];
 }
 
-// EVENTO TEMPORAL PARA CARGAR CITAS DE MUESTRA (SOLO PARA PRUEBAS)
 class LoadSampleAppointmentsEvent extends AppointmentEvent {
   final List<AppointmentModel> appointments;
 
@@ -133,10 +134,9 @@ class LoadSampleAppointmentsEvent extends AppointmentEvent {
   List<Object> get props => [appointments];
 }
 
-// EVENTO PARA CALIFICAR CITAS - Preparado para backend
 class RateAppointmentEvent extends AppointmentEvent {
   final String appointmentId;
-  final int rating; // 1-5 stars
+  final int rating;
   final String? comment;
 
   const RateAppointmentEvent({
@@ -147,4 +147,26 @@ class RateAppointmentEvent extends AppointmentEvent {
 
   @override
   List<Object?> get props => [appointmentId, rating, comment];
+}
+
+class StartAppointmentSessionEvent extends AppointmentEvent {
+  final String appointmentId;
+
+  const StartAppointmentSessionEvent({required this.appointmentId});
+
+  @override
+  List<Object> get props => [appointmentId];
+}
+
+class CompleteAppointmentSessionEvent extends AppointmentEvent {
+  final String appointmentId;
+  final String? notes;
+
+  const CompleteAppointmentSessionEvent({
+    required this.appointmentId,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props => [appointmentId, notes];
 }

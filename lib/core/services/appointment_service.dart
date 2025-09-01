@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppointmentService {
   static const String baseUrl = 'http://10.0.2.2:3000/api';
-  
-  // Obtener token de Firebase Auth
+
   Future<String?> _getAuthToken() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -22,7 +22,7 @@ class AppointmentService {
     }
   }
 
- Future<Map<String, String>> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders() async {
     final token = await _getAuthToken();
     return {
       'Content-Type': 'application/json',
@@ -30,63 +30,97 @@ class AppointmentService {
     };
   }
 
-  // Crear nueva cita
- Future<AppointmentModel> createAppointment({
-    required String psychologistId,
-    required DateTime scheduledDateTime,
-    required AppointmentType type,
-    String? notes,
-  }) async {
+ 
+  Future<String?> _getUserRoleFromFirestore(String uid) async {
     try {
-      final headers = await _getHeaders();
-      final body = {
-        'psychologistId': psychologistId,
-        'scheduledDateTime': scheduledDateTime.toUtc().toIso8601String(), // UTC
-        'type': type.name,
-        if (notes != null) 'notes': notes,
-      };
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/appointments'),
-        headers: headers,
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        
-        // Verificar diferentes formatos de respuesta
-        if (data['appointment'] != null) {
-          return AppointmentModel.fromJson(data['appointment']);
-        } else if (data['id'] != null) {
-          return AppointmentModel.fromJson(data);
-        } else {
-          throw Exception('Formato de respuesta inesperado del servidor: $data');
-        }
-      } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['error'] ?? errorData['details'] ?? 'Error desconocido al crear la cita';
-        throw Exception(errorMessage);
+      
+      final patientDoc = await FirebaseFirestore.instance.collection('patients').doc(uid).get();
+      if (patientDoc.exists) {
+        return patientDoc.data()?['role'];
       }
+
+      final psychologistDoc = await FirebaseFirestore.instance.collection('psychologists').doc(uid).get();
+      if (psychologistDoc.exists) {
+        return psychologistDoc.data()?['role'];
+      }
+      
+      return null;
     } catch (e) {
-      
-      if (e is FormatException) {
-        throw Exception('Error de formato en la respuesta del servidor');
-      } else if (e is http.ClientException) {
-        throw Exception('Error de conexión: ${e.message}');
-      } else if (e is Exception) {
-
-        final message = e.toString();
-        if (message.contains('Exception: ')) {
-          throw Exception(message.split('Exception: ')[1]);
-        }
-        throw e;
-      }
-      
-      throw Exception('Se ha producido un error inesperado al agendar la cita.');
+      log('Error obteniendo el rol desde Firestore: $e', name: 'AppointmentService');
+      return null;
     }
   }
 
+  // Crear nueva cita
+  
+Future<AppointmentModel> createAppointment({
+  required String psychologistId,
+  required String patientId,
+  required DateTime scheduledDateTime,
+  required AppointmentType type,
+  String? notes,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    
+    final url = Uri.parse('$baseUrl/appointments/');
+    
+    final body = {
+      'psychologistId': psychologistId,
+      'patientId': patientId, 
+      'scheduledDateTime': scheduledDateTime.toUtc().toIso8601String(),
+      'type': type.name,
+      if (notes != null) 'notes': notes,
+    };
+
+    log('Enviando datos al backend: $body', name: 'AppointmentService');
+
+    final headers = await _getHeaders();
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode(body),
+    );
+
+    log('Respuesta del backend: ${response.statusCode} - ${response.body}', name: 'AppointmentService');
+
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      if (data['appointment'] != null) {
+        return AppointmentModel.fromJson(data['appointment']);
+      } else if (data['id'] != null) {
+        return AppointmentModel.fromJson(data);
+      } else {
+        throw Exception('Formato de respuesta inesperado del servidor: $data');
+      }
+    } else {
+      final errorData = jsonDecode(response.body);
+      final errorMessage = errorData['error'] ?? 
+                          errorData['details'] ?? 
+                          'Error desconocido al crear la cita';
+      throw Exception(errorMessage);
+    }
+  } catch (e) {
+    log('Error en createAppointment: $e', name: 'AppointmentService');
+    
+    if (e is FormatException) {
+      throw Exception('Error de formato en la respuesta del servidor');
+    } else if (e is http.ClientException) {
+      throw Exception('Error de conexión: ${e.message}');
+    } else if (e is Exception) {
+      final message = e.toString();
+      if (message.contains('Exception: ')) {
+        throw Exception(message.split('Exception: ')[1]);
+      }
+      rethrow;
+    }
+    throw Exception('Se ha producido un error inesperado al agendar la cita.');
+  }
+}
   // Obtener citas del usuario
   Future<List<AppointmentModel>> getAppointments({
     String? status,
@@ -94,22 +128,22 @@ class AppointmentService {
   }) async {
     try {
       final headers = await _getHeaders();
-      
+
       final queryParams = <String, String>{};
       if (status != null) queryParams['status'] = status;
       if (role != null) queryParams['role'] = role;
-      
-      final uri = Uri.parse('$baseUrl/appointments').replace(
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
+
+      final uri = Uri.parse(
+        '$baseUrl/appointments',
+      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
       final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         final appointmentsList = data['appointments'] as List;
-        
+
         return appointmentsList
             .map((json) => AppointmentModel.fromJson(json))
             .toList();
@@ -118,7 +152,9 @@ class AppointmentService {
         throw Exception(errorData['error'] ?? 'Error al obtener las citas');
       }
     } catch (e) {
-      final message = e.toString().contains('FormatException') ? 'Error de conexión con el servidor' : e.toString();
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
       throw Exception(message);
     }
   }
@@ -132,8 +168,9 @@ class AppointmentService {
     try {
       final headers = await _getHeaders();
       final body = <String, dynamic>{};
-      
-      if (psychologistNotes != null) body['psychologistNotes'] = psychologistNotes;
+
+      if (psychologistNotes != null)
+        body['psychologistNotes'] = psychologistNotes;
       if (meetingLink != null) body['meetingLink'] = meetingLink;
 
       final response = await http.patch(
@@ -142,13 +179,14 @@ class AppointmentService {
         body: jsonEncode(body),
       );
 
-
       if (response.statusCode != 200) {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['error'] ?? 'Error al confirmar la cita');
       }
     } catch (e) {
-      final message = e.toString().contains('FormatException') ? 'Error de conexión con el servidor' : e.toString();
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
       throw Exception(message);
     }
   }
@@ -173,7 +211,9 @@ class AppointmentService {
         throw Exception(errorData['error'] ?? 'Error al cancelar la cita');
       }
     } catch (e) {
-      final message = e.toString().contains('FormatException') ? 'Error de conexión con el servidor' : e.toString();
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
       throw Exception(message);
     }
   }
@@ -186,7 +226,7 @@ class AppointmentService {
     try {
       final headers = await _getHeaders();
       final body = <String, dynamic>{};
-      
+
       if (notes != null) body['notes'] = notes;
 
       final response = await http.patch(
@@ -200,54 +240,62 @@ class AppointmentService {
         throw Exception(errorData['error'] ?? 'Error al completar la cita');
       }
     } catch (e) {
-      final message = e.toString().contains('FormatException') ? 'Error de conexión con el servidor' : e.toString();
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
       throw Exception(message);
     }
   }
 
   // Obtener horarios disponibles
-   Future<List<TimeSlot>> getAvailableTimeSlots({
+  Future<List<TimeSlot>> getAvailableTimeSlots({
     required String psychologistId,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
     try {
       final headers = await _getHeaders();
-      final startDateStr = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
-      final endDateStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
-      
-      final url = '$baseUrl/appointments/available-slots/$psychologistId?startDate=$startDateStr&endDate=$endDateStr';
+      final startDateStr =
+          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+      final endDateStr =
+          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+
+      final url =
+          '$baseUrl/appointments/available-slots/$psychologistId?startDate=$startDateStr&endDate=$endDateStr';
 
       final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
         
-        // Verificar que availableSlots existe
         if (data['availableSlots'] == null) {
           return [];
         }
-        
+
         final slotsList = data['availableSlots'] as List;
-        
-        return slotsList.map((json) => TimeSlot(
-          time: json['time'] ?? '00:00',
-          dateTime: DateTime.parse(json['dateTime']).toLocal(), 
-          isAvailable: json['isAvailable'] ?? false,
-          reason: json['reason'],
-        )).toList();
+
+        return slotsList
+            .map(
+              (json) => TimeSlot(
+                time: json['time'] ?? '00:00',
+                dateTime: DateTime.parse(json['dateTime']).toLocal(),
+                isAvailable: json['isAvailable'] ?? false,
+                reason: json['reason'],
+              ),
+            )
+            .toList();
       } else {
         throw Exception(_handleHttpError(response));
       }
     } catch (e) {
-      
       // Manejo específico de errores
       if (e is FormatException) {
         throw Exception('Error de formato en la respuesta del servidor');
       } else if (e is http.ClientException) {
         throw Exception('Error de conexión: ${e.message}');
       }
-      
+
       throw Exception('Error al obtener horarios disponibles: ${e.toString()}');
     }
   }
@@ -261,4 +309,76 @@ class AppointmentService {
     }
   }
 
-} 
+  Future<void> rateAppointment({
+    required String appointmentId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final body = {'rating': rating, if (comment != null) 'comment': comment};
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/appointments/$appointmentId/rate'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error al calificar la cita');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
+    }
+  }
+
+  Future<void> startAppointmentSession({required String appointmentId}) async {
+    try {
+      final headers = await _getHeaders();
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/appointments/$appointmentId/start-session'),
+        headers: headers,
+      );
+
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'Error al iniciar la sesión');
+      }
+    } catch (e) {
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
+      throw Exception(message);
+    }
+  }
+
+  // Completar sesión de cita
+  Future<void> completeAppointmentSession({
+    required String appointmentId,
+    String? notes,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final body = <String, dynamic>{};
+
+      if (notes != null) body['notes'] = notes;
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/appointments/$appointmentId/complete-session'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'Error al completar la sesión');
+      }
+    } catch (e) {
+      final message = e.toString().contains('FormatException')
+          ? 'Error de conexión con el servidor'
+          : e.toString();
+      throw Exception(message);
+    }
+  }
+}

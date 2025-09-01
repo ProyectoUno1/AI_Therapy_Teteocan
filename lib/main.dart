@@ -1,8 +1,8 @@
 //lib/main.dart
 
 import 'dart:async';
-import 'dart:developer';
-
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
@@ -22,6 +22,9 @@ import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/admin/views/psychologists_list_page.dart';
+import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository.dart';
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
@@ -32,7 +35,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; // Importaciones de las capas de la arquitectura limpia
+import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:timezone/data/latest.dart' as tzdata;
 
 import 'firebase_options.dart';
@@ -89,8 +92,14 @@ void main() async {
             ),
           ),
         ),
-        // 🔥 AGREGAR EL APPOINTMENTBLOC AQUÍ
-        BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
+        BlocProvider<AppointmentBloc>(
+          create: (context) => AppointmentBloc(),
+        ),
+        BlocProvider<PsychologistBloc>(
+      create: (context) => PsychologistBloc(
+        repository: PsychologistRepository(),
+      ),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -139,15 +148,6 @@ class _MyAppState extends State<MyApp> {
 
   // Método que configura el estado de presencia del usuario
   void _setupUserPresence(String userId) async {
-    log(
-      'Estableciendo estado de presencia para el usuario: $userId',
-      name: 'UserPresence',
-    );
-
-    // Referencia a Firestore y Realtime Database
-    final userFirestoreRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId);
     final userRealtimeRef = FirebaseDatabase.instance.ref('status/$userId');
 
     // 1. Establecer el estado inicial en línea en Realtime Database
@@ -290,7 +290,8 @@ class _MyAppState extends State<MyApp> {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home: const AuthWrapper(),
+          home:const AuthWrapper(),
+              //const AdminPanel(),
         );
       },
     );

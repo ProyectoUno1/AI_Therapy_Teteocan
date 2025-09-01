@@ -1,15 +1,15 @@
 // lib/presentation/subscription/views/checkout_screen.dart
-import 'dart:async';
-import 'dart:convert';
 
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; 
+import 'package:app_links/app_links.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
-import 'package:app_links/app_links.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String planName;
@@ -17,6 +17,7 @@ class CheckoutScreen extends StatefulWidget {
   final String period;
   final bool isAnnual;
   final String planId;
+  final SubscriptionBloc subscriptionBloc;
 
   const CheckoutScreen({
     super.key,
@@ -24,6 +25,7 @@ class CheckoutScreen extends StatefulWidget {
     required this.price,
     required this.period,
     required this.planId,
+    required this.subscriptionBloc,
     this.isAnnual = false,
   });
 
@@ -32,26 +34,80 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  // Estado para controlar el proceso de pago
+  StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<SubscriptionState>? _subscriptionBlocStream;
+  late AppLinks _appLinks;
   bool _isProcessingPayment = false;
-
   String? _paymentResult;
   String? _paymentMessage;
-
-  final String backendUrl =
-      'http://10.0.2.2:3000/api/stripe/create-checkout-session';
 
   @override
   void initState() {
     super.initState();
+    
+    // Escuchar estados del bloc
+    _subscriptionBlocStream = widget.subscriptionBloc.stream.listen((state) {
+      _handleBlocState(state);
+    });
+    
+    _initAppLinks();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  void _handleBlocState(SubscriptionState state) {
+    if (state is PaymentVerificationSuccess) {
+      _setPaymentResult(
+        'success',
+        '¡Perfecto! Tu suscripción a ${widget.planName} ha sido activada.',
+      );
+      
+      // Navegar de vuelta después de 2 segundos
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+      });
+    } else if (state is SubscriptionError) {
+      _setPaymentResult('error', state.message);
+    } else if (state is CheckoutInProgress) {
+      _setProcessingState(true);
+    } else if (state is CheckoutSuccess) {
+      _setProcessingState(false);
+    } else if (state is PaymentVerificationInProgress) {
+      _setProcessingState(true);
+    }
   }
 
-  // Métodos para actualizar el estado de la pantalla
+  void _initAppLinks() async {
+    _appLinks = AppLinks();
+    
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (err) {
+        _setPaymentResult('error', 'Error procesando el resultado del pago');
+      },
+    );
+    
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _handleDeepLink(initialLink);
+        });
+      }
+    } catch (e) {
+      print('Error al obtener el link inicial: $e');
+    }
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme == 'auroraapp' && uri.host == 'success') {
+      final sessionId = uri.queryParameters['session_id'];
+      if (sessionId != null) {
+        widget.subscriptionBloc.add(VerifyPaymentSession(sessionId: sessionId));
+      }
+    }
+  }
+
   void _setProcessingState(bool isProcessing) {
     if (mounted) {
       setState(() {
@@ -65,10 +121,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         _paymentResult = result;
         _paymentMessage = message;
-        // Resetear el estado de procesamiento
         _isProcessingPayment = false;
       });
     }
+  }
+
+  Future<String?> _getUserName(String userId) async {
+    try {
+      final patientDoc = await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(userId)
+          .get();
+      return patientDoc.data()?['username'] ?? 
+             FirebaseAuth.instance.currentUser?.displayName ?? 
+             'Usuario';
+    } catch (e) {
+      return FirebaseAuth.instance.currentUser?.displayName ?? 'Usuario';
+    }
+  }
+
+  Future<void> _processStripePayment() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _setPaymentResult(
+        'error',
+        'Usuario no autenticado. Por favor, inicia sesión.',
+      );
+      return;
+    }
+    final userName = await _getUserName(user.uid);
+    
+    widget.subscriptionBloc.add(StartCheckoutSession(
+      planId: widget.planId,
+      planName: widget.planName,
+      price: widget.price,
+      period: widget.period,
+      isAnnual: widget.isAnnual,
+      userName: userName,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    _subscriptionBlocStream?.cancel();
+    super.dispose();
   }
 
   @override
@@ -115,7 +212,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  //   mostrar el resumen de la suscripción
   Widget _buildSubscriptionSummary() {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -191,9 +287,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(
-                          context,
-                        ).textTheme.headlineMedium?.color,
+                        color: Theme.of(context).textTheme.headlineMedium?.color,
                         fontFamily: 'Poppins',
                       ),
                     ),
@@ -240,7 +334,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  //  mostrar el resumen de la orden
   Widget _buildOrderSummary() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -321,13 +414,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  //  botón para completar el pago
   Widget _buildCompleteButton() {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        // Deshabilitar el botón si el pago está en proceso
         onPressed: _isProcessingPayment ? null : _processStripePayment,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppConstants.primaryColor,
@@ -358,92 +449,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  //  para iniciar el proceso de pago
-  Future<void> _processStripePayment() async {
-    setState(() {
-      _isProcessingPayment = true;
-    });
-
-    try {
-      print('1. Obteniendo datos del usuario autenticado...');
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        _setPaymentResult(
-          'error',
-          'Usuario no autenticado. Por favor, inicia sesión.',
-        );
-        return;
-      }
-
-      final String userEmail = user.email!;
-      final String userId = user.uid;
-
-      //  Obtener el nombre del usuario desde Firebase
-      String? userName;
-      try {
-        final patientDoc = await FirebaseFirestore.instance
-            .collection('patients')
-            .doc(userId)
-            .get();
-        userName =
-            patientDoc.data()?['username'] ?? user.displayName ?? 'Usuario';
-      } catch (e) {
-        print('No se pudo obtener el nombre del usuario: $e');
-        userName = user.displayName ?? 'Usuario';
-      }
-
-      print('2. Creando sesión de checkout para: $userEmail');
-
-      final url = Uri.parse(backendUrl);
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'planId': widget.planId,
-          'userEmail': userEmail,
-          'userId': userId,
-          'userName': userName,
-          'planName': widget.planName,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        print('Error del backend: ${response.body}');
-        final errorData = jsonDecode(response.body);
-
-        if (errorData['error']?.contains('ya tiene una suscripción') == true) {
-          _setPaymentResult(
-            'error',
-            'Ya tienes una suscripción activa. Ve a la sección de suscripciones para ver los detalles.',
-          );
-          return;
-        }
-
-        throw Exception('Error del servidor: ${response.statusCode}');
-      }
-
-      print('3. Respuesta del backend recibida');
-      final sessionData = jsonDecode(response.body);
-      final String? checkoutUrl = sessionData['checkoutUrl'];
-
-      if (checkoutUrl == null) {
-        throw Exception(
-          'URL de Checkout no encontrada en la respuesta del servidor.',
-        );
-      }
-
-      print('4. Abriendo Stripe Checkout...');
-      await launchUrl(
-        Uri.parse(checkoutUrl),
-        mode: LaunchMode.externalApplication,
-      );
-    } catch (e) {
-      print('Error inesperado: $e');
-      _setPaymentResult('error', 'Un error inesperado ocurrió: $e');
-    }
-  }
-
-  // Widget para mostrar el resultado del pago
   Widget _buildResultWidget() {
     final isSuccess = _paymentResult == 'success';
     return Column(
@@ -483,15 +488,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () {
-              //  Regresar con resultado exitoso para recargar la pantalla anterior
-              Navigator.of(context).pop(isSuccess);
+              if (isSuccess) {
+                Navigator.of(context).pop(true);
+              } else {
+                Navigator.of(context).pop();
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstants.primaryColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             child: Text(
               'Continuar',

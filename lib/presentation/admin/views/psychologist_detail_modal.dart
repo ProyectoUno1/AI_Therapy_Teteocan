@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
+import 'package:provider/provider.dart';
+
 
 class DetallePsicologoModal extends StatelessWidget {
   final Map<String, dynamic> psicologo;
@@ -9,33 +12,49 @@ class DetallePsicologoModal extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle titleStyle = const TextStyle(fontWeight: FontWeight.bold);
 
-    print("Datos recibidos en modal: $psicologo");
 
+    // Lógica para manejar el campo de educación de forma robusta
+    final educationData = psicologo["education"];
+    String institutionName = "No especificada";
+
+    if (educationData is List && educationData.isNotEmpty) {
+      final firstElement = educationData[0];
+      if (firstElement is Map<String, dynamic> && firstElement.containsKey("institution")) {
+        institutionName = firstElement["institution"]?.toString() ?? "No especificada";
+      } else if (firstElement is String) {
+        institutionName = firstElement;
+      }
+    }
+    
     return AlertDialog(
-      title: Text(psicologo["nombre"] ?? "Sin nombre"),
+      title: Text(psicologo["fullName"] ?? "Sin nombre"),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Especialidad:", style: titleStyle),
-Text(psicologo["specialty"] ?? "No especificada"),
-
-Text("Registro:", style: titleStyle),
-Text(psicologo["registro"] ?? "No disponible"),
-
-Text("Cédula profesional:", style: titleStyle),
-Text(psicologo["cedula"] ?? "No registrada"),
-
-Text("Universidad:", style: titleStyle),
-Text(psicologo["universidad"] ?? "No especificada"),
-
+            Text(psicologo["specialty"] ?? "No especificada"),
             const SizedBox(height: 8),
-            const Text(
-              "Descripción:",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text(psicologo["descripcion"] ?? "Sin descripción"),
+
+            Text("Cédula profesional:", style: titleStyle),
+            Text(psicologo["professionalLicense"] ?? "No registrada"),
+            const SizedBox(height: 8),
+
+            Text("Educación:", style: titleStyle),
+            Text(institutionName), // Usamos la variable segura
+            const SizedBox(height: 8),
+
+            Text("Años de experiencia:", style: titleStyle),
+            Text(psicologo["yearsExperience"]?.toString() ?? "No especificado"),
+            const SizedBox(height: 8),
+
+            Text("Estado:", style: titleStyle),
+            Text(psicologo["status"] ?? "Desconocido"),
+            const SizedBox(height: 8),
+
+            const Text("Descripción:", style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(psicologo["description"] ?? "Sin descripción"),
           ],
         ),
       ),
@@ -45,23 +64,31 @@ Text(psicologo["universidad"] ?? "No especificada"),
           child: const Text("Cerrar"),
         ),
         ElevatedButton(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.green, // o el color que quieras
-    foregroundColor: Colors.white, // texto blanco que resalte
-  ),
-  onPressed: () {},
-  child: const Text("Validar"),
-),
-ElevatedButton(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.red,
-    foregroundColor: Colors.white, // texto blanco que resalte
-  ),
-  onPressed: () {},
-  child: const Text("Rechazar"),
-),
-
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          onPressed: () {
+            context.read<PsychologistBloc>().add(UpdatePsychologistStatus(
+                  psychologistId: psicologo['id'],
+                  status: 'Activo',
+                  adminNotes: 'Cédula validada correctamente',
+                ));
+            Navigator.pop(context);
+          },
+          child: const Text("Validar"),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () {
+            context.read<PsychologistBloc>().add(UpdatePsychologistStatus(
+                  psychologistId: psicologo['id'],
+                  status: 'Rechazado',
+                  adminNotes: 'Cédula no válida',
+                ));
+            Navigator.pop(context);
+          },
+          child: const Text("Rechazar"),
+        ),
       ],
     );
   }
 }
+

@@ -13,6 +13,7 @@ import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_scre
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_bloc.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   const PsychologistHomeScreen({super.key});
@@ -32,7 +33,10 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
         create: (context) => AppointmentBloc(),
         child: AppointmentsListScreen(psychologistId: psychologistId),
       ),
-      const PatientManagementScreen(),
+      BlocProvider<PatientManagementBloc>(
+        create: (context) => PatientManagementBloc(),
+        child: PatientManagementScreen(),
+      ),
       const ProfileScreenPsychologist(),
     ];
   }
@@ -80,7 +84,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Hello, $userName',
+                'Hola, $userName',
                 style: TextStyle(
                   color: Theme.of(context).appBarTheme.titleTextStyle?.color,
                   fontSize: 18,

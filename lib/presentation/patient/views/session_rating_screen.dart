@@ -175,7 +175,6 @@ class _SessionRatingScreenState extends State<SessionRatingScreen>
       ),
     );
 
-    // Simular delay para mostrar loading, luego mostrar diálogo de éxito
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -242,8 +241,8 @@ class _SessionRatingScreenState extends State<SessionRatingScreen>
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Cerrar diálogo
-                  Navigator.of(context).pop(true); // Volver con resultado
+                  Navigator.of(context).pop(); 
+                  Navigator.of(context).pop(true); 
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.lightAccentColor,

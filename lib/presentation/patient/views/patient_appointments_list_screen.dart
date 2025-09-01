@@ -23,20 +23,24 @@ class _PatientAppointmentsListScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+ @override
+void initState() {
+  super.initState();
+  _tabController = TabController(length: 3, vsync: this);
 
-    // CARGAR CITAS DE PRUEBA AUTOMÁTICAMENTE (MIENTRAS NO HAY BACKEND)
-    // En lugar de intentar conectar al backend, usamos citas hardcodeadas
-    final sampleAppointments = _generateSampleAppointments();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppointmentBloc>().add(
-        LoadSampleAppointmentsEvent(appointments: sampleAppointments),
-      );
-    });
+  // CARGAR CITAS REALES DESDE EL BACKEND
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    context.read<AppointmentBloc>().add(
+      LoadAppointmentsEvent(
+        userId: currentUser.uid,
+        isForPsychologist: false,
+        startDate: DateTime.now().subtract(const Duration(days: 30)),
+        endDate: DateTime.now().add(const Duration(days: 60)),
+      ),
+    );
   }
+}
 
   @override
   void dispose() {
@@ -257,7 +261,7 @@ class _PatientAppointmentsListScreenState
               Expanded(
                 child: _buildStatItem(
                   icon: Icons.event_available,
-                  label: 'Próximas',
+                  label: 'Próxima',
                   value: state.upcomingCount.toString(),
                   color: Colors.green,
                 ),
@@ -265,7 +269,7 @@ class _PatientAppointmentsListScreenState
               Expanded(
                 child: _buildStatItem(
                   icon: Icons.schedule,
-                  label: 'Pendientes',
+                  label: 'Pendiente',
                   value: state.pendingCount.toString(),
                   color: Colors.orange,
                 ),
@@ -273,7 +277,7 @@ class _PatientAppointmentsListScreenState
               Expanded(
                 child: _buildStatItem(
                   icon: Icons.history,
-                  label: 'Completadas',
+                  label: 'Completada',
                   value: state.pastCount.toString(),
                   color: AppConstants.primaryColor,
                 ),
@@ -835,10 +839,12 @@ class _PatientAppointmentsListScreenState
         return Colors.orange;
       case AppointmentStatus.confirmed:
         return Colors.green;
+        case AppointmentStatus.in_progress:
+        return Colors.green;
       case AppointmentStatus.completed:
         return AppConstants.primaryColor;
       case AppointmentStatus.rated:
-        return Colors.amber; // Color dorado para citas calificadas
+        return Colors.amber; 
       case AppointmentStatus.cancelled:
         return Colors.red;
       case AppointmentStatus.rescheduled:
@@ -846,165 +852,5 @@ class _PatientAppointmentsListScreenState
     }
   }
 
-  // FUNCIÓN TEMPORAL PARA GENERAR CITAS DE PRUEBA PARA PACIENTES
-  List<AppointmentModel> _generateSampleAppointments() {
-    final now = DateTime.now();
-
-    return [
-      // =================================
-      // CITAS COMPLETADAS (PARA CALIFICAR) - ALAN ESPECÍFICO
-      // =================================
-
-      // Cita completada hace 1 día
-      AppointmentModel(
-        id: 'completed_001',
-        patientId: 'alan_patient_id', // ID fijo para Alan
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_001',
-        psychologistName: 'Dra. María González',
-        psychologistSpecialty: 'Psicología Clínica',
-        scheduledDateTime: now.subtract(const Duration(days: 1)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.completed,
-        price: 800.0,
-        patientNotes: 'Primera consulta - Ansiedad y ataques de pánico',
-        createdAt: now.subtract(const Duration(days: 5)),
-        confirmedAt: now.subtract(const Duration(days: 3)),
-        completedAt: now.subtract(const Duration(days: 1)),
-        meetingLink: 'https://meet.google.com/session-001',
-        psychologistNotes:
-            'Excelente primera sesión. Paciente muy receptivo a las técnicas propuestas.',
-      ),
-
-      // Cita completada hace 3 días
-      AppointmentModel(
-        id: 'completed_002',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_002',
-        psychologistName: 'Dr. Carlos Rodríguez',
-        psychologistSpecialty: 'Terapia Cognitivo-Conductual',
-        scheduledDateTime: now.subtract(const Duration(days: 3)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.completed,
-        price: 750.0,
-        patientNotes: 'Seguimiento - Terapia para depresión',
-        createdAt: now.subtract(const Duration(days: 8)),
-        confirmedAt: now.subtract(const Duration(days: 6)),
-        completedAt: now.subtract(const Duration(days: 3)),
-        meetingLink: 'https://meet.google.com/session-002',
-        psychologistNotes:
-            'Buen progreso en el manejo de pensamientos negativos.',
-      ),
-
-      // Cita completada hace 1 semana
-      AppointmentModel(
-        id: 'completed_003',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_003',
-        psychologistName: 'Dra. Ana Martínez',
-        psychologistSpecialty: 'Psicología Positiva',
-        scheduledDateTime: now.subtract(const Duration(days: 7)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.completed,
-        price: 900.0,
-        patientNotes: 'Consulta sobre manejo del estrés laboral',
-        createdAt: now.subtract(const Duration(days: 12)),
-        confirmedAt: now.subtract(const Duration(days: 10)),
-        completedAt: now.subtract(const Duration(days: 7)),
-        meetingLink: 'https://meet.google.com/session-003',
-        psychologistNotes:
-            'Sesión muy productiva. Técnicas de mindfulness bien aplicadas.',
-      ),
-
-      // Cita completada hace 2 semanas
-      AppointmentModel(
-        id: 'completed_004',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_004',
-        psychologistName: 'Dr. Luis Fernández',
-        psychologistSpecialty: 'Terapia de Pareja',
-        scheduledDateTime: now.subtract(const Duration(days: 14)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.completed,
-        price: 950.0,
-        patientNotes: 'Terapia individual antes de terapia de pareja',
-        createdAt: now.subtract(const Duration(days: 20)),
-        confirmedAt: now.subtract(const Duration(days: 18)),
-        completedAt: now.subtract(const Duration(days: 14)),
-        meetingLink: 'https://meet.google.com/session-004',
-        psychologistNotes:
-            'Preparación exitosa para iniciar terapia de pareja.',
-      ),
-
-      // Cita completada hace 3 semanas
-      AppointmentModel(
-        id: 'completed_005',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_005',
-        psychologistName: 'Dra. Sofia Herrera',
-        psychologistSpecialty: 'Psicología Infantil',
-        scheduledDateTime: now.subtract(const Duration(days: 21)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.completed,
-        price: 700.0,
-        patientNotes: 'Consulta sobre técnicas de relajación',
-        createdAt: now.subtract(const Duration(days: 25)),
-        confirmedAt: now.subtract(const Duration(days: 23)),
-        completedAt: now.subtract(const Duration(days: 21)),
-        meetingLink: 'https://meet.google.com/session-005',
-        psychologistNotes:
-            'Paciente aplicó exitosamente técnicas de respiración.',
-      ),
-
-      // =================================
-      // CITAS FUTURAS
-      // =================================
-
-      // Cita pendiente de confirmación
-      AppointmentModel(
-        id: 'pending_001',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_006',
-        psychologistName: 'Dr. Roberto Sánchez',
-        psychologistSpecialty: 'Psicología del Deporte',
-        scheduledDateTime: now.add(const Duration(days: 2)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.pending,
-        price: 850.0,
-        patientNotes: 'Consulta sobre rendimiento y motivación',
-        createdAt: now.subtract(const Duration(hours: 2)),
-      ),
-
-      // Cita confirmada próxima
-      AppointmentModel(
-        id: 'confirmed_001',
-        patientId: 'alan_patient_id',
-        patientName: 'Alan',
-        patientEmail: 'tigrealan16@gmail.com',
-        psychologistId: 'psych_001',
-        psychologistName: 'Dra. María González',
-        psychologistSpecialty: 'Psicología Clínica',
-        scheduledDateTime: now.add(const Duration(days: 5)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.confirmed,
-        price: 800.0,
-        patientNotes: 'Segunda sesión - Seguimiento de ansiedad',
-        createdAt: now.subtract(const Duration(days: 2)),
-        confirmedAt: now.subtract(const Duration(hours: 12)),
-        meetingLink: 'https://meet.google.com/next-session-001',
-        psychologistNotes: 'Continuar con ejercicios de respiración.',
-      ),
-    ];
-  }
+  
 }
