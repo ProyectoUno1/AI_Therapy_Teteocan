@@ -2,10 +2,10 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 import 'package:app_links/app_links.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
@@ -44,12 +44,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Escuchar estados del bloc
     _subscriptionBlocStream = widget.subscriptionBloc.stream.listen((state) {
       _handleBlocState(state);
     });
-    
+
     _initAppLinks();
   }
 
@@ -59,7 +59,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'success',
         '¡Perfecto! Tu suscripción a ${widget.planName} ha sido activada.',
       );
-      
+
       // Navegar de vuelta después de 2 segundos
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
@@ -79,14 +79,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _initAppLinks() async {
     _appLinks = AppLinks();
-    
+
     _linkSubscription = _appLinks.uriLinkStream.listen(
       _handleDeepLink,
       onError: (err) {
         _setPaymentResult('error', 'Error procesando el resultado del pago');
       },
     );
-    
+
     try {
       final initialLink = await _appLinks.getInitialLink();
       if (initialLink != null) {
@@ -132,9 +132,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           .collection('patients')
           .doc(userId)
           .get();
-      return patientDoc.data()?['username'] ?? 
-             FirebaseAuth.instance.currentUser?.displayName ?? 
-             'Usuario';
+      return patientDoc.data()?['username'] ??
+          FirebaseAuth.instance.currentUser?.displayName ??
+          'Usuario';
     } catch (e) {
       return FirebaseAuth.instance.currentUser?.displayName ?? 'Usuario';
     }
@@ -150,15 +150,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
     final userName = await _getUserName(user.uid);
-    
-    widget.subscriptionBloc.add(StartCheckoutSession(
-      planId: widget.planId,
-      planName: widget.planName,
-      price: widget.price,
-      period: widget.period,
-      isAnnual: widget.isAnnual,
-      userName: userName,
-    ));
+
+    widget.subscriptionBloc.add(
+      StartCheckoutSession(
+        planId: widget.planId,
+        planName: widget.planName,
+        price: widget.price,
+        period: widget.period,
+        isAnnual: widget.isAnnual,
+        userName: userName,
+      ),
+    );
   }
 
   @override
@@ -287,7 +289,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.headlineMedium?.color,
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.color,
                         fontFamily: 'Poppins',
                       ),
                     ),

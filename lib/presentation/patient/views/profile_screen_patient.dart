@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/widgets/ai_usage_limit_indicator.dart';
 
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
@@ -27,7 +28,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     context.read<AuthBloc>().add(const AuthSignOutRequested());
   }
 
-  
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
@@ -116,11 +116,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
+                    icon: Icon(Icons.arrow_forward_ios),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -135,6 +131,12 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             },
           ),
 
+          const SizedBox(height: 24),
+          AiUsageLimitIndicator(
+            used: 7, // TODO: Replace with real usage value
+            limit: 10, // TODO: Replace with real limit value
+            isPremium: false, // TODO: Replace with real premium status
+          ),
           const SizedBox(height: 24),
           Text(
             'Cuenta',
@@ -404,8 +406,13 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
     ValueChanged<bool> onChanged,
   ) {
     // Definimos los colores basados en el estado
-    final Color iconColor = isActive ? AppConstants.accentColor : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.grey;
-    final Color textColor = isActive ? Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black : Colors.grey;
+    final Color iconColor = isActive
+        ? AppConstants.accentColor
+        : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+              Colors.grey;
+    final Color textColor = isActive
+        ? Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black
+        : Colors.grey;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -414,11 +421,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
+              Icon(icon, color: iconColor, size: 24),
               const SizedBox(width: 16),
               Text(
                 title,
@@ -431,7 +434,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             ],
           ),
           Switch(
-            value: isActive, 
+            value: isActive,
             onChanged: onChanged,
             activeColor: AppConstants.accentColor,
             inactiveThumbColor: Colors.grey,
@@ -443,103 +446,94 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
   }
 }
 
-  Widget _buildNotificationToggle(
-    String title,
-    IconData icon,
-    bool initialValue,
-    ValueChanged<bool> onChanged,
-  ) {
-    return StatefulBuilder(
-      builder: (BuildContext context, StateSetter setStateInternal) {
-        bool currentValue = initialValue;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    color: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    size: 24,
+Widget _buildNotificationToggle(
+  String title,
+  IconData icon,
+  bool initialValue,
+  ValueChanged<bool> onChanged,
+) {
+  return StatefulBuilder(
+    builder: (BuildContext context, StateSetter setStateInternal) {
+      bool currentValue = initialValue;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  size: 24,
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontFamily: 'Poppins',
                   ),
-                  const SizedBox(width: 16),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ],
-              ),
-              Switch(
-                value: currentValue,
-                onChanged: (newValue) {
-                  setStateInternal(() {
-                    currentValue = newValue;
-                  });
-                  onChanged(newValue);
-                },
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.shade300,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showLogoutConfirmationDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: const Text(
-            'Cerrar Sesión',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
+                ),
+              ],
             ),
-          ),
-          content: const Text(
-            '¿Estás seguro de que quieres cerrar tu sesión?',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Cancelar',
-                style: TextStyle( fontFamily: 'Poppins'),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
+            Switch(
+              value: currentValue,
+              onChanged: (newValue) {
+                setStateInternal(() {
+                  currentValue = newValue;
+                });
+                onChanged(newValue);
               },
-            ),
-            TextButton(
-              child: const Text(
-                'Sí, Cerrar Sesión',
-                style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                context.read<AuthBloc>().add(const AuthSignOutRequested());
-              },
+              inactiveThumbColor: Colors.grey,
+              inactiveTrackColor: Colors.grey.shade300,
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
+void _showLogoutConfirmationDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text(
+          'Cerrar Sesión',
+          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '¿Estás seguro de que quieres cerrar tu sesión?',
+          style: TextStyle(fontFamily: 'Poppins'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Cancelar', style: TextStyle(fontFamily: 'Poppins')),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+          ),
+          TextButton(
+            child: const Text(
+              'Sí, Cerrar Sesión',
+              style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
+            ),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.read<AuthBloc>().add(const AuthSignOutRequested());
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
 class PersonalInfoScreenPatient extends StatefulWidget {
   const PersonalInfoScreenPatient({super.key});
@@ -566,11 +560,11 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     super.initState();
     final authState = BlocProvider.of<AuthBloc>(context).state;
     if (authState.isAuthenticatedPatient && authState.patient != null) {
-      _nameController.text = authState.patient!.username ?? '';
-      _dobController.text = authState.patient!.dateOfBirth != null
-          ? DateFormat('yyyy-MM-dd').format(authState.patient!.dateOfBirth!)
-          : '';
-      _phoneController.text = authState.patient!.phoneNumber ?? '';
+      _nameController.text = authState.patient!.username;
+      _dobController.text = DateFormat(
+        'yyyy-MM-dd',
+      ).format(authState.patient!.dateOfBirth);
+      _phoneController.text = authState.patient!.phoneNumber;
     }
   }
 
@@ -611,10 +605,8 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     DateTime initialDate = DateTime.now();
     try {
       final authState = BlocProvider.of<AuthBloc>(context).state;
-      if (authState.isAuthenticatedPatient &&
-          authState.patient != null &&
-          authState.patient!.dateOfBirth != null) {
-        initialDate = authState.patient!.dateOfBirth!;
+      if (authState.isAuthenticatedPatient && authState.patient != null) {
+        initialDate = authState.patient!.dateOfBirth;
       }
     } catch (e) {
       // Si hay un error al obtener la fecha, se usa la fecha actual por defecto.

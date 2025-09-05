@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-//vista del psicologo
+// vista del psicólogo
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,6 +31,12 @@ class PatientChatScreen extends StatefulWidget {
 }
 
 class _PatientChatScreenState extends State<PatientChatScreen> {
+  bool get _isProfessionalLicenseVerified {
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    final license = authState.psychologist?.professionalLicense;
+    return license != null && license.trim().isNotEmpty;
+  }
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _currentUserId;
@@ -41,12 +47,15 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   void initState() {
     super.initState();
     final authState = BlocProvider.of<AuthBloc>(context).state;
-    if (authState.psychologist != null && authState.isAuthenticatedPsychologist) {
+    if (authState.psychologist != null &&
+        authState.isAuthenticatedPsychologist) {
       _currentUserId = authState.psychologist!.uid;
       final ids = [_currentUserId!, widget.patientId]..sort();
       _chatId = '${ids[0]}_${ids[1]}';
 
-      BlocProvider.of<PsychologistChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
+      BlocProvider.of<PsychologistChatBloc>(
+        context,
+      ).add(LoadChatMessages(_chatId, _currentUserId!));
     }
 
     _patientStatusStream = FirebaseFirestore.instance
@@ -63,7 +72,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
+    if (_messageController.text.trim().isEmpty || _currentUserId == null)
+      return;
 
     BlocProvider.of<PsychologistChatBloc>(context).add(
       SendMessage(
@@ -112,118 +122,33 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               isOnline = data['isOnline'] ?? false;
               final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
               statusText = isOnline
-                  ? 'En l\u00ednea'
-                  : 'Última vez: ${_formatTimestamp(lastSeenTimestamp)}';
+                  ? 'En línea'
+                  : 'Últ. vez ${_formatTimestamp(lastSeenTimestamp)}';
             }
 
             return Row(
               children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: NetworkImage(widget.patientImageUrl),
-                      radius: 20,
-                      backgroundColor: AppConstants.lightAccentColor,
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Theme.of(context).cardColor,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                CircleAvatar(
+                  backgroundImage: NetworkImage(widget.patientImageUrl),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.patientName,
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          color: isOnline ? Colors.green : Colors.grey,
-                          fontSize: 12,
-                          fontFamily: 'Poppins',
-                          fontStyle: FontStyle.normal,
-                        ),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.patientName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      statusText,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ],
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.videocam, color: AppConstants.primaryColor),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(Icons.phone, color: AppConstants.primaryColor),
-            onPressed: () {},
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-            onSelected: (value) {},
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person),
-                    SizedBox(width: 8),
-                    Text('Ver perfil'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'notes',
-                child: Row(
-                  children: [
-                    Icon(Icons.note),
-                    SizedBox(width: 8),
-                    Text('Notas de sesi\u00f3n'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history),
-                    SizedBox(width: 8),
-                    Text('Historial'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -265,6 +190,38 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               },
             ),
           ),
+
+          // Aviso de licencia no verificada
+          if (!_isProfessionalLicenseVerified)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Debes autenticar tu cédula profesional para poder interactuar con pacientes en el chat.',
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Input de mensajes
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -290,8 +247,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     child: TextField(
                       controller: _messageController,
                       maxLines: null,
+                      enabled: _isProfessionalLicenseVerified,
                       decoration: InputDecoration(
-                        hintText: 'Escribe un mensaje...',
+                        hintText: _isProfessionalLicenseVerified
+                            ? 'Escribe un mensaje...'
+                            : 'Debes autenticar tu cédula profesional para chatear',
                         hintStyle: TextStyle(
                           color: Theme.of(context).textTheme.bodySmall?.color,
                           fontFamily: 'Poppins',
@@ -302,19 +262,25 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                           vertical: 12,
                         ),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      onSubmitted: (_) {
+                        if (_isProfessionalLicenseVerified) _sendMessage();
+                      },
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryColor,
+                    color: _isProfessionalLicenseVerified
+                        ? AppConstants.primaryColor
+                        : Colors.grey,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
                     icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
+                    onPressed: _isProfessionalLicenseVerified
+                        ? _sendMessage
+                        : null,
                   ),
                 ),
               ],
@@ -338,13 +304,12 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     } else if (difference.inHours < 24) {
       return 'hace ${difference.inHours} h';
     } else if (difference.inDays < 7) {
-      return 'hace ${difference.inDays} d\u00edas';
+      return 'hace ${difference.inDays} días';
     } else {
       final formatter = DateFormat('dd/MM/yyyy');
       return formatter.format(lastSeenDate);
     }
   }
-
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -354,7 +319,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Inicia la conversaci\u00f3n',
+            'Inicia la conversación',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
@@ -362,7 +327,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Env\u00eda el primer mensaje a ${widget.patientName}',
+            'Envía el primer mensaje a ${widget.patientName}',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),

@@ -109,7 +109,6 @@ class _ScheduleAppointmentFormState extends State<ScheduleAppointmentForm> {
         _selectedTimeSlot!.dateTime.minute,
       );
 
-      
       if (widget.patient.id == null || widget.patient.id!.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -124,7 +123,7 @@ class _ScheduleAppointmentFormState extends State<ScheduleAppointmentForm> {
       context.read<AppointmentBloc>().add(
         BookAppointmentEvent(
           psychologistId: widget.psychologistId,
-          patientId: widget.patient.id!, 
+          patientId: widget.patient.id!,
           scheduledDateTime: appointmentDateTime,
           type: _selectedType,
           notes: _notesController.text.trim().isEmpty
@@ -241,8 +240,7 @@ class _ScheduleAppointmentFormState extends State<ScheduleAppointmentForm> {
                     _currentStep = index;
                   });
                 },
-                physics:
-                    const NeverScrollableScrollPhysics(), 
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
                   _buildDateSelectionStep(),
                   _buildTimeSelectionStep(),
@@ -436,18 +434,27 @@ class _ScheduleAppointmentFormState extends State<ScheduleAppointmentForm> {
         config: CalendarDatePicker2Config(
           calendarType: CalendarDatePicker2Type.single,
           selectedDayHighlightColor: AppConstants.primaryColor,
-          weekdayLabels: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+          weekdayLabels: const [
+            'Dom',
+            'Lun',
+            'Mar',
+            'Mié',
+            'Jue',
+            'Vie',
+            'Sáb',
+          ],
           weekdayLabelTextStyle: const TextStyle(
             fontFamily: 'Poppins',
             fontWeight: FontWeight.w500,
           ),
-          firstDate: today,
-          lastDate: today.add(const Duration(days: 60)),
+          // 👇 Estos sí se pueden usar
           selectableDayPredicate: (day) {
-            return day.isAfter(today.subtract(const Duration(days: 1)));
+            // solo permite fechas >= hoy y <= hoy + 60 días
+            return day.isAfter(today.subtract(const Duration(days: 1))) &&
+                day.isBefore(today.add(const Duration(days: 61)));
           },
         ),
-        value: _selectedDate != null ? [_selectedDate] : [],
+        value: _selectedDate != null ? [_selectedDate] : <DateTime?>[],
         onValueChanged: (dates) {
           if (dates.isNotEmpty && dates[0] != null) {
             setState(() {
