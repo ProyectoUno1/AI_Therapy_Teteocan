@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/ai_chat_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/views/psychologist_chat_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_list_bloc.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_chat_item.dart';
 import 'package:intl/intl.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/widgets/ai_usage_limit_indicator.dart';
 
 class ChatListScreen extends StatelessWidget {
   final VoidCallback onGoToPsychologists;
@@ -22,12 +23,20 @@ class ChatListScreen extends StatelessWidget {
     }
 
     return BlocProvider(
-      
       create: (context) => ChatListCubit(currentUserId: currentUserId),
       child: DefaultTabController(
         length: 2,
         child: Column(
           children: [
+            // AI Usage Limit Indicator (hardcoded for now, replace with real values)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: AiUsageLimitIndicator(
+                used: 7, // TODO: Replace with real usage value
+                limit: 10, // TODO: Replace with real limit value
+                isPremium: false, // TODO: Replace with real premium status
+              ),
+            ),
             Container(
               color: Colors.white,
               child: TabBar(
@@ -160,7 +169,6 @@ class _PsychologistsChatTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  
     return BlocBuilder<ChatListCubit, ChatListState>(
       builder: (context, state) {
         if (state is ChatListLoading) {
@@ -237,7 +245,7 @@ class _PsychologistsChatTabContent extends StatelessWidget {
             itemCount: state.chatRooms.length,
             itemBuilder: (context, index) {
               final chatItem = state.chatRooms[index];
-              
+
               return _buildPsychologistChatCard(context, chatItem: chatItem);
             },
           );
