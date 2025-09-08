@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-//vista del psicologo
+// vista del psicólogo
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -32,6 +32,12 @@ class PatientChatScreen extends StatefulWidget {
 }
 
 class _PatientChatScreenState extends State<PatientChatScreen> {
+  bool get _isProfessionalLicenseVerified {
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    final license = authState.psychologist?.professionalLicense;
+    return license != null && license.trim().isNotEmpty;
+  }
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _currentUserId;
@@ -86,6 +92,7 @@ void initState() {
     _messageController.clear();
     
     _scrollToBottom();
+
 
   
     try {
@@ -177,6 +184,7 @@ Widget build(BuildContext context) {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
+
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -319,7 +327,6 @@ Widget build(BuildContext context) {
                         color: Colors.orange,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'Poppins',
-                      ),
                     ),
                   ),
                 ],
@@ -405,13 +412,12 @@ Widget build(BuildContext context) {
     } else if (difference.inHours < 24) {
       return 'hace ${difference.inHours} h';
     } else if (difference.inDays < 7) {
-      return 'hace ${difference.inDays} d\u00edas';
+      return 'hace ${difference.inDays} días';
     } else {
       final formatter = DateFormat('dd/MM/yyyy');
       return formatter.format(lastSeenDate);
     }
   }
-
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -421,7 +427,7 @@ Widget build(BuildContext context) {
           Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Inicia la conversaci\u00f3n',
+            'Inicia la conversación',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
@@ -429,7 +435,7 @@ Widget build(BuildContext context) {
           ),
           const SizedBox(height: 8),
           Text(
-            'Env\u00eda el primer mensaje a ${widget.patientName}',
+            'Envía el primer mensaje a ${widget.patientName}',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
