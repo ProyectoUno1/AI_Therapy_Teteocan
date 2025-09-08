@@ -1,5 +1,3 @@
-// lib/data/repositories/chat_repository.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
@@ -12,7 +10,6 @@ class ChatRepository {
 
   ChatRepository();
 
-  // Helper para obtener los encabezados, incluyendo el token de autenticación
   Future<Map<String, String>> _getHeaders() async {
     final headers = <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
@@ -20,7 +17,6 @@ class ChatRepository {
 
     final user = _auth.currentUser;
     if (user != null) {
-      
       final idToken = await user.getIdToken(true);
       if (idToken != null) {
         headers['Authorization'] = 'Bearer $idToken';
@@ -33,43 +29,74 @@ class ChatRepository {
 
     return headers;
   }
-
-  // Obtiene el ID del chat de IA
-  Future<String> getAIChatId() async {
+  
+  
+  Future<void> sendHumanMessage({
+    required String chatId,
+    required String senderId,
+    required String receiverId,
+    required String content,
+    required bool isUser,
+  }) async {
+    final url = Uri.parse('$_baseUrl/chats/messages');
+    
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/ai/chat-id'),
-        headers: await _getHeaders(), // Envía los encabezados con el token
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'chatId': chatId,
+          'senderId': senderId,
+          'receiverId': receiverId,
+          'content': content,
+          'isUser': isUser,
+        }),
       );
 
-      if (kDebugMode) print('getAIChatId response: ${response.statusCode} ${response.body}');
+      if (kDebugMode) {
+        print('sendHumanMessage response: ${response.statusCode} ${response.body}');
+      }
 
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body);
+        throw Exception(body['error'] ?? 'Error al enviar el mensaje');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String> getOrCreateChatId(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/ai/chat-id'), 
+        headers: await _getHeaders(),
+      );
+      if (kDebugMode) print('getOrCreateChatId response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['chatId'];
       } else {
-        throw Exception('Fallo al obtener el ID del chat de IA: ${response.statusCode} - ${response.body}');
+        throw Exception('Fallo al obtener/crear el ID del chat de IA: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      if (kDebugMode) print('Error en getAIChatId: $e');
+      if (kDebugMode) print('Error en getOrCreateChatId: $e');
       throw Exception('Error de red o servidor al obtener el ID del chat de IA: $e');
     }
   }
 
-  // Envía un mensaje del usuario a la IA a través del backend
+
   Future<String> sendAIMessage(String chatId, String message) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/ai/chat'),
-        headers: await _getHeaders(), // Envía los encabezados con el token
+        headers: await _getHeaders(),
         body: jsonEncode({
           'chatId': chatId,
           'message': message,
         }),
       );
-
       if (kDebugMode) print('sendAIMessage response: ${response.statusCode} ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['aiMessage'];
@@ -82,16 +109,13 @@ class ChatRepository {
     }
   }
 
-  // Carga el historial de mensajes para un chat específico
   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
         headers: await _getHeaders(), 
       );
-
       if (kDebugMode) print('loadMessages response: ${response.statusCode} ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = json.decode(response.body);
         return jsonList.map((json) => MessageModel.fromJson(json)).toList();

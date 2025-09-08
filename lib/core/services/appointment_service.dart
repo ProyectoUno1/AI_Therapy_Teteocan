@@ -38,7 +38,6 @@ class AppointmentService {
       if (patientDoc.exists) {
         return patientDoc.data()?['role'];
       }
-
       final psychologistDoc = await FirebaseFirestore.instance.collection('psychologists').doc(uid).get();
       if (psychologistDoc.exists) {
         return psychologistDoc.data()?['role'];
@@ -46,7 +45,6 @@ class AppointmentService {
       
       return null;
     } catch (e) {
-      log('Error obteniendo el rol desde Firestore: $e', name: 'AppointmentService');
       return null;
     }
   }
@@ -65,10 +63,7 @@ Future<AppointmentModel> createAppointment({
     if (user == null) {
       throw Exception('Usuario no autenticado');
     }
-
-    
     final url = Uri.parse('$baseUrl/appointments/');
-    
     final body = {
       'psychologistId': psychologistId,
       'patientId': patientId, 
@@ -77,16 +72,12 @@ Future<AppointmentModel> createAppointment({
       if (notes != null) 'notes': notes,
     };
 
-    log('Enviando datos al backend: $body', name: 'AppointmentService');
-
     final headers = await _getHeaders();
     final response = await http.post(
       url,
       headers: headers,
       body: jsonEncode(body),
     );
-
-    log('Respuesta del backend: ${response.statusCode} - ${response.body}', name: 'AppointmentService');
 
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);

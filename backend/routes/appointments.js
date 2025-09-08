@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { createNotification } from './notifications.js'; 
 
 const router = express.Router();
 
@@ -112,6 +113,48 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             const appointmentRef = db.collection('appointments').doc();
             appointmentId = appointmentRef.id;
             transaction.set(appointmentRef, appointmentData);
+
+            // crear notificaciones para paciente y psicólogo
+            const patientNotificationRef = db.collection('notifications').doc();
+            transaction.set(patientNotificationRef, {
+                userId: finalPatientId,
+                title: '¡Cita Agendada!',
+                body: `Tienes una nueva cita con el psicólogo ${psychologistProfData.fullName}.`,
+                type: 'appointment_created',
+                isRead: false,
+                timestamp: FieldValue.serverTimestamp(),
+                data: {
+                    appointmentId: appointmentId,
+                    psychologistId: psychologistId,
+                    psychologistName: psychologistProfData.fullName,
+                    status: appointmentData.status
+                }
+            });
+
+            const psychologistNotificationRef = db.collection('notifications').doc();
+            
+            let psychologistNotificationBody;
+            if (isSchedulingForOtherPatient) {
+                psychologistNotificationBody = `Has agendado una cita con el paciente ${patientData.username}.`;
+            } else {
+                psychologistNotificationBody = `Un paciente ha agendado una cita contigo.`;
+            }
+
+            transaction.set(psychologistNotificationRef, {
+                userId: psychologistId,
+                title: 'Nueva Cita',
+                body: psychologistNotificationBody,
+                type: 'appointment_created',
+                isRead: false,
+                timestamp: FieldValue.serverTimestamp(),
+                data: {
+                    appointmentId: appointmentId,
+                    patientId: finalPatientId,
+                    patientName: patientData.username,
+                    status: appointmentData.status
+                }
+            });
+            
         });
 
         if (!appointmentId) {
@@ -154,6 +197,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         });
     }
 });
+
 
 // Obtener citas del usuario (paciente o psicólogo)
 router.get('/', verifyFirebaseToken, async (req, res) => {
@@ -230,6 +274,7 @@ router.get('/', verifyFirebaseToken, async (req, res) => {
     }
 });
 
+
 // Obtener horarios disponibles
 router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, res) => {
     try {
@@ -241,7 +286,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
             return res.status(400).json({ error: 'startDate y endDate son requeridos (YYYY-MM-DD)' });
         }
         const start = new Date(startDate + 'T00:00:00Z'); // UTC
-        const end = new Date(endDate + 'T23:59:59Z');     // UTC
+        const end = new Date(endDate + 'T23:59:59Z');     // UTC
 
 
         if (isNaN(start) || isNaN(end) || start > end) {
@@ -267,7 +312,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
             const hour = appointmentTime.getUTCHours();
             const date = appointmentTime.toISOString().split('T')[0];
             occupiedSlots.add(`${date}-${hour}`);
-            console.log('🔍 Horario ocupado:', `${date}-${hour}`);
+            
         });
 
         const availableSlots = [];
@@ -310,202 +355,182 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
     }
 });
 
-// Confirmar cita (psicólogos)
+
+//Confirmar una cita
 router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { psychologistNotes, meetingLink } = req.body;
+        const authenticatedUserId = req.firebaseUser.uid;
 
         const appointmentRef = db.collection('appointments').doc(id);
         const appointmentDoc = await appointmentRef.get();
-
         if (!appointmentDoc.exists) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
 
         const appointmentData = appointmentDoc.data();
-
-        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
+        if (appointmentData.psychologistId !== authenticatedUserId) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
         if (appointmentData.status !== 'pending') {
-            return res.status(400).json({ error: 'La cita no está pendiente de confirmación' });
+            return res.status(400).json({ error: 'Solo se pueden confirmar citas pendientes' });
         }
 
-        const updateData = {
+        await appointmentRef.update({
             status: 'confirmed',
             confirmedAt: FieldValue.serverTimestamp(),
             psychologistNotes: psychologistNotes || null,
             meetingLink: meetingLink || null,
             updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        await appointmentRef.update(updateData);
+        });
+        
+        // --- Notificación para el paciente  ---
+        await createNotification({
+            userId: appointmentData.patientId,
+            title: '¡Cita Confirmada!',
+            body: `Tu cita con el psicólogo ${appointmentData.psychologistName} ha sido confirmada.`,
+            type: 'appointment_confirmed',
+            data: {
+                appointmentId: id,
+                psychologistId: appointmentData.psychologistId,
+                status: 'confirmed'
+            }
+        });
+       
 
         res.status(200).json({ message: 'Cita confirmada exitosamente' });
 
     } catch (error) {
         console.error('Error al confirmar cita:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+        res.status(500).json({ error: 'Error al confirmar la cita', details: error.message });
     }
 });
 
-// Cancelar cita (pacientes y psicólogos)
+//  Cancelar una cita
 router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
+        const authenticatedUserId = req.firebaseUser.uid;
 
         const appointmentRef = db.collection('appointments').doc(id);
         const appointmentDoc = await appointmentRef.get();
-
         if (!appointmentDoc.exists) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
 
         const appointmentData = appointmentDoc.data();
-        const userId = req.firebaseUser.uid;
-
-        if (appointmentData.patientId !== userId && appointmentData.psychologistId !== userId) {
+        if (appointmentData.patientId !== authenticatedUserId && appointmentData.psychologistId !== authenticatedUserId) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
-        const updateData = {
+        if (['cancelled', 'completed'].includes(appointmentData.status)) {
+            return res.status(400).json({ error: 'La cita ya ha sido cancelada o completada' });
+        }
+
+        await appointmentRef.update({
             status: 'cancelled',
-            cancellationReason: reason,
+            cancellationReason: reason || null,
             cancelledAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
-        };
+        });
+        
+        // --- Notificación para la otra parte ---
+        let notificationTitle = 'Cita Cancelada';
+        let notificationBody = '';
+        let recipientId = '';
 
-        await appointmentRef.update(updateData);
+        if (authenticatedUserId === appointmentData.patientId) {
+            // El paciente canceló, notificar al psicólogo
+            notificationBody = `El paciente ${appointmentData.patientName} ha cancelado la cita.`;
+            recipientId = appointmentData.psychologistId;
+        } else {
+            // El psicólogo canceló, notificar al paciente
+            notificationBody = `El psicólogo ${appointmentData.psychologistName} ha cancelado tu cita.`;
+            recipientId = appointmentData.patientId;
+        }
+
+        await createNotification({
+            userId: recipientId,
+            title: notificationTitle,
+            body: notificationBody,
+            type: 'appointment_cancelled',
+            data: {
+                appointmentId: id,
+                psychologistId: appointmentData.psychologistId,
+                patientId: appointmentData.patientId,
+                status: 'cancelled'
+            }
+        });
+       
 
         res.status(200).json({ message: 'Cita cancelada exitosamente' });
 
     } catch (error) {
         console.error('Error al cancelar cita:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+        res.status(500).json({ error: 'Error al cancelar la cita', details: error.message });
     }
 });
 
-// Completar cita (psicólogos)
-router.patch('/:id/complete', verifyFirebaseToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { notes } = req.body;
-
-        const appointmentRef = db.collection('appointments').doc(id);
-        const appointmentDoc = await appointmentRef.get();
-
-        if (!appointmentDoc.exists) {
-            return res.status(404).json({ error: 'Cita no encontrada' });
-        }
-
-        const appointmentData = appointmentDoc.data();
-
-        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
-            return res.status(403).json({ error: 'Acceso denegado' });
-        }
-
-        const updateData = {
-            status: 'completed',
-            psychologistNotes: notes || null,
-            completedAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        await appointmentRef.update(updateData);
-
-        res.status(200).json({ message: 'Cita completada exitosamente' });
-
-    } catch (error) {
-        console.error('Error al completar cita:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
-    }
-});
-
-// Calificar cita
-router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rating, comment } = req.body;
-
-        const appointmentRef = db.collection('appointments').doc(id);
-        const appointmentDoc = await appointmentRef.get();
-
-        if (!appointmentDoc.exists) {
-            return res.status(404).json({ error: 'Cita no encontrada' });
-        }
-
-        const appointmentData = appointmentDoc.data();
-        // Verificar que el usuario es el paciente
-        if (appointmentData.patientId !== req.firebaseUser.uid) {
-            return res.status(403).json({ error: 'Acceso denegado' });
-        }
-        // Verificar que la cita está completada
-        if (appointmentData.status !== 'completed') {
-            return res.status(400).json({ error: 'Solo se pueden calificar citas completadas' });
-        }
-
-        const updateData = {
-            status: 'rated',
-            rating: rating,
-            ratingComment: comment || null,
-            ratedAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-        };
-
-        await appointmentRef.update(updateData);
-
-        res.status(200).json({ message: 'Cita calificada exitosamente' });
-
-    } catch (error) {
-        console.error('Error al calificar cita:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
-    }
-});
-
+// Iniciar una sesión (por psicólogo)
 router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
+        const authenticatedUserId = req.firebaseUser.uid;
 
         const appointmentRef = db.collection('appointments').doc(id);
         const appointmentDoc = await appointmentRef.get();
-
         if (!appointmentDoc.exists) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
 
         const appointmentData = appointmentDoc.data();
-
-        // Verificar que el usuario es el psicólogo
-        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
+        if (appointmentData.psychologistId !== authenticatedUserId) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
-        // Verificar que la cita está confirmada
         if (appointmentData.status !== 'confirmed') {
-            return res.status(400).json({ error: 'Solo se pueden iniciar sesiones de citas confirmadas' });
+            return res.status(400).json({ error: 'Solo se pueden iniciar sesiones confirmadas' });
         }
+
         const updateData = {
             status: 'in_progress',
             sessionStartedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         };
+
         await appointmentRef.update(updateData);
+        
+        // --- Notificación para el paciente ---
+        await createNotification({
+            userId: appointmentData.patientId,
+            title: '¡Sesión Iniciada!',
+            body: `Tu sesión con el psicólogo ${appointmentData.psychologistName} ha iniciado.`,
+            type: 'session_started',
+            data: {
+                appointmentId: id,
+                psychologistId: appointmentData.psychologistId,
+                status: 'in_progress'
+            }
+        });
+        
+
         res.status(200).json({ message: 'Sesión iniciada exitosamente' });
 
     } catch (error) {
         console.error('Error al iniciar sesión:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+        res.status(500).json({ error: 'Error al iniciar la sesión', details: error.message });
     }
 });
 
-// Para completar sesión
+// Completar una sesión (por psicólogo)
 router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { notes } = req.body;
+        const authenticatedUserId = req.firebaseUser.uid;
 
         const appointmentRef = db.collection('appointments').doc(id);
         const appointmentDoc = await appointmentRef.get();
@@ -514,12 +539,10 @@ router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
         }
 
         const appointmentData = appointmentDoc.data();
-        // Verificar que el usuario es el psicólogo
-        if (appointmentData.psychologistId !== req.firebaseUser.uid) {
+        if (appointmentData.psychologistId !== authenticatedUserId) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
-        // Verificar que la cita está en progreso
         if (appointmentData.status !== 'in_progress') {
             return res.status(400).json({ error: 'Solo se pueden completar sesiones en progreso' });
         }
@@ -532,13 +555,87 @@ router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
         };
 
         await appointmentRef.update(updateData);
+        
+        // --- Notificación para el paciente---
+        await createNotification({
+            userId: appointmentData.patientId,
+            title: 'Sesión Completada',
+            body: `Tu sesión con el psicólogo ${appointmentData.psychologistName} ha finalizado. ¡Comparte tu experiencia!`,
+            type: 'session_completed',
+            data: {
+                appointmentId: id,
+                psychologistId: appointmentData.psychologistId,
+                status: 'completed'
+            }
+        });
+     
 
         res.status(200).json({ message: 'Sesión completada exitosamente' });
 
     } catch (error) {
         console.error('Error al completar sesión:', error);
-        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+        res.status(500).json({ error: 'Error al completar la sesión', details: error.message });
     }
 });
+
+//  Calificar una cita
+router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        const authenticatedUserId = req.firebaseUser.uid;
+
+        const appointmentRef = db.collection('appointments').doc(id);
+        const appointmentDoc = await appointmentRef.get();
+        if (!appointmentDoc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+
+        const appointmentData = appointmentDoc.data();
+        // Verificar que el usuario es el paciente
+        if (appointmentData.patientId !== authenticatedUserId) {
+            return res.status(403).json({ error: 'Acceso denegado' });
+        }
+        // Verificar que la cita está completada y no calificada
+        if (appointmentData.status !== 'completed') {
+            return res.status(400).json({ error: 'Solo se pueden calificar citas completadas' });
+        }
+        if (appointmentData.rating !== undefined) {
+            return res.status(400).json({ error: 'Esta cita ya ha sido calificada' });
+        }
+
+        const updateData = {
+            status: 'rated',
+            rating: rating,
+            ratingComment: comment || null,
+            ratedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        await appointmentRef.update(updateData);
+        
+        // --- Notificación para el psicólogo---
+        await createNotification({
+            userId: appointmentData.psychologistId,
+            title: 'Nueva Calificación',
+            body: `¡El paciente ${appointmentData.patientName} ha calificado su sesión!`,
+            type: 'session_rated',
+            data: {
+                appointmentId: id,
+                patientId: appointmentData.patientId,
+                patientName: appointmentData.patientName,
+                
+            }
+        });
+       
+
+        res.status(200).json({ message: 'Cita calificada exitosamente' });
+
+    } catch (error) {
+        console.error('Error al calificar cita:', error);
+        res.status(500).json({ error: 'Error al calificar la cita', details: error.message });
+    }
+});
+
 
 export default router;

@@ -7,11 +7,18 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
+import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/widgets/ai_usage_limit_indicator.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
+
 
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
@@ -20,9 +27,67 @@ class ProfileScreenPatient extends StatefulWidget {
 }
 
 class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
-  // Manejamos el estado de los toggles en el State del widget principal.
+  
   bool _isPopupNotificationsActive = true;
   bool _isEmailNotificationsActive = true;
+  
+  
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+  int _usedMessages = 0;
+  int _messageLimit = 5;
+  bool _isPremium = false;
+
+  @override
+void initState() {
+  super.initState();
+  
+  final authState = context.read<AuthBloc>().state;
+  if (authState.isAuthenticatedPatient && authState.patient?.uid != null) {
+    context.read<AuthBloc>().add(
+      AuthStartListeningToPatient(authState.patient!.uid),
+    );
+    
+    _startListeningToUserData(authState.patient!.uid);
+  }
+}
+
+  @override
+void dispose() {
+  context.read<AuthBloc>().add(const AuthStopListeningToPatient());
+  _userSubscription?.cancel(); // Cancelar subscription
+  super.dispose();
+}
+
+ 
+  void _startListeningToUserData(String userId) {
+    _userSubscription = FirebaseFirestore.instance
+        .collection('patients')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && mounted) {
+        final data = snapshot.data()!;
+        setState(() {
+          _usedMessages = data['messageCount'] ?? 0;
+          _isPremium = data['isPremium'] == true;
+          _messageLimit = _isPremium ? 99999 : 5;
+        });
+      }
+    });
+  }
+
+  void _startListeningToPatientData() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState.isAuthenticatedPatient && authState.patient != null) {
+      context.read<AuthBloc>().add(
+        AuthStartListeningToPatient(authState.patient!.uid),
+      );
+    }
+  }
+
+  void _stopListeningToPatientData() {
+    context.read<AuthBloc>().add(const AuthStopListeningToPatient());
+  }
 
   void _onLogoutPressed() {
     context.read<AuthBloc>().add(const AuthSignOutRequested());
@@ -35,333 +100,360 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 30),
+    return MultiBlocProvider(
+      providers: [
+        
+        BlocProvider(
+          create: (context) => SubscriptionBloc(
+            repository: SubscriptionRepositoryImpl(),
+          )..add(LoadSubscriptionStatus()),
+        ),
+      ],
+      child: BlocListener<SubscriptionBloc, SubscriptionState>(
+        listener: (context, state) {
+          if (state is SubscriptionLoaded) {
+            setState(() {
+              _isPremium = state.hasActiveSubscription;
+              _messageLimit = state.hasActiveSubscription ? 9999 : 5;
+            });
+          }
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 30),
 
-          BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, authState) {
-              String userName = 'Cargando...';
-              String userEmail = '';
-              String profileImageUrl =
-                  'https://picsum.photos/seed/768/600'; // Imagen de placeholder
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, authState) {
+                  String userName = 'Cargando...';
+                  String userEmail = '';
+                  String profileImageUrl =
+                      'https://picsum.photos/seed/768/600'; // Imagen de placeholder
 
-              if (authState.status == AuthStatus.authenticated &&
-                  authState.patient != null) {
-                userName = authState.patient!.username;
-                userEmail = authState.patient!.email;
-              }
+                  if (authState.status == AuthStatus.authenticated &&
+                      authState.patient != null) {
+                    userName = authState.patient!.username;
+                    userEmail = authState.patient!.email;
+                  }
 
-              return Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            image: DecorationImage(
-                              image: NetworkImage(profileImageUrl),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              12,
-                              0,
-                              0,
-                              0,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  userName,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge?.color,
-                                      ),
-                                  overflow: TextOverflow.ellipsis,
+                  return Row(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(
+                        width: 250,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                image: DecorationImage(
+                                  image: NetworkImage(profileImageUrl),
+                                  fit: BoxFit.cover,
                                 ),
-                                Text(
-                                  userEmail,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: Theme.of(context).hintColor,
-                                        fontSize: 14,
-                                      ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                  12,
+                                  0,
+                                  0,
+                                  0,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      userName,
+                                      style: Theme.of(context).textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge?.color,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      userEmail,
+                                      style: Theme.of(context).textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(context).hintColor,
+                                            fontSize: 14,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.arrow_forward_ios),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PersonalInfoScreenPatient(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-          AiUsageLimitIndicator(
-            used: 7, // TODO: Replace with real usage value
-            limit: 10, // TODO: Replace with real limit value
-            isPremium: false, // TODO: Replace with real premium status
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Cuenta',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-            ),
-            child: Column(
-              children: [
-                ProfileListItem(
-                  icon: Icons.military_tech_outlined,
-                  text: 'Suscripción',
-                  secondaryText: 'Gestionar Suscripción',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SubscriptionScreen(),
                       ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                ProfileListItem(
-                  icon: Icons.credit_card_outlined,
-                  text: 'Pagos',
-                  secondaryText: 'N/A',
-                  onTap: () {
-                    // Lógica para pagos
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          Text(
-            'Notificaciones',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PersonalInfoScreenPatient(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
-            ),
-            child: Column(
-              children: [
-                _buildNotificationToggle(
-                  'Notificaciones Pop-up',
-                  Icons.notifications_none,
-                  _isPopupNotificationsActive,
-                  (value) {
-                    setState(() {
-                      _isPopupNotificationsActive = value;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Pop-up Notificaciones ativadas')),
+
+              const SizedBox(height: 24),
+              
+              
+              AiUsageLimitIndicator(
+                used: _usedMessages,
+                limit: _messageLimit,
+                isPremium: _isPremium,
+              ),
+              
+              const SizedBox(height: 24),
+              Text(
+                'Cuenta',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    ProfileListItem(
+                      icon: Icons.military_tech_outlined,
+                      text: 'Suscripción',
+                      secondaryText: 'Gestionar Suscripción',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SubscriptionScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
+                    ProfileListItem(
+                      icon: Icons.credit_card_outlined,
+                      text: 'Pagos',
+                      secondaryText: 'N/A',
+                      onTap: () {
+                        // Lógica para pagos
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Notificaciones',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _buildNotificationToggle(
+                      'Notificaciones Pop-up',
+                      Icons.notifications_none,
+                      _isPopupNotificationsActive,
+                      (value) {
+                        setState(() {
+                          _isPopupNotificationsActive = value;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Pop-up Notificaciones activadas')),
+                        );
+                      },
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
+                    _buildNotificationToggle(
+                      'Notificaciones por Email',
+                      Icons.mail_outline,
+                      _isEmailNotificationsActive,
+                      (value) {
+                        setState(() {
+                          _isEmailNotificationsActive = value;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Notificaciones por Email activadas'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Configuración y Ayuda',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    ProfileListItem(
+                      icon: Icons.settings_outlined,
+                      text: 'Configuración',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SettingsScreenPatient(),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
+                    ProfileListItem(
+                      icon: Icons.contact_support_outlined,
+                      text: 'Contáctanos',
+                      onTap: () {
+                        /* Lógica para Contáctanos */
+                      },
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(context).dividerColor.withOpacity(0.5),
+                    ),
+                    ProfileListItem(
+                      icon: Icons.privacy_tip_outlined,
+                      text: 'Politicas de Privacidad',
+                      onTap: () {
+                        /* Lógica para Políticas de Privacidad */
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Botón de Cerrar Sesión
+              BlocConsumer<AuthBloc, AuthState>(
+                listener: (context, state) {
+                  if (state.status == AuthStatus.unauthenticated &&
+                      !Navigator.of(context).canPop()) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (Route<dynamic> route) => false,
                     );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                _buildNotificationToggle(
-                  'Notificaciones por Email',
-                  Icons.mail_outline,
-                  _isEmailNotificationsActive,
-                  (value) {
-                    setState(() {
-                      _isEmailNotificationsActive = value;
-                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sesión cerrada exitosamente.')),
+                    );
+                  } else if (state.status == AuthStatus.error &&
+                      state.errorMessage != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Notificaciones por Email activadas'),
+                        content: Text(state.errorMessage!),
+                        backgroundColor: AppConstants.errorColor,
                       ),
                     );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          Text(
-            'Configuración y Ayuda',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-            ),
-            child: Column(
-              children: [
-                ProfileListItem(
-                  icon: Icons.settings_outlined,
-                  text: 'Configuración',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SettingsScreenPatient(),
-                      ),
-                    );
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                ProfileListItem(
-                  icon: Icons.contact_support_outlined,
-                  text: 'Contáctanos',
-                  onTap: () {
-                    /* Lógica para Contáctanos */
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                ProfileListItem(
-                  icon: Icons.privacy_tip_outlined,
-                  text: 'Politicas de Privacidad',
-                  onTap: () {
-                    /* Lógica para Políticas de Privacidad */
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-
-          // Botón de Cerrar Sesión
-          BlocConsumer<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if (state.status == AuthStatus.unauthenticated &&
-                  !Navigator.of(context).canPop()) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (Route<dynamic> route) => false,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sesión cerrada exitosamente.')),
-                );
-              } else if (state.status == AuthStatus.error &&
-                  state.errorMessage != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.errorMessage!),
-                    backgroundColor: AppConstants.errorColor,
-                  ),
-                );
-              }
-            },
-            builder: (context, state) {
-              return SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: state.status == AuthStatus.loading
-                      ? null
-                      : () {
-                          _showLogoutConfirmationDialog(context);
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 5,
-                  ),
-                  child: state.status == AuthStatus.loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'CERRAR SESIÓN',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
-                          ),
+                  }
+                },
+                builder: (context, state) {
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: state.status == AuthStatus.loading
+                          ? null
+                          : () {
+                              _showLogoutConfirmationDialog(context);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                ),
-              );
-            },
+                        elevation: 5,
+                      ),
+                      child: state.status == AuthStatus.loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'CERRAR SESIÓN',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 50),
+            ],
           ),
-          const SizedBox(height: 50),
-        ],
+        ),
       ),
     );
   }
@@ -757,7 +849,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                     _dobController,
                     'Fecha de nacimiento',
                     onTap:
-                        _showDatePicker, // Pasamos el método para abrir el DatePicker
+                        _showDatePicker, 
                   ),
                   _buildInputFieldWithLabel(
                     context,

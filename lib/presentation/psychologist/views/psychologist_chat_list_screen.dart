@@ -67,11 +67,13 @@ class _PsychologistChatListScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildSearchBar(context),
-        Expanded(child: _buildChatList(context)),
-      ],
+    return Scaffold(
+      body: Column(
+        children: [
+          _buildSearchBar(context),
+          Expanded(child: _buildChatList(context)),
+        ],
+      ),
     );
   }
 
@@ -173,8 +175,8 @@ class _PsychologistChatListScreenState
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 isFiltered
-                    ? 'Intenta con otro t\u00e9rmino de b\u00fasqueda'
-                    : 'Los pacientes aparecer\u00e1n aqu\u00ed cuando inicien conversaciones',
+                    ? 'Intenta con otro término de búsqueda'
+                    : 'Los pacientes aparecerán aquí cuando inicien conversaciones',
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),

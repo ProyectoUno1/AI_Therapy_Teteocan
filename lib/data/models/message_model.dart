@@ -7,43 +7,43 @@ class MessageModel {
   final String content;
   final bool isUser;
   final DateTime? timestamp;
+  final String senderId;
 
   MessageModel({
     required this.id,
     required this.content,
     required this.isUser,
     this.timestamp,
+    required this.senderId,
   });
 
-  // Constructor de fábrica para mensajes de la IA (desde una respuesta de API)
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
       id: json['id'] as String? ?? '',
-      content: json['text'] as String? ?? '', 
+      content: json['text'] as String? ?? '',
       isUser: json['isUser'] as bool? ?? false,
       timestamp: json['timestamp'] != null
           ? DateTime.parse(json['timestamp'] as String)
           : null,
+      senderId: json['senderId'] as String? ?? '',
     );
   }
 
-  // Constructor de fábrica para mensajes de Firestore (psicólogos y IA)
   factory MessageModel.fromFirestore(DocumentSnapshot doc, String currentUserId) {
     final data = doc.data() as Map<String, dynamic>;
     final timestamp = data['timestamp'] as Timestamp?;
     final senderId = data['senderId'] as String? ?? '';
 
-    final bool isUser = senderId == currentUserId;
 
     return MessageModel(
       id: doc.id,
-      content: data['content'] as String? ?? '', 
-      isUser: isUser,
+      content: data['content'] as String? ?? '',
+      isUser: senderId == currentUserId,
       timestamp: timestamp?.toDate(),
+      senderId: senderId,
     );
   }
 
-  // Método para enviar mensajes a Firestore
   Map<String, dynamic> toFirestore({required String chatPartnerId, required String currentUserId}) {
     return {
       'senderId': isUser ? currentUserId : chatPartnerId,
@@ -59,6 +59,7 @@ class MessageModel {
       'content': content,
       'isUser': isUser,
       'timestamp': timestamp?.toIso8601String(),
+      'senderId': senderId,
     };
   }
 }
