@@ -1015,7 +1015,6 @@ Widget _buildActionButtons() {
           ),
           const SizedBox(height: 12),
         ],
-        // Muestra el botón de cancelar solo si la cita no está completada o cancelada
         if (widget.appointment.status != AppointmentStatus.completed &&
             widget.appointment.status != AppointmentStatus.cancelled)
           SizedBox(
@@ -1241,7 +1240,6 @@ void _showSuccessDialog() {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Palomita de confirmación
             Container(
               width: 80,
               height: 80,

@@ -6,7 +6,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
+
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -32,8 +35,8 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   late final String _chatId;
+  late final ChatRepository _chatRepository;
 
-  
   late final Stream<DocumentSnapshot> _psychologistStatusStream;
 
   @override
@@ -43,8 +46,13 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     final uids = [currentUserUid, widget.psychologistUid]..sort();
     _chatId = uids.join('_');
 
-    
-    _psychologistStatusStream = _firestore.collection('users').doc(widget.psychologistUid).snapshots();
+    // Inicializa el repositorio
+    _chatRepository = ChatRepository();
+
+    _psychologistStatusStream = _firestore
+        .collection('users')
+        .doc(widget.psychologistUid)
+        .snapshots();
   }
 
   @override
@@ -60,34 +68,25 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     final messageContent = _messageController.text.trim();
     _messageController.clear();
 
-    final currentUserUid = _auth.currentUser!.uid;
-
-    //  Paso 1: Guarda el mensaje en la subcolección de mensajes.
-    final messageDocRef = _firestore
-        .collection('chats')
-        .doc(_chatId)
-        .collection('messages')
-        .doc();
-
-    await messageDocRef.set({
-      'senderId': currentUserUid,
-      'content': messageContent,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
-    //  Paso 2: Actualiza el documento de resumen en la colección 'chats'.
-    await _firestore.collection('chats').doc(_chatId).set(
-      {
-        'participants': [currentUserUid, widget.psychologistUid],
-        'lastMessage': messageContent,
-        'lastTimestamp': FieldValue.serverTimestamp(),
-      },
-      SetOptions(
-        merge: true,
-      ),
-    );
-
     _scrollToBottom();
+
+    
+    try {
+      await _chatRepository.sendHumanMessage(
+        chatId: _chatId,
+        senderId: _auth.currentUser!.uid,
+        receiverId: widget.psychologistUid,
+        content: messageContent,
+        isUser:
+            false, 
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar el mensaje: $e')),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -115,67 +114,80 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(widget.psychologistImageUrl),
+              backgroundImage: widget.psychologistImageUrl.isNotEmpty
+                  ? NetworkImage(widget.psychologistImageUrl) as ImageProvider<Object>
+                  : const AssetImage('assets/images/default_avatar.png'),
               radius: 20,
             ),
             const SizedBox(width: 12),
-            
-            StreamBuilder<DocumentSnapshot>(
-              stream: _psychologistStatusStream,
-              builder: (context, snapshot) {
-                // Estado por defecto
-                bool isOnline = false;
-                String lastSeenText = 'Última vez visto: N/A';
 
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  isOnline = data['isOnline'] as bool? ?? false;
-                  final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
+           
+            Expanded(
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: _psychologistStatusStream,
+                builder: (context, snapshot) {
+                  // Estado por defecto
+                  bool isOnline = false;
+                  String lastSeenText = 'Última vez visto: N/A';
 
-                  if (lastSeenTimestamp != null) {
-                    final lastSeenDate = lastSeenTimestamp.toDate();
-                    final now = DateTime.now();
-                    final difference = now.difference(lastSeenDate);
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final data = snapshot.data!.data() as Map<String, dynamic>;
+                    isOnline = data['isOnline'] as bool? ?? false;
+                    final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
 
-                    if (difference.inMinutes < 1) {
-                      lastSeenText = 'En línea';
-                    } else if (difference.inHours < 1) {
-                      lastSeenText = 'Última vez visto hace ${difference.inMinutes} min';
-                    } else if (difference.inDays < 1) {
-                      lastSeenText = 'Última vez visto hoy a las ${DateFormat('HH:mm').format(lastSeenDate)}';
-                    } else if (difference.inDays < 2) {
-                      lastSeenText = 'Última vez visto ayer a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                    if (lastSeenTimestamp != null) {
+                      final lastSeenDate = lastSeenTimestamp.toDate();
+                      final now = DateTime.now();
+                      final difference = now.difference(lastSeenDate);
+
+                      if (difference.inMinutes < 1) {
+                        lastSeenText = 'En línea';
+                      } else if (difference.inHours < 1) {
+                        lastSeenText =
+                            'Última vez visto hace ${difference.inMinutes} min';
+                      } else if (difference.inDays < 1) {
+                        lastSeenText =
+                            'Última vez visto hoy a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                      } else if (difference.inDays < 2) {
+                        lastSeenText =
+                            'Última vez visto ayer a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                      } else {
+                        lastSeenText =
+                            'Última vez visto el ${DateFormat('dd MMM').format(lastSeenDate)}';
+                      }
                     } else {
-                      lastSeenText = 'Última vez visto el ${DateFormat('dd MMM').format(lastSeenDate)}';
+                      lastSeenText = 'Última vez visto: N/A';
                     }
-                  } else {
-                    lastSeenText = 'Última vez visto: N/A';
                   }
-                }
-                
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.psychologistName,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.psychologistName,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                        // Add overflow ellipsis to prevent text overflow
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      isOnline ? 'En línea' : lastSeenText,
-                      style: TextStyle(
-                        color: isOnline ? Colors.green : Colors.grey,
-                        fontSize: 12,
-                        fontFamily: 'Poppins',
+                      Text(
+                        isOnline ? 'En línea' : lastSeenText,
+                        style: TextStyle(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
+                        // Add overflow ellipsis to prevent text overflow
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -249,6 +261,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                       content: data['content'],
                       timestamp: timestamp?.toDate() ?? DateTime.now(),
                       isUser: data['senderId'] == _auth.currentUser!.uid,
+                      senderId: data['senderId'] ?? '',
                     );
                   }).toList();
 

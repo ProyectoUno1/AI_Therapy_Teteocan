@@ -18,16 +18,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
   final SignInUseCase _signInUseCase;
   final RegisterUserUseCase _registerUserUseCase;
+  final FirebaseFirestore _firestore;
 
   late StreamSubscription<dynamic> _userSubscription;
+  StreamSubscription<DocumentSnapshot>? _patientDataSubscription;
 
   AuthBloc({
     required AuthRepository authRepository,
     required SignInUseCase signInUseCase,
     required RegisterUserUseCase registerUserUseCase,
+    required FirebaseFirestore firestore,
   }) : _authRepository = authRepository,
        _signInUseCase = signInUseCase,
        _registerUserUseCase = registerUserUseCase,
+       _firestore = firestore,
        super(const AuthState.unknown()) {
     on<AuthSignInRequested>(_onAuthSignInRequested);
     on<AuthRegisterPatientRequested>(_onAuthRegisterPatientRequested);
@@ -36,6 +40,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStatusChanged>(_onAuthStatusChanged);
     on<AuthStarted>(_onAuthStarted);
     on<UpdatePatientInfoRequested>(_onUpdatePatientInfoRequested);
+    on<AuthStartListeningToPatient>(_onStartListeningToPatient);
+    on<AuthStopListeningToPatient>(_onStopListeningToPatient);
+    on<AuthPatientDataUpdated>(_onPatientDataUpdated);
 
     log(
       ' AuthBloc: Inicializando _userSubscription para authStateChanges.',
@@ -101,47 +108,105 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
   }
 
-  Future<void> _onAuthStarted(
-    AuthStarted event,
+  void _onStartListeningToPatient(
+    AuthStartListeningToPatient event,
     Emitter<AuthState> emit,
-  ) async {
-    log(
-      ' AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
-      name: 'AuthBloc',
-    );
+  ) {
+    log('AuthBloc: Iniciando escucha de datos del paciente: ${event.userId}', name: 'AuthBloc');
+    
+    // Cancelar suscripción anterior si existe
+    _patientDataSubscription?.cancel();
+  
+    _patientDataSubscription = _firestore
+        .collection('patients')
+        .doc(event.userId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        try {
+          final patient = PatientModel.fromFirestore(snapshot, null);
+          add(AuthPatientDataUpdated(patient));
+          log('AuthBloc: Datos del paciente actualizados: ${patient.messageCount} mensajes usados', name: 'AuthBloc');
+        } catch (e) {
+          log('AuthBloc: Error parsing patient data: $e', name: 'AuthBloc');
+        }
+      }
+    }, onError: (error) {
+      log('AuthBloc: Error listening to patient data: $error', name: 'AuthBloc');
+    });
+  }
 
-    try {
-      emit(const AuthState.loading());
+  void _onStopListeningToPatient(
+    AuthStopListeningToPatient event,
+    Emitter<AuthState> emit,
+  ) {
+    log('AuthBloc: Deteniendo escucha de datos del paciente', name: 'AuthBloc');
+    _patientDataSubscription?.cancel();
+    _patientDataSubscription = null;
+  }
 
-      // Verificar si hay un usuario autenticado
-      final currentUser = FirebaseAuth.instance.currentUser;
+  void _onPatientDataUpdated(
+    AuthPatientDataUpdated event,
+    Emitter<AuthState> emit,
+  ) {
+    log('AuthBloc: Actualizando estado con nuevos datos del paciente', name: 'AuthBloc');
+    
+    if (state.isAuthenticatedPatient && state.patient?.uid == event.patient.uid) {
+      emit(state.copyWith(
+        patient: event.patient,
+      ));
+      log('AuthBloc: Estado actualizado con nuevos datos del paciente', name: 'AuthBloc');
+    }
+  }
 
-      if (currentUser != null) {
-        log(
-          ' AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
-          name: 'AuthBloc',
-        );
+  Future<void> _onAuthStarted(
+  AuthStarted event,
+  Emitter<AuthState> emit,
+) async {
+  log(
+    ' AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
+    name: 'AuthBloc',
+  );
 
-        // Obtener el perfil del usuario desde Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .get();
+  try {
+    emit(const AuthState.loading());
 
-        if (userDoc.exists) {
-          final userData = userDoc.data()!;
-          final userRole = userData['role'] as String?;
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-          if (userRole == 'patient') {
-            final patient = PatientModel.fromFirestore(userDoc, null);
-            emit(
-              AuthState.authenticated(
-                userRole: UserRole.patient,
-                patient: patient,
-              ),
-            );
-          } else if (userRole == 'psychologist') {
-            final psychologist = PsychologistModel.fromFirestore(userData);
+    if (currentUser != null) {
+      log(
+        ' AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
+        name: 'AuthBloc',
+      );
+
+      final userDoc = await _firestore
+          .collection('patients')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        final userRole = userData['role'] as String?;
+
+        if (userRole == 'patient') {
+          final patient = PatientModel.fromFirestore(userDoc, null);
+          emit(
+            AuthState.authenticated(
+              userRole: UserRole.patient,
+              patient: patient,
+            ),
+          );
+          
+          add(AuthStartListeningToPatient(patient.uid));
+        } else if (userRole == 'psychologist') {
+          
+          final psychologistDoc = await _firestore
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+          if (psychologistDoc.exists) {
+            final psychologistData = psychologistDoc.data()!;
+            final psychologist = PsychologistModel.fromFirestore(psychologistData);
             emit(
               AuthState.authenticated(
                 userRole: UserRole.psychologist,
@@ -155,16 +220,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           emit(const AuthState.unauthenticated());
         }
       } else {
-        log(' AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
         emit(const AuthState.unauthenticated());
       }
-    } catch (e) {
-      log(' AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
-      emit(
-        const AuthState.error(errorMessage: 'Error verificando autenticación'),
-      );
+    } else {
+      log(' AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
+      emit(const AuthState.unauthenticated());
     }
+  } catch (e) {
+    log(' AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
+    emit(
+      const AuthState.error(errorMessage: 'Error verificando autenticación'),
+    );
   }
+}
 
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
     log(
@@ -176,16 +244,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       name: 'AuthBloc',
     );
 
+    _patientDataSubscription?.cancel();
+    _patientDataSubscription = null;
+
     AuthState newState;
 
     switch (event.status) {
       case AuthStatus.authenticated:
         if (event.userRole == UserRole.patient &&
             event.userProfile is PatientModel) {
+          final patient = event.userProfile as PatientModel;
           newState = AuthState.authenticated(
             userRole: UserRole.patient,
-            patient: event.userProfile as PatientModel,
+            patient: patient,
           );
+          
+         
+          add(AuthStartListeningToPatient(patient.uid));
+          
         } else if (event.userRole == UserRole.psychologist &&
             event.userProfile is PsychologistModel) {
           newState = AuthState.authenticated(
@@ -206,6 +282,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
         break;
       case AuthStatus.unauthenticated:
+        
+        add(const AuthStopListeningToPatient());
         newState = AuthState.unauthenticated(errorMessage: event.errorMessage);
         break;
       case AuthStatus.loading:
@@ -422,7 +500,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.',
           name: 'AuthBloc',
         );
-        await FirebaseFirestore.instance
+        await _firestore
             .collection('users')
             .doc(currentUser.uid)
             .set({
@@ -456,7 +534,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _userSubscription.cancel();
-    log(' AuthBloc: _userSubscription cancelada.', name: 'AuthBloc');
+    _patientDataSubscription?.cancel();
+    log(' AuthBloc: Todas las suscripciones canceladas.', name: 'AuthBloc');
     return super.close();
   }
 }

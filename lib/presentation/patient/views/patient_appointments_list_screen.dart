@@ -11,7 +11,9 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.d
 import 'package:ai_therapy_teteocan/presentation/patient/views/session_rating_screen.dart';
 
 class PatientAppointmentsListScreen extends StatefulWidget {
-  const PatientAppointmentsListScreen({super.key});
+  final String? highlightAppointmentId; 
+  final String? filterStatus;
+  const PatientAppointmentsListScreen({super.key, this.highlightAppointmentId, this.filterStatus});
 
   @override
   State<PatientAppointmentsListScreen> createState() =>

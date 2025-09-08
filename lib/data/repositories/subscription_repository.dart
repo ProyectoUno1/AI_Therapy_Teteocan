@@ -16,12 +16,29 @@ abstract class SubscriptionRepository {
   });
   Future<bool> verifyPaymentSession(String sessionId);
   Future<String> cancelSubscription({bool immediate = false});
+  Future<void> updatePremiumStatus(bool isPremium); 
 }
 
 class SubscriptionRepositoryImpl implements SubscriptionRepository {
   static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  Future<void> updatePremiumStatus(bool isPremium) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _firestore.collection('patients').doc(user.uid).update({
+        'isPremium': isPremium,
+        'premiumUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error actualizando estado premium: $e');
+      rethrow;
+    }
+  }
 
   @override
   Future<SubscriptionData?> getUserSubscriptionStatus() async {

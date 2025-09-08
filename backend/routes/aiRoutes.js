@@ -7,6 +7,23 @@ import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 
 const router = express.Router();
 
+// --- Para obtener o crear el ID del chat de la IA ---
+router.get('/chat-id', verifyFirebaseToken, async (req, res, next) => {
+    try {
+        const userId = req.firebaseUser.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'Usuario no autenticado.' });
+        }
+
+        const chatId = await getOrCreateAIChatId(userId);
+
+        res.status(200).json({ chatId });
+    } catch (error) {
+        console.error('Error en /api/ai/chat-id (GET):', error);
+        next(error);
+    }
+});
+
 // --- Ruta para ENVIAR un mensaje al chat de IA y obtener la respuesta ---
 router.post('/chat', verifyFirebaseToken, async (req, res, next) => {
     try {
@@ -16,7 +33,6 @@ router.post('/chat', verifyFirebaseToken, async (req, res, next) => {
         if (!userId || !message) {
             return res.status(400).json({ error: 'Faltan datos de usuario o mensaje.' });
         }
-
         
         await getOrCreateAIChatId(userId);
 
@@ -37,10 +53,8 @@ router.get('/chat-history', verifyFirebaseToken, async (req, res, next) => {
             return res.status(401).json({ error: 'Usuario no autenticado.' });
         }
 
-        // Llama a la función de tu chatService para cargar los mensajes
         const messages = await loadChatMessages(userId);
 
-        // Se necesita un formateo de los datos para que el frontend los entienda
         const formattedMessages = messages.map(msg => ({
             id: msg.id,
             content: msg.content,

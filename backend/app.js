@@ -8,6 +8,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import psychologistProfessionalProfileRoutes from "./routes/psychologist_professional_profile.js";
 import appointmentsRoutes from "./routes/appointments.js";
 import patientManagementRoutes from './routes/patient_management.js';
+import notificationsRoutes from './routes/notifications.js';
 import { verifyFirebaseToken } from "./middlewares/auth_middleware.js";
 import stripeRouter from "./routes/stripeRoutes.js";
 import { auth, db } from "./firebase-admin.js";
@@ -44,6 +45,7 @@ app.use("/api/chats/ai-chat", verifyFirebaseToken, aiChatRoutes);
 app.use("/api/chats", verifyFirebaseToken, chatRoutes);
 app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
+app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
 
 // --- Manejador de Errores Global ---
 app.use((error, req, res, next) => {

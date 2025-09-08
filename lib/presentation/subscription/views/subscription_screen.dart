@@ -865,35 +865,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                   ),
                   const SizedBox(height: 20),
                   
-                  if (_isLoadingPlans)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_plansError != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.orange[700], size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Usando planes por defecto (sin conexión)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange[700],
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  
+                                   
                   Expanded(
                     child: ListView.builder(
                       itemCount: _availablePlans.length,

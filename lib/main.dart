@@ -14,6 +14,7 @@ import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository_im
 import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
+import 'package:ai_therapy_teteocan/core/services/ai_chat_api_service.dart';
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
@@ -25,6 +26,10 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.da
 import 'package:ai_therapy_teteocan/presentation/admin/views/psychologists_list_page.dart';
 import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_event.dart';
+import 'package:ai_therapy_teteocan/data/repositories/notification_repository.dart';
+
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
@@ -81,9 +86,10 @@ void main() async {
             authRepository: authRepository,
             signInUseCase: signInUseCase,
             registerUserUseCase: registerUserUseCase,
+            firestore: FirebaseFirestore.instance,
           )..add(const AuthStarted()),
         ),
-        BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository)),
+        BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository, AiChatApiService())),
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
         BlocProvider<PsychologistInfoBloc>(
           create: (context) => PsychologistInfoBloc(
@@ -98,6 +104,11 @@ void main() async {
         BlocProvider<PsychologistBloc>(
       create: (context) => PsychologistBloc(
         repository: PsychologistRepository(),
+      ),
+        ),
+        BlocProvider<NotificationBloc>(
+      create: (context) => NotificationBloc(
+        notificationRepository: NotificationRepository(),
       ),
         ),
       ],

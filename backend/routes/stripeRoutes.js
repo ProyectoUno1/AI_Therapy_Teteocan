@@ -24,9 +24,9 @@ stripeRouter.post("/create-checkout-session", async (req, res) => {
   try {
     console.log(`Creando sesión de checkout para usuario: ${userEmail} (${userId})`);
     
-    // Verificar si ya tiene suscripción activa
-    const userDoc = await db.collection('users').doc(userId).get();
-    if (userDoc.exists && userDoc.data().hasSubscription) {
+    // Verificar si ya tiene suscripción activa 
+    const userDoc = await db.collection('patients').doc(userId).get();
+    if (userDoc.exists && userDoc.data().isPremium) {
       return res.status(400).json({
         error: "El usuario ya tiene una suscripción activa"
       });
@@ -141,9 +141,9 @@ stripeRouter.post("/verify-session", async (req, res) => {
       
       if (userId) {
         try {
-          // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE
-          await db.collection('users').doc(userId).set({
-            hasSubscription: true,
+          // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE - CORREGIDO: Usar 'patients' en lugar de 'users'
+          await db.collection('patients').doc(userId).set({
+            isPremium: true, 
             subscriptionId: session.subscription?.id || session.subscription,
             stripeCustomerId: session.customer?.id || session.customer,
             subscriptionStartDate: FieldValue.serverTimestamp(),
@@ -200,38 +200,43 @@ stripeRouter.post("/verify-session", async (req, res) => {
 
 // Endpoint para cancelar suscripción
 stripeRouter.post("/cancel-subscription", async (req, res) => {
-  const { userId, immediate = false } = req.body;
+  const { subscriptionId, immediate = false } = req.body; 
 
-  if (!userId) {
-    return res.status(400).json({ error: "userId is required" });
+  if (!subscriptionId) {
+    return res.status(400).json({ error: "subscriptionId is required" });
   }
 
   try {
-    // Obtener suscripción del usuario
-    const userDoc = await db.collection('users').doc(userId).get();
-    
-    if (!userDoc.exists || !userDoc.data().subscriptionId) {
-      return res.status(404).json({ error: "No se encontró suscripción activa" });
-    }
-
-    const subscriptionId = userDoc.data().subscriptionId;
-
     // Cancelar en Stripe
-    const canceledSubscription = await stripeClient.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: !immediate,
-      metadata: {
-        canceled_by: 'user',
-        canceled_from: 'mobile_app',
-        canceled_at: new Date().toISOString()
-      }
-    });
-
-    // Si es cancelación inmediata
+    let canceledSubscription;
+    
     if (immediate) {
-      await stripeClient.subscriptions.cancel(subscriptionId);
+      canceledSubscription = await stripeClient.subscriptions.cancel(subscriptionId);
+    } else {
+      canceledSubscription = await stripeClient.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: true,
+        metadata: {
+          canceled_by: 'user',
+          canceled_from: 'mobile_app',
+          canceled_at: new Date().toISOString()
+        }
+      });
     }
 
     console.log(`Suscripción ${subscriptionId} ${immediate ? 'cancelada inmediatamente' : 'programada para cancelar'}`);
+
+    // Buscar el usuario asociado a esta suscripción
+    const subscriptionDoc = await db.collection('subscriptions').doc(subscriptionId).get();
+    if (subscriptionDoc.exists) {
+      const userId = subscriptionDoc.data().userId;
+      
+      // Actualizar estado del usuario
+      await db.collection('patients').doc(userId).update({
+        isPremium: false, 
+        subscriptionStatus: immediate ? 'canceled' : 'pending_cancelation',
+        subscriptionCanceledAt: FieldValue.serverTimestamp()
+      });
+    }
 
     res.json({
       success: true,
@@ -273,26 +278,39 @@ stripeRouter.post("/stripe-webhook", async (req, res) => {
 
   console.log(`Webhook recibido: ${event.type}`);
 
-        switch (event.type) {
-            case 'checkout.session.completed':
-                await handleCheckoutSessionCompleted(event.data.object);
-                break;
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
 
-            case 'customer.subscription.updated':
-                await handleSubscriptionUpdated(event.data.object);
-                break;
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object);
+        break;
 
-            case 'customer.subscription.deleted':
-                await handleSubscriptionDeleted(event.data.object);
-                break;
-        }
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object);
+        break;
 
-  res.status(200).send();
+      case 'invoice.payment_succeeded':
+        await handlePaymentSucceeded(event.data.object);
+        break;
+
+      case 'invoice.payment_failed':
+        await handlePaymentFailed(event.data.object);
+        break;
+    }
+
+    res.status(200).send();
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).send('Webhook handler failed');
+  }
 });
 
 // FUNCIONES AUXILIARES PARA MANEJAR EVENTOS
 
-async function handleCheckoutCompleted(session) {
+async function handleCheckoutSessionCompleted(session) {
   console.log(`Procesando checkout completado: ${session.id}`);
   
   const userId = session.client_reference_id || session.metadata?.firebase_uid;
@@ -309,9 +327,9 @@ async function handleCheckoutCompleted(session) {
   }
 
   try {
-    // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE
-    await db.collection('users').doc(userId).set({
-      hasSubscription: true,
+    // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE 
+    await db.collection('patients').doc(userId).set({
+      isPremium: true, // CAMBIO IMPORTANTE
       subscriptionId: subscriptionId,
       stripeCustomerId: customerId,
       subscriptionStartDate: FieldValue.serverTimestamp(),
@@ -345,39 +363,19 @@ async function handleCheckoutCompleted(session) {
   }
 }
 
-async function handleSubscriptionCreated(subscription) {
-  console.log(`Suscripción creada: ${subscription.id}`);
-  
-  try {
-    const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
-    if(subscriptionDoc.exists) {
-      await db.collection('subscriptions').doc(subscription.id).update({
-        status: subscription.status,
-        currentPeriodStart: new Date(subscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-        subscriptionCreated: FieldValue.serverTimestamp()
-      });
-    }
-
-    console.log(`Estado de suscripción creada actualizado: ${subscription.id}`);
-  } catch (error) {
-    console.error(`Error al actualizar suscripción creada:`, error);
-  }
-}
-
 async function handleSubscriptionUpdated(subscription) {
-    try {
-        console.log('🔍 Debug - subscription updated completa:', {
-            current_period_end: subscription.current_period_end,
-            current_period_start: subscription.current_period_start,
-            status: subscription.status
-        });
-        
-        const updateData = {
-            status: subscription.status,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-            updatedAt: FieldValue.serverTimestamp()
-        };
+  try {
+    console.log('🔍 Debug - subscription updated completa:', {
+      current_period_end: subscription.current_period_end,
+      current_period_start: subscription.current_period_start,
+      status: subscription.status
+    });
+    
+    const updateData = {
+      status: subscription.status,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      updatedAt: FieldValue.serverTimestamp()
+    };
 
     // SI LA SUSCRIPCIÓN FUE CANCELADA
     if (subscription.status === 'canceled') {
@@ -385,15 +383,15 @@ async function handleSubscriptionUpdated(subscription) {
       updateData.cancelReason = subscription.cancellation_details?.reason || 'unknown';
     }
 
-        await db.collection('subscriptions').doc(subscription.id).update(updateData);
+    await db.collection('subscriptions').doc(subscription.id).update(updateData);
 
-    // BUSCAR USUARIO Y ACTUALIZAR SU ESTADO
+    // BUSCAR USUARIO Y ACTUALIZAR SU ESTADO 
     const subscriptionDoc = await db.collection('subscriptions').doc(subscription.id).get();
     if (subscriptionDoc.exists) {
       const userIdFromDoc = subscriptionDoc.data().userId;
       
-      await db.collection('users').doc(userIdFromDoc).update({
-        hasSubscription: subscription.status === 'active',
+      await db.collection('patients').doc(userIdFromDoc).update({
+        isPremium: subscription.status === 'active',
         subscriptionStatus: subscription.status,
         lastSubscriptionUpdate: FieldValue.serverTimestamp()
       });
@@ -416,9 +414,9 @@ async function handleSubscriptionDeleted(subscription) {
     if (subscriptionDoc.exists) {
       const userIdFromDoc = subscriptionDoc.data().userId;
       
-      // ACTUALIZAR USUARIO - REMOVER SUSCRIPCIÓN
-      await db.collection('users').doc(userIdFromDoc).update({
-        hasSubscription: false,
+      // ACTUALIZAR USUARIO - REMOVER SUSCRIPCIÓN 
+      await db.collection('patients').doc(userIdFromDoc).update({
+        isPremium: false, 
         subscriptionId: null,
         subscriptionStatus: 'canceled',
         subscriptionCanceledAt: FieldValue.serverTimestamp()
@@ -456,14 +454,14 @@ async function handlePaymentSucceeded(invoice) {
       createdAt: FieldValue.serverTimestamp()
     });
 
-    // ACTUALIZAR ÚLTIMA FECHA DE PAGO DEL USUARIO
+    
     const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
     if (subscriptionDoc.exists) {
       const userIdFromDoc = subscriptionDoc.data().userId;
       
-      await db.collection('users').doc(userIdFromDoc).update({
+      await db.collection('patients').doc(userIdFromDoc).update({
         lastPaymentDate: FieldValue.serverTimestamp(),
-        hasSubscription: true // REACTIVAR SI ESTABA SUSPENDIDA
+        isPremium: true // REACTIVAR SI ESTABA SUSPENDIDA 
       });
 
       console.log(`Pago registrado para usuario: ${userIdFromDoc}`);
@@ -490,12 +488,12 @@ async function handlePaymentFailed(invoice) {
       createdAt: FieldValue.serverTimestamp()
     });
 
-    // NOTIFICAR AL USUARIO (OPCIONAL)
+    
     const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
     if (subscriptionDoc.exists) {
       const userIdFromDoc = subscriptionDoc.data().userId;
       
-      await db.collection('users').doc(userIdFromDoc).update({
+      await db.collection('patients').doc(userIdFromDoc).update({
         lastPaymentFailure: FieldValue.serverTimestamp(),
         paymentStatus: 'failed'
       });
@@ -516,8 +514,8 @@ stripeRouter.get("/subscription-status/:userId", async (req, res) => {
   }
 
   try {
-    // Obtener datos del usuario
-    const userDoc = await db.collection('users').doc(userId).get();
+    
+    const userDoc = await db.collection('patients').doc(userId).get();
     
     if (!userDoc.exists) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -526,7 +524,7 @@ stripeRouter.get("/subscription-status/:userId", async (req, res) => {
     const userData = userDoc.data();
     
     // Si tiene suscripción, obtener detalles
-    if (userData.hasSubscription && userData.subscriptionId) {
+    if (userData.isPremium && userData.subscriptionId) { 
       const subscriptionDoc = await db.collection('subscriptions').doc(userData.subscriptionId).get();
       
       if (subscriptionDoc.exists) {

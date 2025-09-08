@@ -35,3 +35,9 @@ class CancelSubscription extends SubscriptionEvent {
 }
 
 class ResetSubscriptionState extends SubscriptionEvent {}
+
+class UpdatePremiumStatus extends SubscriptionEvent {
+  final bool isPremium;
+
+  UpdatePremiumStatus({required this.isPremium});
+}

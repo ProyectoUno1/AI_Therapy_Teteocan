@@ -20,6 +20,7 @@ class PatientEntity extends UserEntity {
           role: 'paciente',
           profilePictureUrl: profilePictureUrl,
         );
+        
 
   @override
   List<Object?> get props => [...super.props, dateOfBirth];

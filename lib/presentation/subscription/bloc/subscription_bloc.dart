@@ -17,6 +17,24 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     on<VerifyPaymentSession>(_onVerifyPaymentSession);
     on<CancelSubscription>(_onCancelSubscription);
     on<ResetSubscriptionState>(_onResetSubscriptionState);
+    on<UpdatePremiumStatus>(_onUpdatePremiumStatus); // Nuevo evento
+  }
+
+  // NUEVO MANEJADOR: Actualizar estado premium
+  Future<void> _onUpdatePremiumStatus(
+    UpdatePremiumStatus event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    try {
+      await _repository.updatePremiumStatus(event.isPremium);
+      
+      // Si estamos actualizando a premium, también recargar el estado
+      if (event.isPremium) {
+        add(LoadSubscriptionStatus());
+      }
+    } catch (e) {
+      emit(SubscriptionError(message: 'Error al actualizar estado premium: $e'));
+    }
   }
 
   Future<void> _onLoadSubscriptionStatus(
@@ -28,8 +46,14 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
 
       final subscriptionData = await _repository.getUserSubscriptionStatus();
       
+      // Actualizar el estado premium basado en la suscripción
+      final hasActiveSubscription = subscriptionData?.isActive ?? false;
+      if (hasActiveSubscription) {
+        await _repository.updatePremiumStatus(true);
+      }
+      
       emit(SubscriptionLoaded(
-        hasActiveSubscription: subscriptionData?.isActive ?? false,
+        hasActiveSubscription: hasActiveSubscription,
         subscriptionData: subscriptionData,
       ));
     } catch (e) {
@@ -91,6 +115,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
         // Esperar un poco para que el webhook procese
         await Future.delayed(const Duration(seconds: 3));
 
+        // Actualizar estado premium después de pago exitoso
+        await _repository.updatePremiumStatus(true);
+
         emit(PaymentVerificationSuccess(
           message: 'Pago verificado exitosamente. Tu suscripción está activa.',
         ));
@@ -113,6 +140,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       emit(SubscriptionCancellationInProgress());
 
       final message = await _repository.cancelSubscription(immediate: event.immediate);
+
+      // Actualizar estado premium después de cancelar
+      await _repository.updatePremiumStatus(false);
 
       emit(SubscriptionCancellationSuccess(message: message));
 
