@@ -42,7 +42,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                 } else {
                     const psychologistDoc = await db.collection('psychologists').doc(senderId).get();
                     if (psychologistDoc.exists) {
-                        const profDoc = await db.collection('psychologist_professional_info').doc(senderId).get();
+                        const profDoc = await db.collection('psychologists').doc(senderId).get();
                         senderName = profDoc.exists ? profDoc.data().fullName : psychologistDoc.data().username || 'Psicólogo';
                         console.log('👤 Remitente (psicólogo):', senderName);
                     }

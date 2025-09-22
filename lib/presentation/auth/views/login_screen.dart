@@ -184,6 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 const SizedBox(height: 32),
                                 BlocConsumer<AuthBloc, AuthState>(
                                   listener: (context, state) {
+                                    if (!mounted) return;
                                     if (state.status == AuthStatus.error) {
                                       ScaffoldMessenger.of(
                                         context,

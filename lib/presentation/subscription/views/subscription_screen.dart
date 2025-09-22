@@ -1,5 +1,6 @@
 // lib/presentation/subscription/views/subscription_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,8 @@ import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.da
 import 'package:ai_therapy_teteocan/presentation/subscription/views/checkout_screen.dart';
 import 'package:ai_therapy_teteocan/data/models/plan_model.dart';
 import 'package:ai_therapy_teteocan/core/services/plans_service.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({super.key});
@@ -35,7 +38,7 @@ class SubscriptionView extends StatefulWidget {
 }
 
 class _SubscriptionViewState extends State<SubscriptionView> {
-  int aiMessagesUsed = 15;
+  int aiMessagesUsed = 0;
   int aiMessagesLimit = 20;
   late SubscriptionBloc _subscriptionBloc;
   
@@ -43,12 +46,44 @@ class _SubscriptionViewState extends State<SubscriptionView> {
   List<PlanModel> _availablePlans = [];
   bool _isLoadingPlans = false;
   String? _plansError;
+  
+  // Para obtener datos de uso de IA
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+  bool _isPremium = false;
 
   @override
   void initState() {
     super.initState();
     _subscriptionBloc = BlocProvider.of<SubscriptionBloc>(context);
     _loadAvailablePlans();
+    _startListeningToUserData();
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
+  }
+
+  // Obtener datos de uso de IA desde Firestore
+  void _startListeningToUserData() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userSubscription = FirebaseFirestore.instance
+          .collection('patients')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.exists && mounted) {
+          final data = snapshot.data()!;
+          setState(() {
+            aiMessagesUsed = data['messageCount'] ?? 0;
+            _isPremium = data['isPremium'] == true;
+            aiMessagesLimit = _isPremium ? 99999 : 20;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _loadAvailablePlans() async {
@@ -196,6 +231,10 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Mostrar el indicador de uso de IA
+              
+                const SizedBox(height: 20),
+                
                 if (state is SubscriptionLoaded && state.hasActiveSubscription)
                   _buildActiveSubscriptionCard(state.subscriptionData!)
                 else ...[
@@ -576,7 +615,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.info_outline,
+                  Icons.psychology,
                   color: Colors.grey[600],
                   size: 20,
                 ),
@@ -789,7 +828,7 @@ class _SubscriptionViewState extends State<SubscriptionView> {
             style: TextStyle(fontFamily: 'Poppins'),
           ),
           content: const Text(
-            '¿Estás seguro de que quieres cancelar tu suscripción? Se mantendrá activa hasta el final del periodo actual.',
+            '¿Estás seguro de que quieres cancelar tu suscripción? Se mantendrá activa hasta el final del period actual.',
             style: TextStyle(fontFamily: 'Poppins'),
           ),
           actions: <Widget>[

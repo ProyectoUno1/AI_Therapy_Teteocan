@@ -28,7 +28,7 @@ class PsychologistRepositoryImpl implements PsychologistRepository {
   @override
   Future<void> updateProfessionalInfo({
     required String uid,
-    String? fullName,
+    String? username,
     String? professionalLicense,
     String? professionalTitle,
     int? yearsExperience,
@@ -43,7 +43,7 @@ class PsychologistRepositoryImpl implements PsychologistRepository {
   }) async {
     await _remoteDataSource.updateProfessionalInfo(
       uid: uid,
-      fullName: fullName,
+      fullName: username,
       professionalLicense: professionalLicense,
       professionalTitle: professionalTitle,
       yearsExperience: yearsExperience,

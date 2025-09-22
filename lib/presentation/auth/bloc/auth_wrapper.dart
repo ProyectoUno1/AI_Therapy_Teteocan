@@ -21,22 +21,30 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  
+
   @override
   Widget build(BuildContext context) {
-    
+
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
+        if (!mounted) return;
         if (state.isError && state.errorMessage != null) {
           log(
-            ' AuthWrapper Listener: Error de autenticación: ${state.errorMessage}',
+            ' AuthWrapper Listener: Error de autenticación - ${state.errorMessage}',
             name: 'AuthWrapper',
           );
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-        }
-        if (!state.isAuthenticated) {
+          // Verificar si el widget está montado antes de mostrar el SnackBar
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+          }
+        } else if (state.isAuthenticated && state.isAuthenticatedPsychologist) {
+          log(
+            ' AuthWrapper Listener: Psicólogo autenticado, navegando a PsychologistHomeScreen',
+            name: 'AuthWrapper',
+          );
+          // No es necesario un SnackBar aquí, la navegación es la acción principal
+        } else {
           log(
             ' AuthWrapper Listener: Usuario no autenticado, debería mostrar LoginScreen',
             name: 'AuthWrapper',

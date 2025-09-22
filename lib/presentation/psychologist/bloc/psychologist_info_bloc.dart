@@ -30,7 +30,7 @@ class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoS
     try {
       await _setupUsecase(
         uid: event.uid,
-        fullName: event.fullName,
+        username: event.fullName,
         professionalTitle: event.professionalTitle,
         licenseNumber: event.licenseNumber,
         yearsExperience: event.yearsExperience,

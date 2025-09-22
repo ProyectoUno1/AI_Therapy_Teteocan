@@ -381,7 +381,7 @@ class _RegisterPsychologistScreenState
         children: [
           CustomTextField(
             controller: _usernameController,
-            hintText: 'Username',
+            hintText: 'Nombre completo',
             icon: Icons.person_outline,
             validator: InputValidators.validateUsername, // Validar username
             filled: true,

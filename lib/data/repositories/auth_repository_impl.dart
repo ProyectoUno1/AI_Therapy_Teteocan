@@ -217,6 +217,7 @@ class AuthRepositoryImpl implements AuthRepository {
         createdAt: now,
         updatedAt: now,
         role: 'psychologist',
+        
       );
 
       await userRemoteDataSource.createPsychologist(
@@ -228,6 +229,8 @@ class AuthRepositoryImpl implements AuthRepository {
         dateOfBirth: psychologist.dateOfBirth!,
         profilePictureUrl: psychologist.profilePictureUrl,
         role: psychologist.role,
+        status: psychologist.status ?? '',
+        
       );
       log(
         ' Repo: Registro de psicólogo y datos de Firestore exitoso.',

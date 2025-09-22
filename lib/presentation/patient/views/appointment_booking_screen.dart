@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
@@ -10,6 +11,9 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.da
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/psychology_session_payment_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/psychology_payment_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychology_payment_repository.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
   final PsychologistModel psychologist;
@@ -31,11 +35,47 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   AppointmentType _selectedType = AppointmentType.online;
   final TextEditingController _notesController = TextEditingController();
 
+  // Estado de suscripción del usuario
+  bool _isPremium = false;
+  bool _isLoadingSubscription = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserSubscription();
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkUserSubscription() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('patients')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _isPremium = userDoc.data()?['isPremium'] == true;
+            _isLoadingSubscription = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isPremium = false;
+          _isLoadingSubscription = false;
+        });
+      }
+    }
   }
 
   @override
@@ -65,17 +105,21 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       body: BlocListener<AppointmentBloc, AppointmentState>(
         listener: (context, state) {
           if (state.isBooked) {
-            _showSuccessDialog();
-
-            // RECARGAR LAS CITAS DESPUÉS DE AGENDAR
-            context.read<AppointmentBloc>().add(
-              LoadAppointmentsEvent(
-                userId: FirebaseAuth.instance.currentUser!.uid,
-                isForPsychologist: false,
-                startDate: DateTime.now(),
-                endDate: DateTime.now().add(const Duration(days: 60)),
-              ),
-            );
+            // Solo si es usuario premium, confirmar directamente
+            // Si no es premium, ir directamente a pantalla de pago SIN agendar
+            if (_isPremium) {
+              _showSuccessDialog();
+              
+              // RECARGAR LAS CITAS DESPUÉS DE AGENDAR
+              context.read<AppointmentBloc>().add(
+                LoadAppointmentsEvent(
+                  userId: FirebaseAuth.instance.currentUser!.uid,
+                  isForPsychologist: false,
+                  startDate: DateTime.now(),
+                  endDate: DateTime.now().add(const Duration(days: 60)),
+                ),
+              );
+            }
           } else if (state.isError) {
             _showErrorSnackBar(state.errorMessage!);
           }
@@ -112,6 +156,42 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         ),
       ),
     );
+  }
+
+  void _navigateToPaymentScreen() {
+    if (_selectedDate != null && _selectedTimeSlot != null) {
+      final appointmentDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTimeSlot!.dateTime.hour,
+        _selectedTimeSlot!.dateTime.minute,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BlocProvider(
+            create: (context) => PsychologyPaymentBloc(
+              repository: PsychologyPaymentRepositoryImpl(),
+            ),
+            child: PsychologySessionPaymentScreen(
+              psychologist: widget.psychologist,
+              sessionDateTime: appointmentDateTime,
+              appointmentType: _selectedType,
+              notes: _notesController.text.trim().isEmpty 
+                  ? null 
+                  : _notesController.text.trim(),
+            ),
+          ),
+        ),
+      ).then((paymentSuccess) {
+        if (paymentSuccess == true) {
+          // Si el pago fue exitoso, mostrar éxito y navegar a lista de citas
+          _showSuccessDialog(isPaidSession: true);
+        }
+      });
+    }
   }
 
   Widget _buildStepsIndicator() {
@@ -199,75 +279,109 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
-            backgroundImage: widget.psychologist.profilePictureUrl != null
-                ? NetworkImage(widget.psychologist.profilePictureUrl!)
-                : null,
-            child: widget.psychologist.profilePictureUrl == null
-                ? Text(
-                    widget.psychologist.username.isNotEmpty
-                        ? widget.psychologist.username[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
-                      color: AppConstants.lightAccentColor,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.psychologist.username,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                Text(
-                  widget.psychologist.specialty ?? 'Psicología General',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+                backgroundImage: widget.psychologist.profilePictureUrl != null
+                    ? NetworkImage(widget.psychologist.profilePictureUrl!)
+                    : null,
+                child: widget.psychologist.profilePictureUrl == null
+                    ? Text(
+                        widget.psychologist.username.isNotEmpty
+                            ? widget.psychologist.username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          color: AppConstants.lightAccentColor,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.attach_money,
-                      size: 16,
-                      color: AppConstants.primaryColor,
+                    Text(
+                      widget.psychologist.username,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
                     Text(
-                      '\$${(widget.psychologist.hourlyRate ?? 0.0).toInt()}/sesión',
+                      widget.psychologist.specialty ?? 'Psicología General',
                       style: TextStyle(
-                        color: AppConstants.primaryColor,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
                         fontSize: 14,
                         fontFamily: 'Poppins',
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.attach_money,
+                          size: 16,
+                          color: AppConstants.primaryColor,
+                        ),
+                        
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          
+          // Mostrar información de suscripción
+          if (!_isLoadingSubscription) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _isPremium ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _isPremium ? Colors.green[200]! : Colors.orange[200]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isPremium ? Icons.star : Icons.payment,
+                    color: _isPremium ? Colors.green[700] : Colors.orange[700],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _isPremium
+                          ? 'Tu suscripción Premium incluye esta sesión'
+                          : 'Pago único de \$${(widget.psychologist.hourlyRate ?? 100.0).toInt()} requerido',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _isPremium ? Colors.green[700] : Colors.orange[700],
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
+  // Los demás métodos permanecen igual (_buildDateSelectionStep, _buildTimeSelectionStep, etc.)
   Widget _buildDateSelectionStep() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -292,8 +406,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Calendario personalizado
           Expanded(child: _buildCustomCalendar()),
         ],
       ),
@@ -311,7 +423,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       ),
       child: CalendarDatePicker(
         initialDate: _selectedDate ?? today,
-        firstDate: today, // PERMITIR SELECCIONAR HOY
+        firstDate: today,
         lastDate: today.add(const Duration(days: 60)),
         onDateChanged: (date) {
           setState(() {
@@ -319,7 +431,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             _selectedTimeSlot = null;
           });
 
-          // Cargar slots de tiempo para la fecha seleccionada
           context.read<AppointmentBloc>().add(
             LoadAvailableTimeSlotsEvent(
               psychologistId: widget.psychologist.uid,
@@ -329,7 +440,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           );
         },
         selectableDayPredicate: (date) {
-          // Permitir fines de semana también
           return date.isAfter(now.subtract(const Duration(days: 1)));
         },
       ),
@@ -526,7 +636,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Tipo de cita
           Text(
             'Modalidad de la sesión',
             style: const TextStyle(
@@ -547,25 +656,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                   subtitle: 'Videoconferencia',
                 ),
               ),
-              // Por ahora solo modalidad en línea disponible
-              // TODO: Implementar modalidad presencial en el futuro
-              /* 
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildAppointmentTypeCard(
-                  type: AppointmentType.inPerson,
-                  icon: Icons.location_on,
-                  title: 'Presencial',
-                  subtitle: 'En consultorio',
-                ),
-              ),
-              */
             ],
           ),
 
           const SizedBox(height: 24),
 
-          // Notas adicionales
           Text(
             'Notas adicionales (opcional)',
             style: const TextStyle(
@@ -708,7 +803,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Resumen de la cita
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -750,7 +844,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 _buildSummaryRow(
                   icon: Icons.attach_money,
                   label: 'Precio',
-                  value: '\$${(widget.psychologist.hourlyRate ?? 0.0).toInt()}',
+                  value: _isPremium 
+                      ? 'Incluido en Premium'
+                      : '\${(widget.psychologist.hourlyRate ?? 0.0).toInt()}',
                 ),
                 if (_notesController.text.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -800,10 +896,15 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '• Tu cita quedará pendiente de confirmación\n'
-                  '• El psicólogo confirmará en un máximo de 24 horas\n'
-                  '• Recibirás una notificación cuando sea confirmada\n'
-                  '• Podrás cancelar hasta 2 horas antes de la cita',
+                  _isPremium
+                      ? '• Tu cita quedará confirmada inmediatamente\n'
+                        '• Recibirás una notificación de confirmación\n'
+                        '• Esta sesión está incluida en tu plan Premium\n'
+                        '• Podrás cancelar hasta 2 horas antes de la cita'
+                      : '• Tu cita requiere pago antes de ser confirmada\n'
+                        '• Serás dirigido al proceso de pago\n'
+                        '• La cita se confirmará después del pago exitoso\n'
+                        '• Podrás cancelar hasta 2 horas antes de la cita',
                   style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'Poppins',
@@ -925,7 +1026,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                           ),
                         )
                       : Text(
-                          _currentStep == 3 ? 'Confirmar Cita' : 'Siguiente',
+                          _currentStep == 3 
+                              ? (_isPremium ? 'Confirmar Cita' : 'Continuar al Pago')
+                              : 'Siguiente',
                           style: const TextStyle(
                             color: Colors.white,
                             fontFamily: 'Poppins',
@@ -979,25 +1082,31 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
 
   void _bookAppointment() {
     if (_selectedDate != null && _selectedTimeSlot != null) {
-      final appointmentDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTimeSlot!.dateTime.hour,
-        _selectedTimeSlot!.dateTime.minute,
-      );
+      if (_isPremium) {
+        // Si es premium, agendar normalmente
+        final appointmentDateTime = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTimeSlot!.dateTime.hour,
+          _selectedTimeSlot!.dateTime.minute,
+        );
 
-      context.read<AppointmentBloc>().add(
-        BookAppointmentEvent(
-          psychologistId: widget.psychologist.uid,
-          scheduledDateTime: appointmentDateTime,
-          patientId: FirebaseAuth.instance.currentUser!.uid,
-          type: _selectedType,
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
-        ),
-      );
+        context.read<AppointmentBloc>().add(
+          BookAppointmentEvent(
+            psychologistId: widget.psychologist.uid,
+            scheduledDateTime: appointmentDateTime,
+            patientId: FirebaseAuth.instance.currentUser!.uid,
+            type: _selectedType,
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
+          ),
+        );
+      } else {
+        // Si no es premium, ir directamente al pago SIN agendar
+        _navigateToPaymentScreen();
+      }
     }
   }
 
@@ -1005,28 +1114,12 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     if (_selectedDate == null) return '';
 
     final months = [
-      'Enero',
-      'Febrero',
-      'Marzo',
-      'Abril',
-      'Mayo',
-      'Junio',
-      'Julio',
-      'Agosto',
-      'Septiembre',
-      'Octubre',
-      'Noviembre',
-      'Diciembre',
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
     ];
 
     final weekdays = [
-      'Lunes',
-      'Martes',
-      'Miércoles',
-      'Jueves',
-      'Viernes',
-      'Sábado',
-      'Domingo',
+      'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo',
     ];
 
     final day = _selectedDate!.day;
@@ -1037,7 +1130,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     return '$weekday, $day de $month de $year';
   }
 
- void _showSuccessDialog() {
+ void _showSuccessDialog({bool isPaidSession = false}) {
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -1057,7 +1150,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            '¡Cita agendada!',
+            isPaidSession ? '¡Sesión pagada, tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto!' : '¡Cita agendada!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -1067,7 +1160,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto.',
+            isPaidSession 
+                ? 'Tu pago ha sido procesado y tu sesión está lista para ser confirmada.'
+                : _isPremium 
+                    ? 'Tu sesión Premium está confirmada. ¡Nos vemos pronto!'
+                    : 'Tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto.',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 14,

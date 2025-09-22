@@ -30,6 +30,7 @@ abstract class UserRemoteDataSource {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
+    required String status,
   });
 
   Future<void> updatePatientData({
@@ -58,6 +59,7 @@ abstract class UserRemoteDataSource {
     String? specialty,
     List<String>? subSpecialties,
     Map<String, dynamic>? schedule,
+    String? status,
   });
 
   Future<dynamic> getUserData(String uid);
@@ -123,7 +125,7 @@ Future<String> _getFirebaseIdToken() async {
       final coreData = psychologistDoc.data() as Map<String, dynamic>;
 
       final professionalInfoDoc = await _firestore
-          .collection('psychologist_professional_info')
+          .collection('psychologists')
           .doc(uid)
           .get();
 
@@ -153,6 +155,7 @@ Future<String> _getFirebaseIdToken() async {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
+    
   }) async {
     try {
       final now = DateTime.now();
@@ -166,6 +169,7 @@ Future<String> _getFirebaseIdToken() async {
         createdAt: now,
         updatedAt: now,
         role: role,
+        
       );
 
       await _firestore
@@ -196,6 +200,7 @@ Future<String> _getFirebaseIdToken() async {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
+    required String status,
   }) async {
     try {
       final now = DateTime.now();
@@ -210,6 +215,7 @@ Future<String> _getFirebaseIdToken() async {
         createdAt: now,
         updatedAt: now,
         role: role,
+        status: status,
       );
 
       final psychologistCoreData = {
@@ -222,6 +228,7 @@ Future<String> _getFirebaseIdToken() async {
         'createdAt': now,
         'updatedAt': now,
         'role': role,
+        'status': status,
       };
       await _firestore
           .collection('psychologists')
@@ -235,7 +242,7 @@ Future<String> _getFirebaseIdToken() async {
         'updatedAt': now,
       };
       await _firestore
-          .collection('psychologist_professional_info')
+          .collection('psychologists')
           .doc(uid)
           .set(psychologistProfessionalData);
 
@@ -259,6 +266,7 @@ Future<String> _getFirebaseIdToken() async {
     String? dateOfBirth,
     String? phoneNumber,
     String? profilePictureUrl,
+    String? status,
   }) async {
     try {
       final docRef = _firestore.collection('patients').doc(uid);
@@ -272,6 +280,7 @@ Future<String> _getFirebaseIdToken() async {
       if (profilePictureUrl != null) {
         updateData['profilePictureUrl'] = profilePictureUrl;
       }
+      if (status != null) updateData ['status'] = status;
 
       await docRef.set(updateData, SetOptions(merge: true));
     } on FirebaseException catch (e) {
@@ -315,6 +324,7 @@ Future<void> updateBasicPsychologistData({
     String? specialty,
     List<String>? subSpecialties,
     Map<String, dynamic>? schedule,
+    String? status,
   }) async {
     try {
       final token = await _getFirebaseIdToken();
@@ -335,6 +345,7 @@ Future<void> updateBasicPsychologistData({
       if (specialty != null) updateData['specialty'] = specialty;
       if (subSpecialties != null) updateData['subSpecialties'] = subSpecialties;
       if (schedule != null) updateData['schedule'] = schedule;
+      if (status !=null)    updateData['status'] = status;
 
       final response = await http.patch(
       Uri.parse('$_baseUrl/api/psychologists/$uid/professional'),

@@ -42,36 +42,41 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   }
 
   List<Widget> _getWidgetOptions(String psychologistId) {
-  return <Widget>[
-    const PsychologistHomeContent(),
-    // RESTAURAR el BlocProvider local
-    BlocProvider<ChatListBloc>(
-      create: (context) => ChatListBloc(),
-      child: const PsychologistChatListScreen(),
-    ),
-    BlocProvider<AppointmentBloc>(
-      create: (context) => AppointmentBloc(),
-      child: AppointmentsListScreen(psychologistId: psychologistId),
-    ),
-    BlocProvider<PatientManagementBloc>(
-      create: (context) => PatientManagementBloc(),
-      child: const PatientManagementScreen(),
-    ),
-    const ProfileScreenPsychologist(),
-  ];
-}
+    return <Widget>[
+      const PsychologistHomeContent(),
+      BlocProvider<ChatListBloc>(
+        create: (context) => ChatListBloc(),
+        child: const PsychologistChatListScreen(),
+      ),
+      BlocProvider<AppointmentBloc>(
+        create: (context) => AppointmentBloc(),
+        child: AppointmentsListScreen(psychologistId: psychologistId),
+      ),
+      BlocProvider<PatientManagementBloc>(
+        create: (context) => PatientManagementBloc(),
+        child: const PatientManagementScreen(),
+      ),
+      const ProfileScreenPsychologist(),
+    ];
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  void _loadNotifications(BuildContext context) async {
+  void _loadNotifications() async {
     if (_notificationsLoaded) return;
     
     final user = _auth.currentUser;
-    if (user != null && mounted) {
+    if (user != null) {
       final token = await user.getIdToken();
+      
+      if (!mounted) {
+        return; 
+      }
+
       if (token != null) {
         context.read<NotificationBloc>().add(
           LoadNotifications(
@@ -94,6 +99,12 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
       _selectedIndex = widget.initialTabIndex!;
     }
   }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadNotifications();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,12 +117,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
     final psychologistId = authState.psychologist?.username ?? '';
     final widgetOptions = _getWidgetOptions(psychologistId);
-
-    // Cargar notificaciones cuando el widget se construye
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadNotifications(context);
-    });
-
+    
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -167,7 +173,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                       if (user != null) {
                         final token = await user.getIdToken();
                         if (token != null) {
-                          // Recargar notificaciones antes de abrir el panel
                           context.read<NotificationBloc>().add(
                             LoadNotifications(
                               userId: user.uid,
@@ -182,7 +187,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                               builder: (context) => const NotificationsPanelScreen(),
                             ),
                           ).then((_) {
-                            // Recargar notificaciones al regresar
                             context.read<NotificationBloc>().add(
                               LoadNotifications(
                                 userId: user.uid,
@@ -206,7 +210,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: Color(0xFF3B716F),
+                          color: const Color(0xFF3B716F),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         constraints: const BoxConstraints(

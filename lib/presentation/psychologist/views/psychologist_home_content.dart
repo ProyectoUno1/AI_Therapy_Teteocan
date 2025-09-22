@@ -3,8 +3,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/add_article_screen.dart';
 
 class PsychologistPatient {
   final String id;
@@ -55,46 +57,46 @@ class PsychologistArticleSummary {
 }
 
 class PsychologistHomeContent extends StatelessWidget {
-  const PsychologistHomeContent({super.key}); 
-
-  
+  const PsychologistHomeContent({super.key});
 
   @override
   Widget build(BuildContext context) {
-    
     final List<Session> todaySessions = [
       Session(
         id: 's1',
-        time: DateTime(2025, 7, 25, 9, 30), 
+        time: DateTime(2025, 7, 25, 9, 30),
         patient: const PsychologistPatient(
           id: 'p1',
           name: 'Mario',
           imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-          latestMessage: '', lastSeen: '',
+          latestMessage: '',
+          lastSeen: '',
         ),
         type: 'Sesión de terapia',
         durationMinutes: 60,
       ),
       Session(
         id: 's2',
-        time: DateTime(2025, 7, 25, 11, 0), 
+        time: DateTime(2025, 7, 25, 11, 0),
         patient: const PsychologistPatient(
           id: 'p2',
           name: 'Maria',
           imageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-          latestMessage: '', lastSeen: '',
+          latestMessage: '',
+          lastSeen: '',
         ),
         type: 'Consulta inicial',
         durationMinutes: 45,
       ),
       Session(
         id: 's3',
-        time: DateTime(2025, 7, 25, 14, 15), 
+        time: DateTime(2025, 7, 25, 14, 15),
         patient: const PsychologistPatient(
           id: 'p3',
           name: 'David',
           imageUrl: 'https://randomuser.me/api/portraits/men/70.jpg',
-          latestMessage: '', lastSeen: '',
+          latestMessage: '',
+          lastSeen: '',
         ),
         type: 'Consulta inicial',
         durationMinutes: 60,
@@ -136,7 +138,8 @@ class PsychologistHomeContent extends StatelessWidget {
           id: 'p1',
           name: 'Mario',
           imageUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-          latestMessage: '', lastSeen: '',
+          latestMessage: '',
+          lastSeen: '',
         ),
         type: 'Sesión de terapia',
         durationMinutes: 60,
@@ -148,7 +151,8 @@ class PsychologistHomeContent extends StatelessWidget {
           id: 'p2',
           name: 'Maria',
           imageUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-          latestMessage: '', lastSeen: '',
+          latestMessage: '',
+          lastSeen: '',
         ),
         type: 'Consulta inicial',
         durationMinutes: 45,
@@ -176,34 +180,57 @@ class PsychologistHomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Today's Summary Section
-          _buildSectionHeader(context, 'Resumen de hoy',
-              suffixWidget: Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 16, color: AppConstants.secondaryColor),
-                  const SizedBox(width: 4),
-                  Text('7 sesiones esta semana', style: TextStyle(fontSize: 12, color: AppConstants.secondaryColor, fontFamily: 'Poppins')),
-                ],
-              )),
+          _buildSectionHeader(
+            context,
+            'Resumen de hoy',
+            suffixWidget: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: AppConstants.secondaryColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '7 sesiones esta semana',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppConstants.secondaryColor,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 8),
-          ...todaySessions.map((session) => _SessionCard(session: session)).toList(),
+          ...todaySessions
+              .map((session) => _SessionCard(session: session))
+              .toList(),
           const SizedBox(height: 24),
 
           // Your Schedule Section
-          _buildSectionHeader(context, 'Tu horario',
-              suffixWidget: CircleAvatar(
-                backgroundColor: AppConstants.secondaryColor,
-                radius: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                  onPressed: () { /* Add schedule logic */},
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tight(const Size(32, 32)),
-                ),
-              )),
+          _buildSectionHeader(
+            context,
+            'Tu horario',
+            suffixWidget: CircleAvatar(
+              backgroundColor: AppConstants.secondaryColor,
+              radius: 16,
+              child: IconButton(
+                icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                onPressed: () {
+                  /* Add schedule logic */
+                },
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tight(const Size(32, 32)),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -211,9 +238,21 @@ class PsychologistHomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _ScheduleToggleButton(label: 'Dia', isSelected: false, onTap: () {}),
-                      _ScheduleToggleButton(label: 'Semana', isSelected: true, onTap: () {}), // 'Week' is selected in image
-                      _ScheduleToggleButton(label: 'Mes', isSelected: false, onTap: () {}),
+                      _ScheduleToggleButton(
+                        label: 'Dia',
+                        isSelected: false,
+                        onTap: () {},
+                      ),
+                      _ScheduleToggleButton(
+                        label: 'Semana',
+                        isSelected: true,
+                        onTap: () {},
+                      ), // 'Week' is selected in image
+                      _ScheduleToggleButton(
+                        label: 'Mes',
+                        isSelected: false,
+                        onTap: () {},
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -221,7 +260,13 @@ class PsychologistHomeContent extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Icon(Icons.arrow_left, color: Colors.grey[600]),
-                      Text('Julio 2025', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                      Text(
+                        'Julio 2025',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
                       Icon(Icons.arrow_right, color: Colors.grey[600]),
                     ],
                   ),
@@ -230,23 +275,37 @@ class PsychologistHomeContent extends StatelessWidget {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      childAspectRatio: 1.0,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 7,
+                          childAspectRatio: 1.0,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
                     itemCount: 31, // For July
                     itemBuilder: (context, index) {
                       final day = index + 1;
-                      final isCurrentDay = (day == DateTime.now().day && DateTime.now().month == 7 && DateTime.now().year == 2025);
+                      final isCurrentDay =
+                          (day == DateTime.now().day &&
+                          DateTime.now().month == 7 &&
+                          DateTime.now().year == 2025);
                       return Container(
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: isCurrentDay ? AppConstants.secondaryColor.withOpacity(0.1) : Colors.transparent,
+                          color: isCurrentDay
+                              ? AppConstants.secondaryColor.withOpacity(0.1)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text('$day', style: TextStyle(color: isCurrentDay ? AppConstants.secondaryColor : Colors.black87, fontFamily: 'Poppins')),
+                        child: Text(
+                          '$day',
+                          style: TextStyle(
+                            color: isCurrentDay
+                                ? AppConstants.secondaryColor
+                                : Colors.black87,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -257,17 +316,33 @@ class PsychologistHomeContent extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Recent Chats Section
-          _buildSectionHeader(context, 'Chats recientes',
-              suffixText: 'Ver todos', onTapSuffix: () { /* Navigate to chats */}),
+          _buildSectionHeader(
+            context,
+            'Chats recientes',
+            suffixText: 'Ver todos',
+            onTapSuffix: () {
+              /* Navigate to chats */
+            },
+          ),
           const SizedBox(height: 8),
-          ...recentChats.map((patient) => _ChatSummaryCard(patient: patient)).toList(),
+          ...recentChats
+              .map((patient) => _ChatSummaryCard(patient: patient))
+              .toList(),
           const SizedBox(height: 24),
 
           // Recent Notes and Sessions Section
-          _buildSectionHeader(context, 'Notas y sesiones recientes',
-              suffixText: 'Ver todas', onTapSuffix: () { /* Navigate to notes/sessions */}),
+          _buildSectionHeader(
+            context,
+            'Notas y sesiones recientes',
+            suffixText: 'Ver todas',
+            onTapSuffix: () {
+              /* Navigate to notes/sessions */
+            },
+          ),
           const SizedBox(height: 8),
-          ...recentNotesAndSessions.map((session) => _NoteSessionCard(session: session)).toList(),
+          ...recentNotesAndSessions
+              .map((session) => _NoteSessionCard(session: session))
+              .toList(),
           const SizedBox(height: 24),
 
           // Availability Section
@@ -275,7 +350,9 @@ class PsychologistHomeContent extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -284,12 +361,13 @@ class PsychologistHomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Disponible para sesiones', style: TextStyle(fontSize: 16, fontFamily: 'Poppins')),
+                      const Text(
+                        'Disponible para sesiones',
+                        style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
+                      ),
                       Switch(
-                        value: true, 
-                        onChanged: (bool value) {
-                          
-                        },
+                        value: true,
+                        onChanged: (bool value) {},
                         activeColor: AppConstants.secondaryColor,
                       ),
                     ],
@@ -298,13 +376,23 @@ class PsychologistHomeContent extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () { /* Enable vacation mode */},
+                      onPressed: () {
+                        /* Enable vacation mode */
+                      },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppConstants.secondaryColor, side: const BorderSide(color: AppConstants.secondaryColor),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        foregroundColor: AppConstants.secondaryColor,
+                        side: const BorderSide(
+                          color: AppConstants.secondaryColor,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text('Habilitar modo vacaciones', style: TextStyle(fontFamily: 'Poppins')),
+                      child: const Text(
+                        'Habilitar modo vacaciones',
+                        style: TextStyle(fontFamily: 'Poppins'),
+                      ),
                     ),
                   ),
                 ],
@@ -317,7 +405,9 @@ class PsychologistHomeContent extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -326,32 +416,67 @@ class PsychologistHomeContent extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      const _InsightMetric(value: '18', label: 'Pacientes activos'),
-                      const _InsightMetric(value: '42', label: 'Sesiones este mes'),
+                      const _InsightMetric(
+                        value: '18',
+                        label: 'Pacientes activos',
+                      ),
+                      const _InsightMetric(
+                        value: '42',
+                        label: 'Sesiones este mes',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.people_alt, color: Colors.grey, size: 20),
+                      const Icon(
+                        Icons.people_alt,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
-                      const Text('Porcentaje de ocupación', style: TextStyle(fontSize: 14, fontFamily: 'Poppins')),
+                      const Text(
+                        'Porcentaje de ocupación',
+                        style: TextStyle(fontSize: 14, fontFamily: 'Poppins'),
+                      ),
                       const Spacer(),
-                      const Text('48%', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+                      const Text(
+                        '48%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: 0.48, // 48%
                     backgroundColor: Colors.grey[300],
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppConstants.secondaryColor),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppConstants.secondaryColor,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('20 ocupado', style: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: 'Poppins')),
-                      Text('22 disponible', style: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: 'Poppins')),
+                      Text(
+                        '20 ocupado',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      Text(
+                        '22 disponible',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -359,20 +484,48 @@ class PsychologistHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          _buildSectionHeader(context, 'Tus artículos',
-              suffixWidget: CircleAvatar(
-                backgroundColor: AppConstants.secondaryColor,
-                radius: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                  onPressed: () { /* Add new article logic */},
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tight(const Size(32, 32)),
-                ),
-              )),
+          _buildSectionHeader(
+            context,
+            'Tus artículos',
+            suffixWidget: CircleAvatar(
+              backgroundColor: AppConstants.secondaryColor,
+              radius: 16,
+              child: IconButton(
+                icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                onPressed: () {
+                  // Obtén el ID del usuario actual
+                  final String? currentUserId =
+                      FirebaseAuth.instance.currentUser?.uid;
+
+                  // Verifica si el ID existe antes de navegar
+                  if (currentUserId != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => AddArticleScreen(
+                          psychologistId:
+                              currentUserId, // Aquí se pasa el ID dinámico
+                        ),
+                      ),
+                    );
+                  } else {
+                    // Muestra un mensaje de error si el usuario no está autenticado
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Error: No se pudo obtener el ID del usuario. Por favor, vuelva a iniciar sesión.',
+                        ),
+                      ),
+                    );
+                  }
+                },
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tight(const Size(32, 32)),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 250, 
+            height: 250,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: yourArticles.length,
@@ -388,8 +541,13 @@ class PsychologistHomeContent extends StatelessWidget {
     );
   }
 
-
-  Widget _buildSectionHeader(BuildContext context, String title, {String? suffixText, VoidCallback? onTapSuffix, Widget? suffixWidget}) {
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title, {
+    String? suffixText,
+    VoidCallback? onTapSuffix,
+    Widget? suffixWidget,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -397,7 +555,11 @@ class PsychologistHomeContent extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Poppins'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontFamily: 'Poppins',
+            ),
           ),
           if (suffixText != null)
             GestureDetector(
@@ -412,15 +574,12 @@ class PsychologistHomeContent extends StatelessWidget {
                 ),
               ),
             ),
-          if (suffixWidget != null)
-            suffixWidget,
+          if (suffixWidget != null) suffixWidget,
         ],
       ),
     );
   }
 }
-
-
 
 class _SessionCard extends StatelessWidget {
   final Session session;
@@ -441,7 +600,11 @@ class _SessionCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               DateFormat('HH:mm').format(session.time),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
             ),
             const SizedBox(width: 16),
             CircleAvatar(
@@ -461,12 +624,20 @@ class _SessionCard extends StatelessWidget {
                 children: [
                   Text(
                     session.patient.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontFamily: 'Poppins',
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     session.type,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontFamily: 'Poppins',
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -480,7 +651,11 @@ class _SessionCard extends StatelessWidget {
               ),
               child: Text(
                 '${session.durationMinutes} min',
-                style: const TextStyle(fontSize: 12, color: AppConstants.secondaryColor, fontFamily: 'Poppins'),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppConstants.secondaryColor,
+                  fontFamily: 'Poppins',
+                ),
               ),
             ),
           ],
@@ -544,8 +719,12 @@ class _ChatSummaryCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundImage: patient.imageUrl != null ? NetworkImage(patient.imageUrl!) : null,
-              child: patient.imageUrl == null ? const Icon(Icons.person, color: Colors.white) : null,
+              backgroundImage: patient.imageUrl != null
+                  ? NetworkImage(patient.imageUrl!)
+                  : null,
+              child: patient.imageUrl == null
+                  ? const Icon(Icons.person, color: Colors.white)
+                  : null,
               backgroundColor: AppConstants.lightAccentColor.withOpacity(0.5),
             ),
             if (patient.isOnline)
@@ -564,12 +743,28 @@ class _ChatSummaryCard extends StatelessWidget {
               ),
           ],
         ),
-        title: Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
-        subtitle: Text(patient.latestMessage, style: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'), maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: Text(patient.lastSeen, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontFamily: 'Poppins')),
-        onTap: () {
-         
-        },
+        title: Text(
+          patient.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        subtitle: Text(
+          patient.latestMessage,
+          style: TextStyle(color: Colors.grey[600], fontFamily: 'Poppins'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Text(
+          patient.lastSeen,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[500],
+            fontFamily: 'Poppins',
+          ),
+        ),
+        onTap: () {},
       ),
     );
   }
@@ -601,7 +796,9 @@ class _NoteSessionCard extends StatelessWidget {
                   child: session.patient.imageUrl == null
                       ? const Icon(Icons.person, color: Colors.white)
                       : null,
-                  backgroundColor: AppConstants.lightAccentColor.withOpacity(0.5),
+                  backgroundColor: AppConstants.lightAccentColor.withOpacity(
+                    0.5,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -610,12 +807,20 @@ class _NoteSessionCard extends StatelessWidget {
                     children: [
                       Text(
                         session.patient.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Poppins'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontFamily: 'Poppins',
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         session.type,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontFamily: 'Poppins',
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -623,14 +828,22 @@ class _NoteSessionCard extends StatelessWidget {
                 ),
                 Text(
                   DateFormat('dd MMM').format(session.time), // e.g., "17 Jul"
-                  style: TextStyle(fontSize: 13, color: Colors.grey[500], fontFamily: 'Poppins'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[500],
+                    fontFamily: 'Poppins',
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               '${session.patient.name} Demostró un progreso significativo con las técnicas de manejo de la ansiedad. Continuar...',
-              style: TextStyle(fontSize: 14, color: Colors.grey[800], fontFamily: 'Poppins'),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+                fontFamily: 'Poppins',
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -671,7 +884,11 @@ class _InsightMetric extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[700], fontFamily: 'Poppins'),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                fontFamily: 'Poppins',
+              ),
             ),
           ],
         ),
@@ -688,7 +905,7 @@ class _PsychologistArticleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200, 
+      width: 200,
       margin: const EdgeInsets.only(right: 16),
       child: Card(
         elevation: 2,
@@ -707,7 +924,11 @@ class _PsychologistArticleCard extends StatelessWidget {
                   height: 120,
                   color: Colors.grey[300],
                   child: const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                    child: Icon(
+                      Icons.broken_image,
+                      color: Colors.grey,
+                      size: 40,
+                    ),
                   ),
                 );
               },
