@@ -58,7 +58,7 @@ class ChatListCubit extends Cubit<ChatListState> {
           );
 
           if (otherParticipantUid.isNotEmpty) {
-            final psychologistDoc = await _firestore.collection('psychologist_professional_info').doc(otherParticipantUid).get();
+            final psychologistDoc = await _firestore.collection('psychologists').doc(otherParticipantUid).get();
             final psychologistData = psychologistDoc.data();
 
             if (psychologistData != null) {

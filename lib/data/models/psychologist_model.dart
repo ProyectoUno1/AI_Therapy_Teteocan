@@ -24,7 +24,11 @@ class PsychologistModel extends Equatable {
   final List<String>? subSpecialties;
   final Map<String, dynamic>? schedule;
 
- 
+  // NUEVOS CAMPOS para el sistema de aprobación
+  final String status; // 'PENDING', 'APPROVED', 'REJECTED'
+  final bool professionalInfoCompleted;
+  final String? rejectionReason;
+
   final double? rating;
   final bool? isAvailable;
   final double? hourlyRate;
@@ -49,10 +53,31 @@ class PsychologistModel extends Equatable {
     this.specialty,
     this.subSpecialties,
     this.schedule,
+    this.status = 'PENDING', // NUEVO - Por defecto PENDING
+    this.professionalInfoCompleted = false, // NUEVO
+    this.rejectionReason, // NUEVO
     this.rating,
     this.isAvailable,
     this.hourlyRate,
   });
+
+  // NUEVOS MÉTODOS - Getters de conveniencia
+  bool get isPending => status == 'PENDING';
+  bool get isApproved => status == 'APPROVED';
+  bool get isRejected => status == 'REJECTED';
+
+  String get statusDisplayText {
+    switch (status) {
+      case 'PENDING':
+        return 'Pendiente de aprobación';
+      case 'APPROVED':
+        return 'Aprobado';
+      case 'REJECTED':
+        return 'Rechazado';
+      default:
+        return 'Estado desconocido';
+    }
+  }
 
   factory PsychologistModel.fromJson(Map<String, dynamic> json) {
     return PsychologistModel(
@@ -81,6 +106,10 @@ class PsychologistModel extends Equatable {
       specialty: json['specialty'] as String?,
       subSpecialties: (json['subSpecialties'] as List?)?.cast<String>(),
       schedule: json['schedule'] as Map<String, dynamic>?,
+      // NUEVOS CAMPOS
+      status: json['status'] as String? ?? 'PENDING',
+      professionalInfoCompleted: json['professionalInfoCompleted'] as bool? ?? false,
+      rejectionReason: json['rejectionReason'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       isAvailable: json['isAvailable'] as bool?,
       hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
@@ -114,6 +143,10 @@ class PsychologistModel extends Equatable {
       specialty: data['specialty'] as String?,
       subSpecialties: (data['subSpecialties'] as List?)?.cast<String>(),
       schedule: data['schedule'] as Map<String, dynamic>?,
+      // NUEVOS CAMPOS
+      status: data['status'] as String? ?? 'PENDING',
+      professionalInfoCompleted: data['professionalInfoCompleted'] as bool? ?? false,
+      rejectionReason: data['rejectionReason'] as String?,
       rating: (data['rating'] as num?)?.toDouble(),
       isAvailable: data['isAvailable'] as bool? ?? false,
       hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
@@ -141,6 +174,10 @@ class PsychologistModel extends Equatable {
       'specialty': specialty,
       'subSpecialties': subSpecialties,
       'schedule': schedule,
+      // NUEVOS CAMPOS
+      'status': status,
+      'professionalInfoCompleted': professionalInfoCompleted,
+      'rejectionReason': rejectionReason,
       'rating': rating,
       'isAvailable': isAvailable,
       'hourlyRate': hourlyRate,
@@ -168,6 +205,10 @@ class PsychologistModel extends Equatable {
     education,
     certifications,
     schedule,
+    // NUEVOS CAMPOS
+    status,
+    professionalInfoCompleted,
+    rejectionReason,
     rating,
     isAvailable,
     hourlyRate,

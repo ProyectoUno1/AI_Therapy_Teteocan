@@ -1,7 +1,10 @@
 //lib/main.dart
 
 import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
@@ -15,6 +18,7 @@ import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/core/services/ai_chat_api_service.dart';
+
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
@@ -28,7 +32,14 @@ import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.da
 import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_event.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.dart';
 import 'package:ai_therapy_teteocan/data/repositories/notification_repository.dart';
+import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
+import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
+import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
+
+// NUEVA IMPORTACIÓN - Servicio de notificaciones
+import 'package:ai_therapy_teteocan/core/services/notification_service.dart';
 
 // Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
@@ -43,9 +54,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_stripe/flutter_stripe.dart'; 
 import 'package:timezone/data/latest.dart' as tzdata;
 
+
 import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('Mensaje en background: ${message.messageId}');
+}
 
 /// Punto de entrada principal de la aplicación.
 void main() async {
@@ -57,6 +75,14 @@ void main() async {
   tzdata.initializeTimeZones();
   Stripe.publishableKey =
       'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
+
+  // --- NUEVA CONFIGURACIÓN: Inicializar NotificationService ---
+  await NotificationService.initialize();
+  
+  // Configurar manejador de navegación desde notificaciones
+  NotificationService.onNotificationTap = (data) {
+    _handleNotificationNavigation(data);
+  };
 
   // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
@@ -76,10 +102,16 @@ void main() async {
   final ChatRepository chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
+  
+
+   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(
     MultiBlocProvider(
       providers: [
+        RepositoryProvider<ArticleRepository>(
+          create: (context) => ArticleRepository(baseUrl: ApiConstants.baseUrl),
+      ),
         BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
@@ -117,6 +149,71 @@ void main() async {
   );
 }
 
+void _handleNotificationNavigation(Map<String, dynamic> data) {
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
+
+  // Elimina el Future.delayed.
+  final type = data['type'] as String?;
+
+  switch (type) {
+    case 'appointment_created':
+    case 'appointment_confirmed':
+    case 'appointment_cancelled':
+      _navigateToAppointments(context, data);
+      break;
+
+    case 'subscription_activated':
+    case 'payment_succeeded':
+    case 'payment_failed':
+      _navigateToProfile(context, data);
+      break;
+
+    case 'session_started':
+    case 'session_completed':
+      _navigateToActiveSession(context, data);
+      break;
+
+    case 'session_rated':
+      _navigateToAppointments(context, data);
+      break;
+
+    default:
+      _navigateToNotifications(context);
+      break;
+  }
+}
+
+void _navigateToAppointments(BuildContext context, Map<String, dynamic> data) {
+  // Implementar navegación específica a citas
+  // Por ejemplo, si tienes una ruta nombrada:
+  // Navigator.of(context).pushNamed('/appointments', arguments: data);
+  
+  // Por ahora, imprime para debug
+  print('Navegar a citas con data: $data');
+  
+  // También puedes mostrar la lista de notificaciones como fallback
+  _navigateToNotifications(context);
+}
+
+void _navigateToProfile(BuildContext context, Map<String, dynamic> data) {
+  // Implementar navegación a perfil/premium
+  print('Navegar a perfil con data: $data');
+  _navigateToNotifications(context);
+}
+
+void _navigateToActiveSession(BuildContext context, Map<String, dynamic> data) {
+  // Implementar navegación a sesión activa
+  print('Navegar a sesión activa con data: $data');
+  _navigateToNotifications(context);
+}
+
+void _navigateToNotifications(BuildContext context) {
+  // Implementar navegación a lista de notificaciones
+  // Navigator.of(context).pushNamed('/notifications');
+  print('Navegar a lista de notificaciones');
+}
+
 /// La clase principal de la aplicación, donde se define el tema y la navegación global.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -125,13 +222,16 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // Suscripción al estado de autenticación para escuchar los cambios del usuario
   late StreamSubscription<User?> _authStateSubscription;
 
   @override
   void initState() {
     super.initState();
+    
+    WidgetsBinding.instance.addObserver(this);
+    
     // Suscribirse a los cambios de estado de autenticación de Firebase
     _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
       user,
@@ -139,22 +239,67 @@ class _MyAppState extends State<MyApp> {
       if (user != null) {
         // Usuario ha iniciado sesión
         _setupUserPresence(user.uid);
+     
+        _loadUserNotifications();
       }
     });
   }
 
+
   @override
-  void dispose() {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
-        'isOnline': false,
-        'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      switch (state) {
+        case AppLifecycleState.resumed:
+          // App viene del background - actualizar presencia y cargar notificaciones
+          _setupUserPresence(currentUser.uid);
+          _loadUserNotifications();
+          break;
+        case AppLifecycleState.paused:
+        case AppLifecycleState.inactive:
+          // App va al background - marcar como offline
+          _setUserOffline(currentUser.uid);
+          break;
+        case AppLifecycleState.detached:
+          _setUserOffline(currentUser.uid);
+          break;
+        case AppLifecycleState.hidden:
+          break;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      _setUserOffline(currentUser.uid);
     }
 
     _authStateSubscription.cancel();
     super.dispose();
+  }
+
+ 
+  void _setUserOffline(String userId) {
+    FirebaseFirestore.instance.collection('users').doc(userId).set({
+      'isOnline': false,
+      'lastSeen': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+
+  void _loadUserNotifications() {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      // Disparar evento para cargar notificaciones
+      context.read<NotificationBloc>().add(LoadNotifications(userId: FirebaseAuth.instance.currentUser!.uid, userToken: String.fromCharCode(0), userType: String.fromCharCode(0)));
+    }
   }
 
   // Método que configura el estado de presencia del usuario
@@ -301,8 +446,8 @@ class _MyAppState extends State<MyApp> {
           darkTheme: _darkTheme(),
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
-          home:const AuthWrapper(),
-              //const AdminPanel(),
+          home: const AuthWrapper(),
+          //const AdminPanel(),
         );
       },
     );

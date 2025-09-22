@@ -106,7 +106,7 @@ class _AdminPanelState extends State<AdminPanel> {
                         ),
                         onPressed: () {},
                         icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text("Agregar", style: TextStyle(color: Colors.white)), // <-- Cambio aquí
+                        label: const Text("Agregar", style: TextStyle(color: Colors.white)), 
                       ),
                     ),
                   ],

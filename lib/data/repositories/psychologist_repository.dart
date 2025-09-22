@@ -5,7 +5,7 @@ class PsychologistRepository {
 
   Stream<List<Map<String, dynamic>>> getPsychologistsStream() {
     return _firestore
-        .collection('psychologist_professional_info')
+        .collection('psychologists')
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => {
@@ -20,7 +20,7 @@ class PsychologistRepository {
     String status,
     String adminNotes,
   ) async {
-    await _firestore.collection('psychologist_professional_info').doc(psychologistId).update({
+    await _firestore.collection('psychologists').doc(psychologistId).update({
       'status': status,
       'adminNotes': adminNotes,
       'validatedAt': FieldValue.serverTimestamp(),

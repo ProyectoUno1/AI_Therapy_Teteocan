@@ -75,7 +75,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Obtener datos del paciente y psicólogo
             const patientRef = db.collection('patients').doc(finalPatientId);
             const psychologistRef = db.collection('psychologists').doc(psychologistId);
-            const psychologistProfRef = db.collection('psychologist_professional_info').doc(psychologistId);
+            const psychologistProfRef = db.collection('psychologists').doc(psychologistId);
 
             const [patientDoc, psychologistDoc, psychologistProfDoc] = await Promise.all([
                 transaction.get(patientRef),
@@ -103,7 +103,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                 durationMinutes: 60,
                 type,
                 status: isSchedulingForOtherPatient ? 'confirmed' : 'pending',
-                price: psychologistProfData.hourlyRate || 80.0,
+                price: psychologistProfData.hourlyRate || 100.0,
                 patientNotes: notes || null,
                 scheduledBy: authenticatedUserId,
                 createdAt: FieldValue.serverTimestamp(),
@@ -634,6 +634,130 @@ router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
     } catch (error) {
         console.error('Error al calificar cita:', error);
         res.status(500).json({ error: 'Error al calificar la cita', details: error.message });
+    }
+});
+
+
+// Obtener rating promedio de un psicólogo
+router.get('/psychologist-rating/:psychologistId', async (req, res) => {
+    try {
+        const { psychologistId } = req.params;
+
+        // Obtener todas las citas calificadas del psicólogo
+        const ratedAppointmentsSnapshot = await db.collection('appointments')
+            .where('psychologistId', '==', psychologistId)
+            .where('status', '==', 'rated')
+            .where('rating', '>', 0)
+            .get();
+
+        if (ratedAppointmentsSnapshot.empty) {
+            return res.status(200).json({
+                psychologistId,
+                averageRating: 0,
+                totalRatings: 0,
+                ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+            });
+        }
+
+        let totalRating = 0;
+        let totalRatings = 0;
+        const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+        ratedAppointmentsSnapshot.forEach(doc => {
+            const appointmentData = doc.data();
+            const rating = appointmentData.rating;
+            
+            if (rating && rating >= 1 && rating <= 5) {
+                totalRating += rating;
+                totalRatings++;
+                ratingDistribution[rating]++;
+            }
+        });
+
+        const averageRating = totalRatings > 0 ? (totalRating / totalRatings) : 0;
+
+        res.status(200).json({
+            psychologistId,
+            averageRating: Math.round(averageRating * 10) / 10, // Redondear a 1 decimal
+            totalRatings,
+            ratingDistribution
+        });
+
+    } catch (error) {
+        console.error('Error al obtener rating del psicólogo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// Obtener ratings de múltiples psicólogos
+router.post('/psychologists-ratings', async (req, res) => {
+    try {
+        const { psychologistIds } = req.body;
+
+        if (!Array.isArray(psychologistIds) || psychologistIds.length === 0) {
+            return res.status(400).json({ error: 'Se requiere un array de IDs de psicólogos' });
+        }
+
+        const ratingsPromises = psychologistIds.map(async (psychologistId) => {
+            try {
+                const ratedAppointmentsSnapshot = await db.collection('appointments')
+                    .where('psychologistId', '==', psychologistId)
+                    .where('status', '==', 'rated')
+                    .where('rating', '>', 0)
+                    .get();
+
+                if (ratedAppointmentsSnapshot.empty) {
+                    return {
+                        psychologistId,
+                        averageRating: 0,
+                        totalRatings: 0
+                    };
+                }
+
+                let totalRating = 0;
+                let totalRatings = 0;
+
+                ratedAppointmentsSnapshot.forEach(doc => {
+                    const appointmentData = doc.data();
+                    const rating = appointmentData.rating;
+                    
+                    if (rating && rating >= 1 && rating <= 5) {
+                        totalRating += rating;
+                        totalRatings++;
+                    }
+                });
+
+                const averageRating = totalRatings > 0 ? (totalRating / totalRatings) : 0;
+
+                return {
+                    psychologistId,
+                    averageRating: Math.round(averageRating * 10) / 10,
+                    totalRatings
+                };
+            } catch (error) {
+                console.error(`Error al obtener rating para psicólogo ${psychologistId}:`, error);
+                return {
+                    psychologistId,
+                    averageRating: 0,
+                    totalRatings: 0,
+                    error: error.message
+                };
+            }
+        });
+
+        const ratings = await Promise.all(ratingsPromises);
+
+        res.status(200).json({ ratings });
+
+    } catch (error) {
+        console.error('Error al obtener ratings de psicólogos:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
     }
 });
 

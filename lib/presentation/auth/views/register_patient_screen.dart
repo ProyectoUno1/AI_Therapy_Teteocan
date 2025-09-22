@@ -8,7 +8,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // B
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // O la ruta correcta a tu LoginScreen // O la ruta correcta a tu LoginScreen
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; 
 
 
 class RegisterPatientScreen extends StatefulWidget {

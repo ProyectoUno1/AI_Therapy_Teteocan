@@ -12,10 +12,6 @@ async function verifyFirebaseToken(req, res, next) {
 
     const idToken = authHeader.split("Bearer ")[1];
 
-    console.log('🔍 Usando emuladores:', process.env.USE_EMULATORS === 'true');
-    console.log('🔍 Entorno:', process.env.NODE_ENV);
-
-
     try {
         const decodedToken = await auth.verifyIdToken(idToken);
         req.firebaseUser = decodedToken;

@@ -44,11 +44,15 @@ class PsychologistRemoteDataSource {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/psychologists/$uid/basic-info'),
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/psychologists/$uid/basic'), 
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
     } catch (e) {
       throw Exception('Error al actualizar la información básica: $e');
     }
@@ -71,7 +75,6 @@ class PsychologistRemoteDataSource {
   }) async {
     print('Backend: Iniciando updateProfessionalInfo para $uid');
 
-    // La variable `data` se define aquí.
     final Map<String, dynamic> data = {};
     if (fullName != null) data['fullName'] = fullName;
     if (professionalTitle != null) data['professionalTitle'] = professionalTitle;
@@ -93,10 +96,14 @@ class PsychologistRemoteDataSource {
 
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/public'),
+        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
+
+      if (response.statusCode != 200) {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
     } catch (e) {
       throw Exception('Error al actualizar la información profesional: $e');
     }
@@ -105,13 +112,15 @@ class PsychologistRemoteDataSource {
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/psychologists/$uid/public'),
+        Uri.parse('$_baseUrl/psychologists/$uid'), 
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return PsychologistModel.fromJson(data);
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        // El backend devuelve { psychologist: { id: ..., ...data } }
+        final psychologistData = responseData['psychologist'];
+        return PsychologistModel.fromJson(psychologistData);
       } else if (response.statusCode == 404) {
         return null;
       } else {

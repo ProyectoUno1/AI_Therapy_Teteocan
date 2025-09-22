@@ -5,13 +5,14 @@ import patientsRoutes from "./routes/patients.js";
 import psychologistsRoutes from "./routes/psychologists.js";
 import aiChatRoutes from "./routes/aiChatRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
-import psychologistProfessionalProfileRoutes from "./routes/psychologist_professional_profile.js";
 import appointmentsRoutes from "./routes/appointments.js";
 import patientManagementRoutes from './routes/patient_management.js';
 import notificationsRoutes from './routes/notifications.js';
 import { verifyFirebaseToken } from "./middlewares/auth_middleware.js";
 import stripeRouter from "./routes/stripeRoutes.js";
+import fcmRoutes from './routes/fcm.js';
 import { auth, db } from "./firebase-admin.js";
+import articleRouter from './routes/articleRoutes.js';
 
 const app = express();
 
@@ -35,10 +36,9 @@ app.get("/", (req, res) => {
   res.send("Aurora Backend funcionando en modo DESARROLLO!");
 });
 
-// --- Rutas ---
+// --- Rutas Unificadas ---
 app.use("/api/patients", verifyFirebaseToken, patientsRoutes);
-app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes);
-app.use("/api/psychologists", verifyFirebaseToken, psychologistProfessionalProfileRoutes);
+app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes); // RUTA UNIFICADA
 app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes);
 app.use("/api/ai", verifyFirebaseToken, aiRoutes);
 app.use("/api/chats/ai-chat", verifyFirebaseToken, aiChatRoutes);
@@ -46,6 +46,8 @@ app.use("/api/chats", verifyFirebaseToken, chatRoutes);
 app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
 app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
+app.use('/api', fcmRoutes); // Rutas FCM
+app.use('/articles', articleRouter);
 
 // --- Manejador de Errores Global ---
 app.use((error, req, res, next) => {

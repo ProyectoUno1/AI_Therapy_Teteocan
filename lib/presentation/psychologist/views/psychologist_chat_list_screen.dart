@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/psychologist_chat_list_screen.dart
-//vista del psicologo
+// Vista del psicólogo con bloqueo por estado de aprobación
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +14,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_sta
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PsychologistChatListScreen extends StatefulWidget {
@@ -67,6 +68,19 @@ class _PsychologistChatListScreenState
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        // Aplicar bloqueo si el estado de aprobación no es 'APPROVED'
+        return ApprovalStatusBlocker(
+          psychologist: authState.psychologist,
+          featureName: 'chats',
+          child: _buildChatContent(context),
+        );
+      },
+    );
+  }
+
+  Widget _buildChatContent(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
@@ -123,7 +137,6 @@ class _PsychologistChatListScreenState
 
         if (state is ChatListLoaded) {
           final isSearching = _searchController.text.isNotEmpty;
-
           final chatsToShow = isSearching ? state.filteredChats : state.chats;
 
           if (chatsToShow.isEmpty) {

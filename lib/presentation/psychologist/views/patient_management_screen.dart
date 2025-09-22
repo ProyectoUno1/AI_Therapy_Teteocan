@@ -14,6 +14,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_manag
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/schedule_appointment_form.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_metrics_screen.dart';
 import 'dart:developer';
 
 class PatientManagementScreen extends StatefulWidget {
@@ -197,66 +198,125 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                   // TabBar de estados
                   Container(
                     color: Theme.of(context).cardColor,
-                    child: TabBar(
-                      controller: _tabController,
-                      labelColor: AppConstants.primaryColor,
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: AppConstants.primaryColor,
-                      isScrollable: true,
-                      labelStyle: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.normal,
-                      ),
-                      tabs: [
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.people),
-                              const SizedBox(width: 8),
-                              Text('Todos (${state.filteredPatients.length})'),
-                            ],
+                    child: Column(
+                      children: [
+                        // Header con métricas clickeables
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                        ),
-                        Tab(
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('⏳'),
-                              const SizedBox(width: 8),
                               Text(
-                                'Pendientes (${_getPatientsByStatus(state.filteredPatients, PatientStatus.pending).length})',
+                                'Vista por Estados',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Poppins',
+                                      color: Colors.grey[600],
+                                    ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => _navigateToMetrics(context, null, state),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppConstants.primaryColor
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppConstants.primaryColor
+                                          .withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.analytics,
+                                        size: 16,
+                                        color: AppConstants.primaryColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Ver Métricas',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppConstants.primaryColor,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('🔄'),
-                              const SizedBox(width: 8),
-                              Text(
-                                'En Tratamiento (${_getPatientsByStatus(state.filteredPatients, PatientStatus.inTreatment).length})',
-                              ),
-                            ],
+                        // TabBar mejorado con gestos
+                        TabBar(
+                          controller: _tabController,
+                          labelColor: AppConstants.primaryColor,
+                          unselectedLabelColor: Colors.grey,
+                          indicatorColor: AppConstants.primaryColor,
+                          isScrollable: true,
+                          labelStyle: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('✅'),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Completados (${_getPatientsByStatus(state.filteredPatients, PatientStatus.completed).length})',
-                              ),
-                            ],
+                          unselectedLabelStyle: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.normal,
                           ),
+                          tabs: [
+                            _buildClickableTab(
+                              context,
+                              'Todos',
+                              state.filteredPatients.length,
+                              Icons.people,
+                              null,
+                              state,
+                            ),
+                            _buildClickableTab(
+                              context,
+                              'Pendientes',
+                              _getPatientsByStatus(
+                                state.filteredPatients,
+                                PatientStatus.pending,
+                              ).length,
+                              Icons.pending_actions,
+                              PatientStatus.pending,
+                              state,
+                            ),
+                            _buildClickableTab(
+                              context,
+                              'En Tratamiento',
+                              _getPatientsByStatus(
+                                state.filteredPatients,
+                                PatientStatus.inTreatment,
+                              ).length,
+                              Icons.medical_services,
+                              PatientStatus.inTreatment,
+                              state,
+                            ),
+                            _buildClickableTab(
+                              context,
+                              'Completados',
+                              _getPatientsByStatus(
+                                state.filteredPatients,
+                                PatientStatus.completed,
+                              ).length,
+                              Icons.check_circle,
+                              PatientStatus.completed,
+                              state,
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -581,6 +641,72 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
           }
         });
       },
+    );
+  }
+
+
+  Widget _buildClickableTab(
+    BuildContext context,
+    String title,
+    int count,
+    IconData icon,
+    PatientStatus? status,
+    PatientManagementState state,
+  ) {
+    return GestureDetector(
+      onLongPress: () => _navigateToMetrics(context, status, state),
+      child: Tab(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 6),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: status != null 
+                          ? _getStatusColor(status).withOpacity(0.2)
+                          : AppConstants.primaryColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      count.toString(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: status != null 
+                            ? _getStatusColor(status)
+                            : AppConstants.primaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToMetrics(BuildContext context, PatientStatus? focusedStatus, PatientManagementState state) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PatientMetricsScreen(
+          patients: state.allPatients,
+          focusedStatus: focusedStatus,
+        ),
+      ),
     );
   }
 

@@ -16,6 +16,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
 import 'dart:developer';
 
 class NotificationsPanelScreen extends StatelessWidget {
@@ -134,94 +135,113 @@ class NotificationsPanelScreen extends StatelessWidget {
   }
 
   void _handleNotificationTap(
-    BuildContext context,
-    NotificationModel notification,
-  ) async {
-    final authState = context.read<AuthBloc>().state;
-    final user = FirebaseAuth.instance.currentUser;
+  BuildContext context,
+  NotificationModel notification,
+) async {
+  final authState = context.read<AuthBloc>().state;
+  final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) {
-      return;
-    }
+  if (user == null) {
+    return;
+  }
 
-    final userToken = await user.getIdToken();
-    final userId = user.uid;
+  final userToken = await user.getIdToken();
+  final userId = user.uid;
 
-    context.read<NotificationBloc>().add(
-      MarkNotificationAsRead(
-        notificationId: notification.id,
-        userId: userId,
-        userToken: userToken!,
-        userType: authState.isAuthenticatedPatient ? 'patient' : 'psychologist',
+  context.read<NotificationBloc>().add(
+    MarkNotificationAsRead(
+      notificationId: notification.id,
+      userId: userId,
+      userToken: userToken!,
+      userType: authState.isAuthenticatedPatient ? 'patient' : 'psychologist',
+    ),
+  );
+
+  bool shouldNavigateToAppointments = false;
+  bool shouldNavigateToSubscription = false;
+  final lowerCaseType = notification.type.toLowerCase();
+
+  if (lowerCaseType == 'subscription' || 
+      lowerCaseType == 'pago' || 
+      lowerCaseType == 'payment' ||
+      lowerCaseType == 'suscripción' ||
+      lowerCaseType == 'premium') {
+    shouldNavigateToSubscription = true;
+  } else if (notification.title.toLowerCase().contains('suscripción') ||
+      notification.title.toLowerCase().contains('subscription') ||
+      notification.title.toLowerCase().contains('pago') ||
+      notification.title.toLowerCase().contains('payment') ||
+      notification.title.toLowerCase().contains('premium')) {
+    shouldNavigateToSubscription = true;
+  } else if (lowerCaseType == 'cita' || lowerCaseType == 'appointment') {
+    shouldNavigateToAppointments = true;
+  } else if (notification.title.toLowerCase().contains('cita') ||
+      notification.title.toLowerCase().contains('appointment')) {
+    shouldNavigateToAppointments = true;
+  }
+  if (shouldNavigateToSubscription) {
+    // Navegacion a pantalla de suscripciones
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SubscriptionScreen(),
       ),
     );
+  } else if (shouldNavigateToAppointments) {
+    final appointmentId = notification.data['appointmentId'] as String?;
+    final status = notification.data['status'] as String?;
 
-    bool shouldNavigateToAppointments = false;
-    final lowerCaseType = notification.type.toLowerCase();
-
-    if (lowerCaseType == 'cita' || lowerCaseType == 'appointment') {
-      shouldNavigateToAppointments = true;
-    } else if (notification.title.toLowerCase().contains('cita') ||
-        notification.title.toLowerCase().contains('appointment')) {
-      shouldNavigateToAppointments = true;
-    }
-
-    if (shouldNavigateToAppointments) {
-      final appointmentId = notification.data['appointmentId'] as String?;
-      final status = notification.data['status'] as String?;
-
-      if (authState.isAuthenticatedPsychologist) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) =>
-                AppointmentsListScreen(psychologistId: userId),
-          ),
-        );
-      } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PatientAppointmentsListScreen(
-              highlightAppointmentId: appointmentId,
-              filterStatus: status,
-            ),
-          ),
-        );
-      }
+    if (authState.isAuthenticatedPsychologist) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) =>
+              AppointmentsListScreen(psychologistId: userId),
+        ),
+      );
     } else {
-      switch (lowerCaseType) {
-        case 'chat':
-        case 'chat_message':
-          if (authState.isAuthenticatedPsychologist) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => PsychologistHomeScreen(
-                  initialTabIndex: 1, 
-                ),
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PatientAppointmentsListScreen(
+            highlightAppointmentId: appointmentId,
+            filterStatus: status,
+          ),
+        ),
+      );
+    }
+  } else {
+    switch (lowerCaseType) {
+      case 'chat':
+      case 'chat_message':
+        if (authState.isAuthenticatedPsychologist) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => PsychologistHomeScreen(
+                initialTabIndex: 1, 
               ),
-              (route) => false,
-            );
-          } else if (authState.isAuthenticatedPatient) {
-            final psychologistId =
-                notification.data['psychologistId'] as String?;
-            final chatId = notification.data['chatId'] as String?;
+            ),
+            (route) => false,
+          );
+        } else if (authState.isAuthenticatedPatient) {
+          final psychologistId =
+              notification.data['psychologistId'] as String?;
+          final chatId = notification.data['chatId'] as String?;
 
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => PatientHomeScreen(
-                  initialChatPsychologistId: psychologistId,
-                  initialChatId: chatId,
-                ),
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => PatientHomeScreen(
+                initialChatPsychologistId: psychologistId,
+                initialChatId: chatId,
               ),
-            );
-          }
-          break;
-        default:
-          // Para otros tipos de notificación, simplemente cerrar el panel
-          Navigator.of(context).pop();
-          break;
-      }
+            ),
+          );
+        }
+        break;
+      default:
+        // Para otros tipos de notificación, simplemente cerrar el panel
+        Navigator.of(context).pop();
+        break;
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -325,88 +345,108 @@ class NotificationItem extends StatelessWidget {
   });
 
   IconData _getNotificationIcon(NotificationModel notification) {
-    final lowerCaseType = notification.type.toLowerCase();
-    final lowerCaseTitle = notification.title.toLowerCase();
-    final lowerCaseBody = notification.body.toLowerCase();
+  final lowerCaseType = notification.type.toLowerCase();
+  final lowerCaseTitle = notification.title.toLowerCase();
+  final lowerCaseBody = notification.body.toLowerCase();
 
-    // Priorizar por tipo específico
-    switch (lowerCaseType) {
-      case 'cita':
-      case 'appointment':
-      case 'recordatorio_cita':
-        return Icons.calendar_today;
-
-      case 'ejercicio':
-      case 'exercise':
-      case 'actividad':
-        return Icons.fitness_center;
-
-      case 'motivacion':
-      case 'motivacional':
-      case 'frase_motivadora':
-        return Icons.emoji_objects;
-
-      case 'chat':
-      case 'chat_message':
-      case 'mensaje':
-        return Icons.chat_bubble_outline;
-
-      case 'bienvenida':
-      case 'welcome':
-        return Icons.waving_hand_outlined;
-
-      case 'alerta':
-      case 'alert':
-      case 'importante':
-        return Icons.warning_amber_rounded;
-
-      case 'recordatorio':
-      case 'reminder':
-        return Icons.notifications_active;
-    }
-
-    // Buscar en el título
-    if (lowerCaseTitle.contains('cita') ||
-        lowerCaseTitle.contains('appointment') ||
-        lowerCaseTitle.contains('consulta')) {
+  // Priorizar por tipo específico
+  switch (lowerCaseType) {
+    case 'cita':
+    case 'appointment':
+    case 'recordatorio_cita':
       return Icons.calendar_today;
-    } else if (lowerCaseTitle.contains('ejercicio') ||
-        lowerCaseTitle.contains('exercise') ||
-        lowerCaseTitle.contains('actividad')) {
-      return Icons.fitness_center;
-    } else if (lowerCaseTitle.contains('motivacion') ||
-        lowerCaseTitle.contains('motivacional') ||
-        lowerCaseTitle.contains('frase')) {
-      return Icons.emoji_objects;
-    } else if (lowerCaseTitle.contains('chat') ||
-        lowerCaseTitle.contains('mensaje')) {
-      return Icons.chat_bubble_outline;
-    } else if (lowerCaseTitle.contains('recordatorio')) {
-      return Icons.notifications_active;
-    }
 
-    // Buscar en el cuerpo
-    if (lowerCaseBody.contains('cita') ||
-        lowerCaseBody.contains('appointment') ||
-        lowerCaseBody.contains('consulta')) {
-      return Icons.calendar_today;
-    } else if (lowerCaseBody.contains('ejercicio') ||
-        lowerCaseBody.contains('exercise') ||
-        lowerCaseBody.contains('actividad')) {
+    case 'ejercicio':
+    case 'exercise':
+    case 'actividad':
       return Icons.fitness_center;
-    } else if (lowerCaseBody.contains('motivacion') ||
-        lowerCaseBody.contains('motivacional') ||
-        lowerCaseBody.contains('frase')) {
-      return Icons.emoji_objects;
-    } else if (lowerCaseBody.contains('chat') ||
-        lowerCaseBody.contains('mensaje')) {
-      return Icons.chat_bubble_outline;
-    } else if (lowerCaseBody.contains('recordatorio')) {
-      return Icons.notifications_active;
-    }
 
-    return Icons.info_outline;
+    case 'motivacion':
+    case 'motivacional':
+    case 'frase_motivadora':
+      return Icons.emoji_objects;
+
+    case 'chat':
+    case 'chat_message':
+    case 'mensaje':
+      return Icons.chat_bubble_outline;
+
+    case 'bienvenida':
+    case 'welcome':
+      return Icons.waving_hand_outlined;
+
+    case 'alerta':
+    case 'alert':
+    case 'importante':
+      return Icons.warning_amber_rounded;
+
+    case 'recordatorio':
+    case 'reminder':
+      return Icons.notifications_active;
+
+    // Add subscription-related icons
+    case 'subscription':
+    case 'suscripción':
+    case 'pago':
+    case 'payment':
+    case 'premium':
+      return Icons.credit_card;
   }
+
+  // Buscar en el título
+  if (lowerCaseTitle.contains('cita') ||
+      lowerCaseTitle.contains('appointment') ||
+      lowerCaseTitle.contains('consulta')) {
+    return Icons.calendar_today;
+  } else if (lowerCaseTitle.contains('ejercicio') ||
+      lowerCaseTitle.contains('exercise') ||
+      lowerCaseTitle.contains('actividad')) {
+    return Icons.fitness_center;
+  } else if (lowerCaseTitle.contains('motivacion') ||
+      lowerCaseTitle.contains('motivacional') ||
+      lowerCaseTitle.contains('frase')) {
+    return Icons.emoji_objects;
+  } else if (lowerCaseTitle.contains('chat') ||
+      lowerCaseTitle.contains('mensaje')) {
+    return Icons.chat_bubble_outline;
+  } else if (lowerCaseTitle.contains('recordatorio')) {
+    return Icons.notifications_active;
+  } else if (lowerCaseTitle.contains('suscripción') ||
+      lowerCaseTitle.contains('subscription') ||
+      lowerCaseTitle.contains('pago') ||
+      lowerCaseTitle.contains('payment') ||
+      lowerCaseTitle.contains('premium')) {
+    return Icons.credit_card;
+  }
+
+  // Buscar en el cuerpo
+  if (lowerCaseBody.contains('cita') ||
+      lowerCaseBody.contains('appointment') ||
+      lowerCaseBody.contains('consulta')) {
+    return Icons.calendar_today;
+  } else if (lowerCaseBody.contains('ejercicio') ||
+      lowerCaseBody.contains('exercise') ||
+      lowerCaseBody.contains('actividad')) {
+    return Icons.fitness_center;
+  } else if (lowerCaseBody.contains('motivacion') ||
+      lowerCaseBody.contains('motivacional') ||
+      lowerCaseBody.contains('frase')) {
+    return Icons.emoji_objects;
+  } else if (lowerCaseBody.contains('chat') ||
+      lowerCaseBody.contains('mensaje')) {
+    return Icons.chat_bubble_outline;
+  } else if (lowerCaseBody.contains('recordatorio')) {
+    return Icons.notifications_active;
+  } else if (lowerCaseBody.contains('suscripción') ||
+      lowerCaseBody.contains('subscription') ||
+      lowerCaseBody.contains('pago') ||
+      lowerCaseBody.contains('payment') ||
+      lowerCaseBody.contains('premium')) {
+    return Icons.credit_card;
+  }
+
+  return Icons.info_outline;
+}
 
   @override
   Widget build(BuildContext context) {

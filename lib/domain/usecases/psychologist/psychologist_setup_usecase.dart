@@ -10,7 +10,7 @@ class PsychologistSetupUseCase {
 
   Future<void> call({
     required String uid,
-    required String fullName, 
+    required String username, 
     required String email,
     required String professionalTitle,
     required String licenseNumber,
@@ -27,7 +27,7 @@ class PsychologistSetupUseCase {
     try {
       await _repository.updateProfessionalInfo(
         uid: uid,
-        fullName: fullName,
+        username: username,
         professionalTitle: professionalTitle,
         professionalLicense: licenseNumber,
         yearsExperience: yearsExperience,

@@ -271,12 +271,10 @@ router.delete('/clear-read', async (req, res) => {
     }
 });
 
-export default router;
-
-//Función helper para crear notificaciones desde otros módulos
 
 export const createNotification = async (notificationData) => {
     try {
+        // 1. Crear en Firestore
         const notification = {
             userId: notificationData.userId,
             title: notificationData.title,
@@ -289,7 +287,9 @@ export const createNotification = async (notificationData) => {
         };
 
         const docRef = await db.collection('notifications').add(notification);
-        console.log('Notificación creada:', docRef.id);
+
+        // 2. Enviar push notification
+        await sendPushNotification(notificationData, docRef.id);
         
         return { success: true, id: docRef.id };
     } catch (error) {
@@ -298,3 +298,69 @@ export const createNotification = async (notificationData) => {
     }
 };
 
+async function sendPushNotification(notificationData, notificationId) {
+    try {
+        // Obtener token FCM del usuario
+        const userDoc = await db.collection('patients').doc(notificationData.userId).get();
+        const fcmToken = userDoc.data()?.fcmToken;
+
+        if (!fcmToken) {
+            console.log('Usuario sin token FCM:', notificationData.userId);
+            return;
+        }
+
+        const message = {
+            token: fcmToken,
+            notification: {
+                title: notificationData.title,
+                body: notificationData.body,
+            },
+            data: {
+                notificationId: notificationId,
+                type: notificationData.type,
+                ...Object.fromEntries(
+                    Object.entries(notificationData.data || {}).map(([k, v]) => [k, String(v)])
+                )
+            },
+            android: {
+                notification: {
+                    channelId: getChannelForType(notificationData.type),
+                    priority: 'high',
+                    defaultSound: true,
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1,
+                    }
+                }
+            }
+        };
+
+        await admin.messaging().send(message);
+        console.log('Push notification enviada:', notificationId);
+    } catch (error) {
+        console.error('Error enviando push notification:', error);
+    }
+}
+
+function getChannelForType(type) {
+    switch (type) {
+        case 'appointment_created':
+        case 'appointment_confirmed':
+        case 'appointment_cancelled':
+            return 'appointment_notifications';
+        case 'subscription_activated':
+        case 'payment_succeeded':
+            return 'subscription_notifications';
+        case 'session_started':
+        case 'session_completed':
+            return 'session_notifications';
+        default:
+            return 'general_notifications';
+    }
+}
+
+export default router;

@@ -11,7 +11,7 @@ abstract class PsychologistRepository {
 
   Future<void> updateProfessionalInfo({
     required String uid,
-    String? fullName,
+    String? username,
     String? professionalLicense,
     String? professionalTitle,
     int? yearsExperience,
