@@ -1,4 +1,4 @@
-// backend/routes/psychologists.js - Solo agregar campo de estado
+// backend/routes/psychologists.js 
 
 import express from 'express';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
@@ -55,7 +55,6 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             subSpecialties: [],
             schedule: {},
             isAvailable: false,
-            // NUEVO CAMPO: Estado de aprobación
             status: 'PENDING',
             // Campos de control
             profileCompleted: false,

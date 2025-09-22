@@ -92,7 +92,6 @@ class AppointmentModel extends Equatable {
   final DateTime? completedAt;
   final String? meetingLink;
   final String? address;
-  // CAMPOS DE RATING AGREGADOS
   final int? rating;
   final String? ratingComment;
   final DateTime? ratedAt;

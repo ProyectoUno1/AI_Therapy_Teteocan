@@ -644,7 +644,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
     );
   }
 
-  // MÉTODOS AGREGADOS DENTRO DE LA CLASE
+
   Widget _buildClickableTab(
     BuildContext context,
     String title,

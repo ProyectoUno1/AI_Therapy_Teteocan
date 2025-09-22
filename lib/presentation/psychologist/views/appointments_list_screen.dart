@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/appointments_list_screen.dart
-// Con bloqueo por estado de aprobación - CORREGIDO OVERFLOW
+// Con bloqueo por estado de aprobación
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -128,10 +128,10 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       color: Colors.red[600],
                       fontFamily: 'Poppins',
                     ),
-                    textAlign: TextAlign.center, // SOLUCIÓN OVERFLOW
+                    textAlign: TextAlign.center, 
                   ),
                   const SizedBox(height: 8),
-                  Padding( // SOLUCIÓN OVERFLOW - AGREGADO PADDING
+                  Padding( 
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       state.errorMessage ?? 'Error desconocido',
@@ -140,8 +140,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                         fontFamily: 'Poppins',
                       ),
                       textAlign: TextAlign.center,
-                      maxLines: 3, // SOLUCIÓN OVERFLOW
-                      overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis, 
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -172,7 +172,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                   labelStyle: const TextStyle(
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
-                    fontSize: 11, // REDUCIDO PARA EVITAR OVERFLOW
+                    fontSize: 11, 
                   ),
                   isScrollable: true,
                   tabs: [
@@ -180,7 +180,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.schedule, size: 14), // REDUCIDO
+                          const Icon(Icons.schedule, size: 14), 
                           const SizedBox(width: 4),
                           Text('Pendientes (${state.pendingCount})'),
                         ],
@@ -190,7 +190,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.event_available, size: 14), // REDUCIDO
+                          const Icon(Icons.event_available, size: 14), 
                           const SizedBox(width: 4),
                           Text('Próximas (${state.upcomingCount})'),
                         ],
@@ -200,7 +200,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.play_arrow, size: 14), // REDUCIDO
+                          const Icon(Icons.play_arrow, size: 14), 
                           const SizedBox(width: 4),
                           Text('Progreso (${state.inProgressCount})'),
                         ],
@@ -210,7 +210,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history, size: 14), // REDUCIDO
+                          const Icon(Icons.history, size: 14), 
                           const SizedBox(width: 4),
                           Text('Pasadas (${state.pastCount})'),
                         ],
@@ -426,17 +426,17 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               color: Colors.grey[600],
               fontFamily: 'Poppins',
             ),
-            textAlign: TextAlign.center, // SOLUCIÓN OVERFLOW
+            textAlign: TextAlign.center, 
           ),
           const SizedBox(height: 8),
-          Padding( // SOLUCIÓN OVERFLOW - AGREGADO PADDING
+          Padding( 
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               subtitle,
               style: TextStyle(color: Colors.grey[500], fontFamily: 'Poppins'),
               textAlign: TextAlign.center,
-              maxLines: 2, // SOLUCIÓN OVERFLOW
-              overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+              maxLines: 2, 
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -463,10 +463,10 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // FILA DE ESTADO - CORREGIDA CON EXPANDED
+            
             Row(
               children: [
-                Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                Expanded( 
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -484,7 +484,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                           style: const TextStyle(fontSize: 12),
                         ),
                         const SizedBox(width: 4),
-                        Flexible( // SOLUCIÓN OVERFLOW - AGREGADO FLEXIBLE
+                        Flexible( 
                           child: Text(
                             appointment.status.displayName,
                             style: TextStyle(
@@ -493,14 +493,14 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                               color: _getStatusColor(appointment.status),
                               fontFamily: 'Poppins',
                             ),
-                            overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                            overflow: TextOverflow.ellipsis, 
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8), // ESPACIADO FIJO
+                const SizedBox(width: 8), 
                 if (appointment.isToday)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -524,7 +524,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 else if (appointment.isTomorrow)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6, // REDUCIDO PARA AHORRAR ESPACIO
+                      horizontal: 6, 
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
@@ -534,7 +534,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                     child: Text(
                       'MAÑANA',
                       style: TextStyle(
-                        fontSize: 9, // REDUCIDO PARA AHORRAR ESPACIO
+                        fontSize: 9, 
                         fontWeight: FontWeight.bold,
                         color: Colors.orange,
                         fontFamily: 'Poppins',
@@ -544,7 +544,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               ],
             ),
             const SizedBox(height: 12),
-            // FILA DE PACIENTE - CORREGIDA CON EXPANDED
+            
             Row(
               children: [
                 CircleAvatar(
@@ -567,7 +567,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       : null,
                 ),
                 const SizedBox(width: 12),
-                Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                Expanded( 
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -578,8 +578,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Poppins',
                         ),
-                        overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                        maxLines: 1, // SOLUCIÓN OVERFLOW
+                        overflow: TextOverflow.ellipsis, 
+                        maxLines: 1, 
                       ),
                       Text(
                         appointment.patientEmail,
@@ -606,12 +606,12 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               ],
             ),
             const SizedBox(height: 12),
-            // FILA DE FECHA - CORREGIDA
+            
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                Expanded( 
                   child: Text(
                     appointment.formattedDate,
                     style: TextStyle(
@@ -620,19 +620,19 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       fontFamily: 'Poppins',
                       color: Colors.grey[700],
                     ),
-                    overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                    maxLines: 1, // SOLUCIÓN OVERFLOW
+                    overflow: TextOverflow.ellipsis, 
+                    maxLines: 1, 
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            // FILA DE HORA Y PRECIO - CORREGIDA CON EXPANDED Y FLEXIBLE
+           
             Row(
               children: [
                 Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                Expanded( 
                   child: Text(
                     '${appointment.timeRange} (${appointment.formattedDuration})',
                     style: TextStyle(
@@ -641,8 +641,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       fontFamily: 'Poppins',
                       color: Colors.grey[700],
                     ),
-                    overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                    maxLines: 1, // SOLUCIÓN OVERFLOW
+                    overflow: TextOverflow.ellipsis, 
+                    maxLines: 1, 
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -657,7 +657,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 ),
               ],
             ),
-            // NOTAS DEL PACIENTE - CORREGIDAS
+           
             if (appointment.patientNotes != null) ...[
               const SizedBox(height: 8),
               Container(

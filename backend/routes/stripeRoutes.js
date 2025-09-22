@@ -142,7 +142,7 @@ stripeRouter.post("/verify-session", async (req, res) => {
 
       if (userId) {
         try {
-          // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE - CORREGIDO: Usar 'patients' en lugar de 'users'
+          // ACTUALIZAR DATOS DEL USUARIO EN FIREBASE 
           await db.collection('patients').doc(userId).set({
             isPremium: true,
             subscriptionId: session.subscription?.id || session.subscription,

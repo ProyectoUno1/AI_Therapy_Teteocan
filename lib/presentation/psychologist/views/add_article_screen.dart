@@ -33,7 +33,7 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
   void initState() {
     super.initState();
     
-    // Agregar listeners para actualizar el estado cuando los campos cambien
+    
     _titleController.addListener(() => setState(() {}));
     _summaryController.addListener(() => setState(() {}));
     _imageUrlController.addListener(() => setState(() {}));
@@ -62,7 +62,7 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
   }
 
   void _submitForm(ArticleBloc articleBloc) {
-    // Corrected logic: Check if currentState is not null before calling validate()
+    
     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
       _processTags();
 

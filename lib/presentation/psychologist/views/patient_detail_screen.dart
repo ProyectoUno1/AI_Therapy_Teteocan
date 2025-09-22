@@ -73,7 +73,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             color: Theme.of(context).cardColor,
             child: Column(
               children: [
-                // Avatar y nombre - CORREGIDO CON EXPANDED
+                // Avatar y nombre
                 Row(
                   children: [
                     CircleAvatar(
@@ -98,7 +98,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                           : null,
                     ),
                     const SizedBox(width: 16),
-                    Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                    Expanded( 
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -109,23 +109,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                               fontWeight: FontWeight.bold,
                               fontFamily: 'Poppins',
                             ),
-                            overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                            maxLines: 2, // SOLUCIÓN OVERFLOW
+                            overflow: TextOverflow.ellipsis, 
+                            maxLines: 2, 
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
                               Text(_patient.contactMethod.icon),
                               const SizedBox(width: 8),
-                              Flexible( // SOLUCIÓN OVERFLOW - AGREGADO FLEXIBLE
+                              Flexible( 
                                 child: Text(
                                   _patient.contactMethod.displayName,
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontFamily: 'Poppins',
                                   ),
-                                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                                  maxLines: 1, // SOLUCIÓN OVERFLOW
+                                  overflow: TextOverflow.ellipsis, 
+                                  maxLines: 1, 
                                 ),
                               ),
                             ],
@@ -147,7 +147,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                               children: [
                                 Text(_patient.status.icon),
                                 const SizedBox(width: 8),
-                                Flexible( // SOLUCIÓN OVERFLOW - AGREGADO FLEXIBLE
+                                Flexible( 
                                   child: Text(
                                     _patient.status.displayName,
                                     style: TextStyle(
@@ -155,8 +155,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'Poppins',
                                     ),
-                                    overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                                    maxLines: 1, // SOLUCIÓN OVERFLOW
+                                    overflow: TextOverflow.ellipsis, 
+                                    maxLines: 1, 
                                   ),
                                 ),
                               ],
@@ -169,7 +169,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // Estadísticas rápidas - CLICKEABLES Y CORREGIDAS
+                
                 Row(
                   children: [
                     Expanded(
@@ -256,7 +256,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  // FUNCIÓN: Widget clickeable para las estadísticas - CORREGIDO
+  // FUNCIÓN: Widget clickeable para las estadísticas 
   Widget _buildClickableStatCard({
     required IconData icon,
     required String title,
@@ -333,11 +333,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.calendar_today, color: AppConstants.primaryColor),
               const SizedBox(width: 8),
-              Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+              Expanded( 
                 child: Text(
                   'Resumen de Sesiones',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                  overflow: TextOverflow.ellipsis, 
                 ),
               ),
             ],
@@ -403,11 +403,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.schedule, color: Colors.green),
               const SizedBox(width: 8),
-              Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+              Expanded( 
                 child: Text(
                   'Tiempo Activo',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                  overflow: TextOverflow.ellipsis, 
                 ),
               ),
             ],
@@ -452,16 +452,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.trending_up, color: Colors.orange),
               const SizedBox(width: 8),
-              Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+              Expanded( 
                 child: Text(
                   'Progreso del Tratamiento',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                  overflow: TextOverflow.ellipsis, 
                 ),
               ),
             ],
           ),
-          content: SingleChildScrollView( // SOLUCIÓN OVERFLOW - AGREGADO SCROLLVIEW
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +542,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  // FUNCIÓN AUXILIAR: Para mostrar información en los diálogos - CORREGIDA
+  
   Widget _buildDialogInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -550,7 +550,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100, // REDUCIDO PARA EVITAR OVERFLOW
+            width: 100, 
             child: Text(
               label,
               style: TextStyle(
@@ -561,15 +561,15 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               ),
             ),
           ),
-          Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+          Expanded( 
             child: Text(
               value,
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 12,
               ),
-              overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-              maxLines: 2, // SOLUCIÓN OVERFLOW
+              overflow: TextOverflow.ellipsis, 
+              maxLines: 2, 
             ),
           ),
         ],
@@ -670,7 +670,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           ),
           const SizedBox(height: 16),
 
-          // Lista de sesiones simulada - CORREGIDA
+         
           for (int i = 0; i < _patient.totalSessions; i++)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -694,7 +694,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                  Expanded( 
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -704,8 +704,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                             fontWeight: FontWeight.w600,
                             fontFamily: 'Poppins',
                           ),
-                          overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                          maxLines: 1, // SOLUCIÓN OVERFLOW
+                          overflow: TextOverflow.ellipsis, 
+                          maxLines: 1, 
                         ),
                         Text(
                           _formatDateTime(
@@ -764,15 +764,15 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+              Expanded( 
                 child: Text(
                   'Notas del Paciente',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Poppins',
                       ),
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                  maxLines: 1, // SOLUCIÓN OVERFLOW
+                  overflow: TextOverflow.ellipsis, 
+                  maxLines: 1,
                 ),
               ),
               IconButton(
@@ -799,7 +799,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     children: [
                       Icon(Icons.note, color: AppConstants.primaryColor),
                       const SizedBox(width: 8),
-                      Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+                      Expanded( 
                         child: Text(
                           'Notas iniciales',
                           style: TextStyle(
@@ -807,8 +807,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                             color: AppConstants.primaryColor,
                             fontFamily: 'Poppins',
                           ),
-                          overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                          maxLines: 1, // SOLUCIÓN OVERFLOW
+                          overflow: TextOverflow.ellipsis, 
+                          maxLines: 1,
                         ),
                       ),
                     ],
@@ -874,7 +874,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(icon, color: AppConstants.primaryColor),
               const SizedBox(width: 8),
-              Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+              Expanded( 
                 child: Text(
                   title,
                   style: TextStyle(
@@ -883,8 +883,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     color: AppConstants.primaryColor,
                     fontFamily: 'Poppins',
                   ),
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                  maxLines: 1, // SOLUCIÓN OVERFLOW
+                  overflow: TextOverflow.ellipsis, 
+                  maxLines: 1, 
                 ),
               ),
             ],
@@ -913,12 +913,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               ),
             ),
           ),
-          Expanded( // SOLUCIÓN OVERFLOW - AGREGADO EXPANDED
+          Expanded( 
             child: Text(
               value,
               style: const TextStyle(fontFamily: 'Poppins'),
-              overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-              maxLines: 2, // SOLUCIÓN OVERFLOW
+              overflow: TextOverflow.ellipsis, 
+              maxLines: 2, 
             ),
           ),
         ],

@@ -196,7 +196,7 @@ class PatientHomeContent extends StatelessWidget {
             builder: (context, state) {
               if (state.upcomingAppointments.isNotEmpty) {
                 final upcomingAppointment = state.upcomingAppointments.first;
-                // Línea corregida: se eliminó 'const'
+                
                 return _AppointmentCard(appointment: upcomingAppointment);
               } else {
                 return Card(

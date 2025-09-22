@@ -230,7 +230,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     
-    // NUEVO: Agregar observer para detectar cambios en el ciclo de vida de la app
     WidgetsBinding.instance.addObserver(this);
     
     // Suscribirse a los cambios de estado de autenticación de Firebase
@@ -240,14 +239,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (user != null) {
         // Usuario ha iniciado sesión
         _setupUserPresence(user.uid);
-        
-        // NUEVO: Cargar notificaciones al iniciar sesión
+     
         _loadUserNotifications();
       }
     });
   }
 
-  // NUEVO: Manejar cambios en el ciclo de vida de la app
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -287,7 +285,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // NUEVO: Método separado para marcar usuario como offline
+ 
   void _setUserOffline(String userId) {
     FirebaseFirestore.instance.collection('users').doc(userId).set({
       'isOnline': false,
@@ -295,7 +293,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }, SetOptions(merge: true));
   }
 
-  // NUEVO: Cargar notificaciones del usuario
+
   void _loadUserNotifications() {
     final context = navigatorKey.currentContext;
     if (context != null) {
