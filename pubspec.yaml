@@ -29,8 +29,6 @@ dependencies:
   app_links: ^6.4.1
   calendar_date_picker2: ^2.0.0
   firebase_messaging: ^15.2.10
-  
-
 
   # HTTP requests para comunicación con backend
   http: ^1.2.2

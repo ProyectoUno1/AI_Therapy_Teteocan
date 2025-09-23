@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,16 +12,16 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _hasInitialized = false;
+
   @override
   void initState() {
     super.initState();
 
-    // Inicializar el AuthBloc para verificar autenticación
-    context.read<AuthBloc>().add(const AuthStarted());
-
-    // Timer de respaldo en caso de que la animación dure mucho
-    Timer(const Duration(seconds: 4), () {
-      if (mounted) {
+    // Usar un único timer para la inicialización
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasInitialized && mounted) {
+        _hasInitialized = true;
         context.read<AuthBloc>().add(const AuthStarted());
       }
     });
