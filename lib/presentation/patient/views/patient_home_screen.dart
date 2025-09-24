@@ -34,8 +34,6 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
   bool _notificationsEnabled = true;
 
-  late final List<Widget> _widgetOptions;
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -54,11 +52,9 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _widgetOptions = <Widget>[
-      const PatientHomeContent(),
+  List<Widget> _buildWidgetOptions(String patientId) {
+    return <Widget>[
+      PatientHomeContent(patientId: patientId),
       ChatListScreen(
         onGoToPsychologists: _goToPsychologistsScreen,
         initialPsychologistId: widget.initialChatPsychologistId,
@@ -68,7 +64,12 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
       const PatientAppointmentsListScreen(),
       const ProfileScreenPatient(),
     ];
+  }
 
+  @override
+  void initState() {
+    super.initState();
+    
     if (widget.initialChatPsychologistId != null || widget.initialChatId != null) {
       _selectedIndex = 1;
     }
@@ -83,6 +84,18 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
+
+    // Si no hay paciente autenticado, mostrar un indicador de carga o error
+    if (authState.patient == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Crear _widgetOptions cada vez en build con el patientId actual
+    final widgetOptions = _buildWidgetOptions(authState.patient!.uid);
 
     return FutureBuilder<String?>(
       future: user?.getIdToken(),
@@ -195,7 +208,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
             ],
           ),
-          body: _widgetOptions[_selectedIndex],
+          body: widgetOptions[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,

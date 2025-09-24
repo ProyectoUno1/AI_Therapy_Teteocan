@@ -20,6 +20,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     on<CreateArticle>(_onCreateArticle);
     on<UpdateArticle>(_onUpdateArticle);
     on<DeleteArticle>(_onDeleteArticle);
+    on<LoadPublishedArticles>(_onLoadPublishedArticles);
   }
 
   Future<void> _onLoadArticles(LoadArticles event, Emitter<ArticleState> emit) async {
@@ -77,6 +78,16 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
       add(LoadArticles());
     } catch (e) {
       emit(ArticleOperationError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onLoadPublishedArticles(LoadPublishedArticles event, Emitter<ArticleState> emit) async {
+    emit(ArticlesLoading());
+    try {
+      final articles = await articleRepository.getPublishedArticles();
+      emit(ArticlesLoaded(articles: articles));
+    } catch (e) {
+      emit(ArticlesError(message: e.toString()));
     }
   }
 }

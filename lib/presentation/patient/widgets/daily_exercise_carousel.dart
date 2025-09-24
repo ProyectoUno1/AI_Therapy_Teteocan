@@ -221,3 +221,4 @@ class _DailyExerciseCarouselState extends State<DailyExerciseCarousel> {
     );
   }
 }
+

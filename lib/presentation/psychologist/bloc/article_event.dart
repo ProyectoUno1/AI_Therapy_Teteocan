@@ -19,6 +19,8 @@ class LoadArticles extends ArticleEvent {
   List<Object> get props => [limit, page, status ?? ''];
 }
 
+class LoadPublishedArticles extends ArticleEvent {}
+
 class CreateArticle extends ArticleEvent {
   final Article article;
 

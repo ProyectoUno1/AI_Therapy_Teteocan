@@ -519,4 +519,52 @@ articleRouter.get("/categories/list", async (req, res) => {
   }
 });
 
+// Endpoint para obtener todos los artículos públicos y publicados
+articleRouter.get("/published", async (req, res) => {
+  try {
+    const { limit = 10, page = 1 } = req.query;
+    const limitNum = Math.min(parseInt(limit), 50); // Máximo 50 artículos por página
+    const pageNum = parseInt(page);
+    const offset = (pageNum - 1) * limitNum;
+
+    let query = db.collection('articles')
+      .where('isPublished', '==', true)
+      .where('status', '==', 'published')
+      .orderBy('publishedAt', 'desc');
+
+    const totalSnapshot = await query.get();
+    const totalArticles = totalSnapshot.size;
+
+    const articlesSnapshot = await query
+      .offset(offset)
+      .limit(limitNum)
+      .get();
+    
+    const articles = articlesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        publishedAt: data.publishedAt?.toDate()
+      };
+    });
+
+    res.json({
+      articles: articles,
+      totalArticles: totalArticles,
+      page: pageNum,
+      limit: limitNum
+    });
+
+  } catch (error) {
+    console.error("Error al obtener artículos publicados:", error);
+    res.status(500).json({
+      error: "Error al obtener artículos publicados",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 export default articleRouter;
