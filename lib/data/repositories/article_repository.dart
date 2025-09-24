@@ -158,4 +158,28 @@ class ArticleRepository {
       throw Exception('Error de conexión: $e');
     }
   }
+
+  
+  Future<List<Article>> getPublishedArticles() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/articles/published'),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final List<dynamic> articlesData = responseData['articles'];
+        return articlesData.map((json) => Article.fromJson(json)).toList();
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception('Failed to load published articles: ${errorData['error'] ?? response.body}');
+      }
+    } catch (e) {
+      print('Error loading published articles: $e');
+      throw Exception('Error de conexión: $e');
+    }
+  }
 }

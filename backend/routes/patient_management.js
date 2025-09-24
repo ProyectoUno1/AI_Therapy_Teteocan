@@ -125,4 +125,416 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
   }
 });
 
+// Guardar o actualizar emoción del paciente
+router.post('/emotions', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { uid, patientId, feeling, note, date, intensity, metadata } = req.body;
+    
+    // Validar campos requeridos
+    if (!patientId || !feeling || !date) {
+      return res.status(400).json({ 
+        error: 'Campos requeridos: patientId, feeling, date' 
+      });
+    }
+
+    // Convertir fecha recibida
+    const emotionDate = new Date(date);
+    const startOfDay = new Date(emotionDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(emotionDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log('🔍 Buscando emociones existentes para:', {
+      patientId,
+      startOfDay,
+      endOfDay
+    });
+
+    // Verificar si ya existe una emoción para este día
+    const existingEmotion = await db.collection('emotions')
+      .where('patientId', '==', patientId)
+      .where('date', '>=', startOfDay)
+      .where('date', '<=', endOfDay)
+      .get();
+
+    let emotionId;
+    let action = 'updated';
+
+    if (!existingEmotion.empty) {
+      // Actualizar emoción existente
+      emotionId = existingEmotion.docs[0].id;
+      await db.collection('emotions').doc(emotionId).update({
+        feeling,
+        note: note || null,
+        intensity: intensity || 5,
+        metadata: metadata || {},
+        updatedAt: new Date()
+      });
+      action = 'updated';
+    } else {
+      // Crear nueva emoción
+      const emotionRef = db.collection('emotions').doc();
+      emotionId = emotionRef.id;
+      
+      const emotionData = {
+        id: emotionId,
+        patientId,
+        feeling,
+        note: note || null,
+        intensity: intensity || 5,
+        metadata: metadata || {},
+        date: emotionDate,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await emotionRef.set(emotionData);
+      action = 'created';
+    }
+
+    res.json({ 
+      success: true, 
+      emotionId, 
+      action,
+      message: `Emoción ${action} correctamente` 
+    });
+  } catch (error) {
+    console.error('Error en saveEmotion:', error);
+    res.status(500).json({ 
+      error: 'Error al guardar la emoción',
+      details: error.message 
+    });
+  }
+});
+
+// Obtener emociones del paciente
+router.get('/patients/:patientId/emotions', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { start, end } = req.query;
+
+
+    let query = db.collection('emotions')
+      .where('patientId', '==', patientId)
+      .orderBy('date', 'desc');
+
+    if (start && end) {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      
+      query = query.where('date', '>=', startDate)
+                   .where('date', '<=', endDate);
+    }
+
+    const snapshot = await query.get();
+    const emotions = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // Convertir Timestamp a ISO string
+      const emotion = {
+        id: data.id,
+        patientId: data.patientId,
+        feeling: data.feeling,
+        note: data.note,
+        intensity: data.intensity,
+        metadata: data.metadata,
+        date: data.date.toDate ? data.date.toDate().toISOString() : new Date(data.date).toISOString(),
+        createdAt: data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString(),
+        updatedAt: data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : new Date(data.updatedAt).toISOString()
+      };
+      return emotion;
+    });
+
+
+    res.json(emotions);
+  } catch (error) {
+    console.error('Error en getPatientEmotions:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener las emociones',
+      details: error.message 
+    });
+  }
+});
+
+// Obtener emoción del día actual 
+router.get('/patients/:patientId/emotions/today', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+ 
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const snapshot = await db.collection('emotions')
+      .where('patientId', '==', patientId)
+      .where('date', '>=', startOfDay)
+      .where('date', '<=', endOfDay)
+      .get();
+
+    if (snapshot.empty) {
+      return res.json(null);
+    }
+
+    const emotionDoc = snapshot.docs[0];
+    const emotionData = emotionDoc.data();
+    
+    const emotion = {
+      id: emotionData.id,
+      patientId: emotionData.patientId,
+      feeling: emotionData.feeling,
+      note: emotionData.note,
+      intensity: emotionData.intensity,
+      metadata: emotionData.metadata,
+      date: emotionData.date.toDate ? emotionData.date.toDate().toISOString() : new Date(emotionData.date).toISOString(),
+      createdAt: emotionData.createdAt.toDate ? emotionData.createdAt.toDate().toISOString() : new Date(emotionData.createdAt).toISOString(),
+      updatedAt: emotionData.updatedAt.toDate ? emotionData.updatedAt.toDate().toISOString() : new Date(emotionData.updatedAt).toISOString()
+    };
+
+    res.json(emotion);
+  } catch (error) {
+    console.error('Error en getTodayEmotion:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener la emoción del día',
+      details: error.message 
+    });
+  }
+});
+// Guardar sentimientos y notas de ejercicios
+router.post('/exercise-feelings', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { 
+      patientId, 
+      exerciseTitle, 
+      exerciseDuration, 
+      exerciseDifficulty,
+      feeling, 
+      intensity, 
+      notes, 
+      completedAt,
+      metadata 
+    } = req.body;
+    
+    // Validar campos requeridos
+    if (!patientId || !exerciseTitle || !feeling) {
+      return res.status(400).json({ 
+        error: 'Campos requeridos: patientId, exerciseTitle, feeling' 
+      });
+    }
+
+    // Crear el documento de sentimiento de ejercicio
+    const exerciseFeelingRef = db.collection('exercise_feelings').doc();
+    const exerciseFeelingId = exerciseFeelingRef.id;
+    
+    const exerciseFeelingData = {
+      id: exerciseFeelingId,
+      patientId,
+      exerciseTitle,
+      exerciseDuration: exerciseDuration || 0,
+      exerciseDifficulty: exerciseDifficulty || 'No especificado',
+      feeling,
+      intensity: intensity || 5,
+      notes: notes || '',
+      completedAt: completedAt ? new Date(completedAt) : new Date(),
+      metadata: metadata || {},
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    await exerciseFeelingRef.set(exerciseFeelingData);
+
+    // Opcional: También registrar como actividad del paciente
+    const activityRef = db.collection('patient_activities').doc();
+    const activityData = {
+      id: activityRef.id,
+      patientId,
+      activityType: 'exercise_completed',
+      activityTitle: `Ejercicio completado: ${exerciseTitle}`,
+      data: {
+        exerciseTitle,
+        exerciseDuration,
+        exerciseDifficulty,
+        feeling,
+        intensity,
+        hasNotes: !!notes
+      },
+      timestamp: new Date(),
+      createdAt: new Date()
+    };
+    
+    await activityRef.set(activityData);
+
+    res.status(201).json({ 
+      success: true, 
+      exerciseFeelingId,
+      message: 'Sentimientos del ejercicio guardados correctamente' 
+    });
+  } catch (error) {
+    console.error('Error al guardar sentimientos del ejercicio:', error);
+    res.status(500).json({ 
+      error: 'Error al guardar los sentimientos del ejercicio',
+      details: error.message 
+    });
+  }
+});
+
+// Obtener historial de ejercicios completados por un paciente
+router.get('/patients/:patientId/exercise-history', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { limit = 50, startAfter } = req.query;
+
+    let query = db.collection('exercise_feelings')
+      .where('patientId', '==', patientId)
+      .orderBy('completedAt', 'desc')
+      .limit(parseInt(limit));
+
+    if (startAfter) {
+      const startAfterDoc = await db.collection('exercise_feelings').doc(startAfter).get();
+      if (startAfterDoc.exists) {
+        query = query.startAfter(startAfterDoc);
+      }
+    }
+
+    const snapshot = await query.get();
+    const exerciseHistory = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id,
+        patientId: data.patientId,
+        exerciseTitle: data.exerciseTitle,
+        exerciseDuration: data.exerciseDuration,
+        exerciseDifficulty: data.exerciseDifficulty,
+        feeling: data.feeling,
+        intensity: data.intensity,
+        notes: data.notes,
+        completedAt: data.completedAt.toDate ? data.completedAt.toDate().toISOString() : new Date(data.completedAt).toISOString(),
+        metadata: data.metadata,
+        createdAt: data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString(),
+        updatedAt: data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : new Date(data.updatedAt).toISOString()
+      };
+    });
+
+    res.json({
+      exerciseHistory,
+      hasMore: snapshot.docs.length === parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Error al obtener historial de ejercicios:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener el historial de ejercicios',
+      details: error.message 
+    });
+  }
+});
+
+// Obtener estadísticas de ejercicios de un paciente
+router.get('/patients/:patientId/exercise-stats', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { period = '30' } = req.query; // días
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(period));
+
+    const snapshot = await db.collection('exercise_feelings')
+      .where('patientId', '==', patientId)
+      .where('completedAt', '>=', startDate)
+      .get();
+
+    const exercises = snapshot.docs.map(doc => doc.data());
+
+    // Calcular estadísticas
+    const totalExercises = exercises.length;
+    const exerciseTypes = {};
+    const feelingsCount = {};
+    let totalDuration = 0;
+    let totalIntensity = 0;
+
+    exercises.forEach(exercise => {
+      // Contar tipos de ejercicios
+      exerciseTypes[exercise.exerciseTitle] = (exerciseTypes[exercise.exerciseTitle] || 0) + 1;
+      
+      // Contar sentimientos
+      feelingsCount[exercise.feeling] = (feelingsCount[exercise.feeling] || 0) + 1;
+      
+      // Sumar duración e intensidad
+      totalDuration += exercise.exerciseDuration || 0;
+      totalIntensity += exercise.intensity || 0;
+    });
+
+    const averageIntensity = totalExercises > 0 ? (totalIntensity / totalExercises).toFixed(1) : 0;
+    const mostCommonFeeling = Object.keys(feelingsCount).reduce((a, b) => 
+      feelingsCount[a] > feelingsCount[b] ? a : b, Object.keys(feelingsCount)[0] || 'No registrado'
+    );
+
+    const stats = {
+      period: parseInt(period),
+      totalExercises,
+      totalDuration,
+      averageIntensity: parseFloat(averageIntensity),
+      mostCommonFeeling,
+      exerciseTypes,
+      feelingsDistribution: feelingsCount,
+      exercisesPerDay: (totalExercises / parseInt(period)).toFixed(1)
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error al obtener estadísticas de ejercicios:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener estadísticas de ejercicios',
+      details: error.message 
+    });
+  }
+});
+
+// Obtener ejercicios completados hoy
+router.get('/patients/:patientId/exercise-feelings/today', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+ 
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const snapshot = await db.collection('exercise_feelings')
+      .where('patientId', '==', patientId)
+      .where('completedAt', '>=', startOfDay)
+      .where('completedAt', '<=', endOfDay)
+      .orderBy('completedAt', 'desc')
+      .get();
+
+    const todayExercises = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id,
+        patientId: data.patientId,
+        exerciseTitle: data.exerciseTitle,
+        exerciseDuration: data.exerciseDuration,
+        exerciseDifficulty: data.exerciseDifficulty,
+        feeling: data.feeling,
+        intensity: data.intensity,
+        notes: data.notes,
+        completedAt: data.completedAt.toDate ? data.completedAt.toDate().toISOString() : new Date(data.completedAt).toISOString(),
+        metadata: data.metadata,
+        createdAt: data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString()
+      };
+    });
+
+    res.json(todayExercises);
+  } catch (error) {
+    console.error('Error al obtener ejercicios de hoy:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener los ejercicios de hoy',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

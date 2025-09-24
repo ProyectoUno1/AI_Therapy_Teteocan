@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; 
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
@@ -18,10 +18,12 @@ import 'package:ai_therapy_teteocan/domain/repositories/auth_repository.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/core/services/ai_chat_api_service.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 
 // Importaciones de las vistas y Blocs/Cubits
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
@@ -37,11 +39,13 @@ import 'package:ai_therapy_teteocan/data/repositories/notification_repository.da
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
-
-// NUEVA IMPORTACIÓN - Servicio de notificaciones
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/core/services/notification_service.dart';
+import 'package:ai_therapy_teteocan/data/models/emotion_model.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/emotion/emotion_bloc.dart';
+import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
+import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
 
-// Importaciones para el tema
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -51,9 +55,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; 
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
-
 
 import 'firebase_options.dart';
 
@@ -78,7 +81,7 @@ void main() async {
 
   // --- NUEVA CONFIGURACIÓN: Inicializar NotificationService ---
   await NotificationService.initialize();
-  
+
   // Configurar manejador de navegación desde notificaciones
   NotificationService.onNotificationTap = (data) {
     _handleNotificationNavigation(data);
@@ -102,17 +105,16 @@ void main() async {
   final ChatRepository chatRepository = ChatRepository();
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
-  
 
-   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(
     MultiBlocProvider(
       providers: [
         RepositoryProvider<ArticleRepository>(
           create: (context) => ArticleRepository(baseUrl: ApiConstants.baseUrl),
-      ),
-        BlocProvider<HomeContentCubit>(create: (context) => HomeContentCubit()),
+        ),
+
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
             authRepository: authRepository,
@@ -121,8 +123,13 @@ void main() async {
             firestore: FirebaseFirestore.instance,
           )..add(const AuthStarted()),
         ),
-        BlocProvider<ChatBloc>(create: (context) => ChatBloc(chatRepository, AiChatApiService())),
+
+        BlocProvider<ChatBloc>(
+          create: (context) => ChatBloc(chatRepository, AiChatApiService()),
+        ),
+
         BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
+
         BlocProvider<PsychologistInfoBloc>(
           create: (context) => PsychologistInfoBloc(
             psychologistRepository: PsychologistRepositoryImpl(
@@ -130,18 +137,18 @@ void main() async {
             ),
           ),
         ),
-        BlocProvider<AppointmentBloc>(
-          create: (context) => AppointmentBloc(),
-        ),
+
+        BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
+
         BlocProvider<PsychologistBloc>(
-      create: (context) => PsychologistBloc(
-        repository: PsychologistRepository(),
-      ),
+          create: (context) =>
+              PsychologistBloc(repository: PsychologistRepository()),
         ),
+
         BlocProvider<NotificationBloc>(
-      create: (context) => NotificationBloc(
-        notificationRepository: NotificationRepository(),
-      ),
+          create: (context) => NotificationBloc(
+            notificationRepository: NotificationRepository(),
+          ),
         ),
       ],
       child: const MyApp(),
@@ -188,10 +195,10 @@ void _navigateToAppointments(BuildContext context, Map<String, dynamic> data) {
   // Implementar navegación específica a citas
   // Por ejemplo, si tienes una ruta nombrada:
   // Navigator.of(context).pushNamed('/appointments', arguments: data);
-  
+
   // Por ahora, imprime para debug
   print('Navegar a citas con data: $data');
-  
+
   // También puedes mostrar la lista de notificaciones como fallback
   _navigateToNotifications(context);
 }
@@ -229,9 +236,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Suscribirse a los cambios de estado de autenticación de Firebase
     _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
       user,
@@ -239,17 +246,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (user != null) {
         // Usuario ha iniciado sesión
         _setupUserPresence(user.uid);
-     
+
         _loadUserNotifications();
       }
     });
   }
 
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       switch (state) {
@@ -275,7 +281,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       _setUserOffline(currentUser.uid);
@@ -285,7 +291,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
- 
   void _setUserOffline(String userId) {
     FirebaseFirestore.instance.collection('users').doc(userId).set({
       'isOnline': false,
@@ -293,12 +298,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }, SetOptions(merge: true));
   }
 
-
   void _loadUserNotifications() {
     final context = navigatorKey.currentContext;
     if (context != null) {
       // Disparar evento para cargar notificaciones
-      context.read<NotificationBloc>().add(LoadNotifications(userId: FirebaseAuth.instance.currentUser!.uid, userToken: String.fromCharCode(0), userType: String.fromCharCode(0)));
+      context.read<NotificationBloc>().add(
+        LoadNotifications(
+          userId: FirebaseAuth.instance.currentUser!.uid,
+          userToken: String.fromCharCode(0),
+          userType: String.fromCharCode(0),
+        ),
+      );
     }
   }
 
