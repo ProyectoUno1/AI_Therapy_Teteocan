@@ -19,6 +19,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
 
+
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
   @override
@@ -651,11 +652,11 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     super.initState();
     final authState = BlocProvider.of<AuthBloc>(context).state;
     if (authState.isAuthenticatedPatient && authState.patient != null) {
-      _nameController.text = authState.patient!.username ?? '';
-      _dobController.text = authState.patient!.dateOfBirth != null
-          ? DateFormat('yyyy-MM-dd').format(authState.patient!.dateOfBirth!)
-          : '';
-      _phoneController.text = authState.patient!.phoneNumber ?? '';
+      _nameController.text = authState.patient!.username;
+      _dobController.text = DateFormat(
+        'yyyy-MM-dd',
+      ).format(authState.patient!.dateOfBirth);
+      _phoneController.text = authState.patient!.phoneNumber;
     }
   }
 
@@ -696,10 +697,8 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
     DateTime initialDate = DateTime.now();
     try {
       final authState = BlocProvider.of<AuthBloc>(context).state;
-      if (authState.isAuthenticatedPatient &&
-          authState.patient != null &&
-          authState.patient!.dateOfBirth != null) {
-        initialDate = authState.patient!.dateOfBirth!;
+      if (authState.isAuthenticatedPatient && authState.patient != null) {
+        initialDate = authState.patient!.dateOfBirth;
       }
     } catch (e) {
       // Si hay un error al obtener la fecha, se usa la fecha actual por defecto.

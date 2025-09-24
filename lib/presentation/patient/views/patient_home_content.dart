@@ -37,13 +37,15 @@ class PatientHomeContent extends StatelessWidget {
       Article(
         title: 'Cómo afrontar el estrés: estrategias prácticas',
         author: 'Dr. Alex Rodriguez',
-        imageUrl: 'https://img.freepik.com/free-photo/mental-health-care-concept-mind-hand-holding-brain_23-2151042571.jpg',
+        imageUrl:
+            'https://img.freepik.com/free-photo/mental-health-care-concept-mind-hand-holding-brain_23-2151042571.jpg',
         date: 'Julio 15, 2025',
       ),
       Article(
         title: 'El poder de la atención plena en la vida diaria',
         author: 'Dr. Maria Lopez',
-        imageUrl: 'https://img.freepik.com/free-photo/happy-young-woman-doing-yoga-outdoors-sunrise-canyon_1150-13783.jpg',
+        imageUrl:
+            'https://img.freepik.com/free-photo/happy-young-woman-doing-yoga-outdoors-sunrise-canyon_1150-13783.jpg',
         date: 'Julio 10, 2025',
       ),
     ];
@@ -93,7 +95,7 @@ class PatientHomeContent extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Sección de ejercicios diarios agregada
+            // Sección de ejercicios diarios 
             const Text(
               'Ejercicios diarios',
               style: TextStyle(
@@ -440,7 +442,11 @@ class _AppointmentCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '${appointment.scheduledDateTime.day}/${appointment.scheduledDateTime.month}/${appointment.scheduledDateTime.year}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontFamily: 'Poppins',
+                  ),
                 ),
               ],
             ),
@@ -529,7 +535,10 @@ class _TipCard extends StatelessWidget {
           color: AppConstants.lightAccentColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(title, style: const TextStyle(fontSize: 14, fontFamily: 'Poppins')),
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontFamily: 'Poppins'),
+        ),
       ),
     );
   }
@@ -553,7 +562,9 @@ class _ArticleCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               child: Image.network(
                 article.imageUrl,
                 height: 150,
@@ -564,7 +575,8 @@ class _ArticleCard extends StatelessWidget {
                   return Center(
                     child: CircularProgressIndicator(
                       value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                          ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
                           : null,
                     ),
                   );

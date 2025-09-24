@@ -336,7 +336,6 @@ class _PsychologistsChatTabContent extends StatelessWidget {
               },
             );
           }
-
           return const SizedBox.shrink();
         },
       ),
