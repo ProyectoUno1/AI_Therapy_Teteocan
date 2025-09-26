@@ -19,7 +19,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
 
-
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
   @override
@@ -27,53 +26,50 @@ class ProfileScreenPatient extends StatefulWidget {
 }
 
 class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
-  
   bool _isPopupNotificationsActive = true;
   bool _isEmailNotificationsActive = true;
-  
-  
+
   StreamSubscription<DocumentSnapshot>? _userSubscription;
   int _usedMessages = 0;
   int _messageLimit = 5;
   bool _isPremium = false;
 
   @override
-void initState() {
-  super.initState();
-  
-  final authState = context.read<AuthBloc>().state;
-  if (authState.isAuthenticatedPatient && authState.patient?.uid != null) {
-    context.read<AuthBloc>().add(
-      AuthStartListeningToPatient(authState.patient!.uid),
-    );
-    
-    _startListeningToUserData(authState.patient!.uid);
+  void initState() {
+    super.initState();
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState.isAuthenticatedPatient && authState.patient?.uid != null) {
+      context.read<AuthBloc>().add(
+        AuthStartListeningToPatient(authState.patient!.uid),
+      );
+
+      _startListeningToUserData(authState.patient!.uid);
+    }
   }
-}
 
   @override
-void dispose() {
-  context.read<AuthBloc>().add(const AuthStopListeningToPatient());
-  _userSubscription?.cancel(); // Cancelar subscription
-  super.dispose();
-}
+  void dispose() {
+    context.read<AuthBloc>().add(const AuthStopListeningToPatient());
+    _userSubscription?.cancel(); // Cancelar subscription
+    super.dispose();
+  }
 
- 
   void _startListeningToUserData(String userId) {
     _userSubscription = FirebaseFirestore.instance
         .collection('patients')
         .doc(userId)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.exists && mounted) {
-        final data = snapshot.data()!;
-        setState(() {
-          _usedMessages = data['messageCount'] ?? 0;
-          _isPremium = data['isPremium'] == true;
-          _messageLimit = _isPremium ? 99999 : 5;
+          if (snapshot.exists && mounted) {
+            final data = snapshot.data()!;
+            setState(() {
+              _usedMessages = data['messageCount'] ?? 0;
+              _isPremium = data['isPremium'] == true;
+              _messageLimit = _isPremium ? 99999 : 5;
+            });
+          }
         });
-      }
-    });
   }
 
   void _startListeningToPatientData() {
@@ -102,11 +98,10 @@ void dispose() {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        
         BlocProvider(
-          create: (context) => SubscriptionBloc(
-            repository: SubscriptionRepositoryImpl(),
-          )..add(LoadSubscriptionStatus()),
+          create: (context) =>
+              SubscriptionBloc(repository: SubscriptionRepositoryImpl())
+                ..add(LoadSubscriptionStatus()),
         ),
       ],
       child: BlocListener<SubscriptionBloc, SubscriptionState>(
@@ -173,7 +168,9 @@ void dispose() {
                                   children: [
                                     Text(
                                       userName,
-                                      style: Theme.of(context).textTheme.bodyMedium
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
                                           ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: Theme.of(
@@ -184,7 +181,9 @@ void dispose() {
                                     ),
                                     Text(
                                       userEmail,
-                                      style: Theme.of(context).textTheme.bodyMedium
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
                                           ?.copyWith(
                                             color: Theme.of(context).hintColor,
                                             fontSize: 14,
@@ -219,14 +218,13 @@ void dispose() {
               ),
 
               const SizedBox(height: 24),
-              
-              
+
               AiUsageLimitIndicator(
                 used: _usedMessages,
                 limit: _messageLimit,
                 isPremium: _isPremium,
               ),
-              
+
               const SizedBox(height: 24),
               Text(
                 'Cuenta',
@@ -306,7 +304,9 @@ void dispose() {
                           _isPopupNotificationsActive = value;
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Pop-up Notificaciones activadas')),
+                          SnackBar(
+                            content: Text('Pop-up Notificaciones activadas'),
+                          ),
                         );
                       },
                     ),
@@ -406,7 +406,9 @@ void dispose() {
                       (Route<dynamic> route) => false,
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sesión cerrada exitosamente.')),
+                      const SnackBar(
+                        content: Text('Sesión cerrada exitosamente.'),
+                      ),
                     );
                   } else if (state.status == AuthStatus.error &&
                       state.errorMessage != null) {
@@ -848,8 +850,7 @@ class _PersonalInfoScreenPatientState extends State<PersonalInfoScreenPatient> {
                     context,
                     _dobController,
                     'Fecha de nacimiento',
-                    onTap:
-                        _showDatePicker, 
+                    onTap: _showDatePicker,
                   ),
                   _buildInputFieldWithLabel(
                     context,

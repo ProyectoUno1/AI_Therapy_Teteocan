@@ -31,8 +31,6 @@ class AuthRepositoryImpl implements AuthRepository {
     return userRemoteDataSource.getPsychologistData(uid);
   }
 
- 
-
   @override
   Future<void> updatePatientInfo({
     required String userId,
@@ -40,8 +38,10 @@ class AuthRepositoryImpl implements AuthRepository {
     String? dob,
     String? phone,
   }) async {
-    log(' Repo: Iniciando actualización de datos para el paciente $userId',
-        name: 'AuthRepositoryImpl');
+    log(
+      ' Repo: Iniciando actualización de datos para el paciente $userId',
+      name: 'AuthRepositoryImpl',
+    );
     try {
       await userRemoteDataSource.updatePatientData(
         uid: userId,
@@ -49,29 +49,42 @@ class AuthRepositoryImpl implements AuthRepository {
         dateOfBirth: dob,
         phoneNumber: phone,
       );
-      log(' Repo: Datos del paciente $userId actualizados exitosamente en Firestore.',
-          name: 'AuthRepositoryImpl');
+      log(
+        ' Repo: Datos del paciente $userId actualizados exitosamente en Firestore.',
+        name: 'AuthRepositoryImpl',
+      );
     } on AppException {
       rethrow;
     } catch (e) {
-      log(' Repo: Error genérico al actualizar datos del paciente: $e',
-          name: 'AuthRepositoryImpl');
+      log(
+        ' Repo: Error genérico al actualizar datos del paciente: $e',
+        name: 'AuthRepositoryImpl',
+      );
       throw AuthException('Error inesperado al actualizar perfil: $e');
     }
   }
 
   @override
-  Future<String> signIn({required String email, required String password}) async {
-  log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
-  try {
-    final userCredential = await authRemoteDataSource.signIn(email: email, password: password);
-    final idToken = await userCredential.user?.getIdToken();
-    if (idToken == null) {
-      throw AuthException('No se pudo obtener el token de autenticación.');
-    }
-    log(' Repo: Token de autenticación obtenido exitosamente.', name: 'AuthRepositoryImpl');
-    return idToken;
-  } on FirebaseAuthException catch (e) {
+  Future<String> signIn({
+    required String email,
+    required String password,
+  }) async {
+    log(' Repo: Iniciando sesión para $email', name: 'AuthRepositoryImpl');
+    try {
+      final userCredential = await authRemoteDataSource.signIn(
+        email: email,
+        password: password,
+      );
+      final idToken = await userCredential.user?.getIdToken();
+      if (idToken == null) {
+        throw AuthException('No se pudo obtener el token de autenticación.');
+      }
+      log(
+        ' Repo: Token de autenticación obtenido exitosamente.',
+        name: 'AuthRepositoryImpl',
+      );
+      return idToken;
+    } on FirebaseAuthException catch (e) {
       log(
         ' Repo: FirebaseAuthException: ${e.code} - ${e.message}',
         name: 'AuthRepositoryImpl',
@@ -87,8 +100,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'Credenciales inválidas. Verifica tu email y contraseña.',
         );
       }
-      throw AuthException(
-          'Error de autenticación: ${e.message ?? e.code}');
+      throw AuthException('Error de autenticación: ${e.message ?? e.code}');
     } on AppException {
       rethrow;
     } catch (e) {
@@ -217,20 +229,18 @@ class AuthRepositoryImpl implements AuthRepository {
         createdAt: now,
         updatedAt: now,
         role: 'psychologist',
-        
       );
 
       await userRemoteDataSource.createPsychologist(
         uid: psychologist.uid,
         username: psychologist.username,
         email: psychologist.email,
-        phoneNumber: psychologist.phoneNumber ?? '', 
+        phoneNumber: psychologist.phoneNumber ?? '',
         professionalLicense: psychologist.professionalLicense ?? '',
         dateOfBirth: psychologist.dateOfBirth!,
         profilePictureUrl: psychologist.profilePictureUrl,
         role: psychologist.role,
         status: psychologist.status ?? '',
-        
       );
       log(
         ' Repo: Registro de psicólogo y datos de Firestore exitoso.',

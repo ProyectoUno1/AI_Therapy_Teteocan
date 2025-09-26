@@ -7,7 +7,7 @@ class AppointmentRepository {
   final FirebaseFirestore _firestore;
 
   AppointmentRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Stream<List<AppointmentModel>> getPatientAppointments(String patientId) {
     return _firestore
@@ -16,9 +16,11 @@ class AppointmentRepository {
         .orderBy('scheduledDateTime', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return AppointmentModel.fromJson(doc.data() as Map<String, dynamic>);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return AppointmentModel.fromJson(
+              doc.data() as Map<String, dynamic>,
+            );
+          }).toList();
+        });
   }
 }

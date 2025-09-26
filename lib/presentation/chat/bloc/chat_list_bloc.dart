@@ -30,7 +30,6 @@ class ChatListError extends ChatListState {
   List<Object?> get props => [message];
 }
 
-
 class ChatListCubit extends Cubit<ChatListState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String currentUserId;
@@ -42,48 +41,60 @@ class ChatListCubit extends Cubit<ChatListState> {
 
   void _loadChats() {
     _chatSubscription?.cancel();
-    _chatSubscription = _firestore.collection('chats')
+    _chatSubscription = _firestore
+        .collection('chats')
         .where('participants', arrayContains: currentUserId)
         .orderBy('lastTimestamp', descending: true)
         .snapshots()
         .listen((snapshot) async {
-      try {
-        final List<PsychologistChatItem> chatRooms = [];
-        for (var chatDoc in snapshot.docs) {
-          final chatData = chatDoc.data();
-          final participants = (chatData['participants'] as List<dynamic>).cast<String>();
-          final otherParticipantUid = participants.firstWhere(
-            (uid) => uid != currentUserId,
-            orElse: () => '',
-          );
-
-          if (otherParticipantUid.isNotEmpty) {
-            final psychologistDoc = await _firestore.collection('psychologists').doc(otherParticipantUid).get();
-            final psychologistData = psychologistDoc.data();
-
-            if (psychologistData != null) {
-              chatRooms.add(
-                PsychologistChatItem(
-                  chatId: chatDoc.id,
-                  psychologistId: otherParticipantUid,
-                  psychologistName: psychologistData['fullName'] as String? ?? 'Psicólogo',
-                  psychologistImageUrl: psychologistData['profilePictureUrl'] as String?,
-                  lastMessage: chatData['lastMessage'] as String? ?? 'Inicia una conversación',
-                  lastMessageTime: (chatData['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                
-                  unreadCount: 0,
-                  isOnline: false,
-                  isTyping: false,
-                ),
+          try {
+            final List<PsychologistChatItem> chatRooms = [];
+            for (var chatDoc in snapshot.docs) {
+              final chatData = chatDoc.data();
+              final participants = (chatData['participants'] as List<dynamic>)
+                  .cast<String>();
+              final otherParticipantUid = participants.firstWhere(
+                (uid) => uid != currentUserId,
+                orElse: () => '',
               );
+
+              if (otherParticipantUid.isNotEmpty) {
+                final psychologistDoc = await _firestore
+                    .collection('psychologists')
+                    .doc(otherParticipantUid)
+                    .get();
+                final psychologistData = psychologistDoc.data();
+
+                if (psychologistData != null) {
+                  chatRooms.add(
+                    PsychologistChatItem(
+                      chatId: chatDoc.id,
+                      psychologistId: otherParticipantUid,
+                      psychologistName:
+                          psychologistData['fullName'] as String? ??
+                          'Psicólogo',
+                      psychologistImageUrl:
+                          psychologistData['profilePictureUrl'] as String?,
+                      lastMessage:
+                          chatData['lastMessage'] as String? ??
+                          'Inicia una conversación',
+                      lastMessageTime:
+                          (chatData['lastTimestamp'] as Timestamp?)?.toDate() ??
+                          DateTime.now(),
+
+                      unreadCount: 0,
+                      isOnline: false,
+                      isTyping: false,
+                    ),
+                  );
+                }
+              }
             }
+            emit(ChatListLoaded(chatRooms));
+          } catch (e) {
+            emit(ChatListError('Error al cargar los chats: $e'));
           }
-        }
-        emit(ChatListLoaded(chatRooms));
-      } catch (e) {
-        emit(ChatListError('Error al cargar los chats: $e'));
-      }
-    });
+        });
   }
 
   @override

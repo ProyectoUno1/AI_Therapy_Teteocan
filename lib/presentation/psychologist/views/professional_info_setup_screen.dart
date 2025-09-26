@@ -126,7 +126,6 @@ class _ProfessionalInfoSetupScreenState
     ],
   };
 
-  
   late StreamSubscription _blocSubscription;
 
   @override
@@ -236,8 +235,7 @@ class _ProfessionalInfoSetupScreenState
           description: _descriptionController.text,
           education: educationList,
           certifications: certificationsList,
-          profilePictureUrl:
-              null, 
+          profilePictureUrl: null,
           selectedSpecialty: _selectedSpecialty,
           selectedSubSpecialties: _selectedSubSpecialties,
           schedule: formattedSchedule,
@@ -256,7 +254,6 @@ class _ProfessionalInfoSetupScreenState
 
   @override
   void dispose() {
-    
     _blocSubscription.cancel();
     _fullNameController.dispose();
     _professionalTitleController.dispose();
@@ -634,8 +631,7 @@ class _ProfessionalInfoSetupScreenState
                 child: Text(
                   specialty,
                   style: const TextStyle(fontFamily: 'Poppins'),
-                  overflow:
-                      TextOverflow.ellipsis, 
+                  overflow: TextOverflow.ellipsis,
                 ),
               );
             }).toList(),

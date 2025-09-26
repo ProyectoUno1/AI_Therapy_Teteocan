@@ -13,7 +13,8 @@ class PatientManagementWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final psychologistId = context.watch<AuthBloc>().state.psychologist?.uid ?? '';
+    final psychologistId =
+        context.watch<AuthBloc>().state.psychologist?.uid ?? '';
 
     return BlocProvider<PatientManagementBloc>(
       create: (context) {
@@ -23,7 +24,7 @@ class PatientManagementWrapper extends StatelessWidget {
         }
         return bloc;
       },
-      child: PatientManagementScreen(), 
+      child: PatientManagementScreen(),
     );
   }
 }

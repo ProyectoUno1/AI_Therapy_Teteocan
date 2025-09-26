@@ -98,7 +98,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                           : null,
                     ),
                     const SizedBox(width: 16),
-                    Expanded( 
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -109,23 +109,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                               fontWeight: FontWeight.bold,
                               fontFamily: 'Poppins',
                             ),
-                            overflow: TextOverflow.ellipsis, 
-                            maxLines: 2, 
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
                               Text(_patient.contactMethod.icon),
                               const SizedBox(width: 8),
-                              Flexible( 
+                              Flexible(
                                 child: Text(
                                   _patient.contactMethod.displayName,
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontFamily: 'Poppins',
                                   ),
-                                  overflow: TextOverflow.ellipsis, 
-                                  maxLines: 1, 
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ),
                             ],
@@ -147,7 +147,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                               children: [
                                 Text(_patient.status.icon),
                                 const SizedBox(width: 8),
-                                Flexible( 
+                                Flexible(
                                   child: Text(
                                     _patient.status.displayName,
                                     style: TextStyle(
@@ -155,8 +155,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'Poppins',
                                     ),
-                                    overflow: TextOverflow.ellipsis, 
-                                    maxLines: 1, 
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
                                 ),
                               ],
@@ -169,7 +169,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                 ),
                 const SizedBox(height: 16),
 
-                
                 Row(
                   children: [
                     Expanded(
@@ -186,7 +185,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                       child: _buildClickableStatCard(
                         icon: Icons.schedule,
                         title: 'Días activo',
-                        value: '${DateTime.now().difference(_patient.createdAt).inDays}',
+                        value:
+                            '${DateTime.now().difference(_patient.createdAt).inDays}',
                         color: Colors.green,
                         onTap: () => _onActiveDaysCardTap(),
                       ),
@@ -256,7 +256,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  // FUNCIÓN: Widget clickeable para las estadísticas 
+  // FUNCIÓN: Widget clickeable para las estadísticas
   Widget _buildClickableStatCard({
     required IconData icon,
     required String title,
@@ -272,10 +272,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: color.withOpacity(0.3),
-            width: 1,
-          ),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
         ),
         child: Column(
           children: [
@@ -305,11 +302,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               maxLines: 1, // SOLUCIÓN OVERFLOW
             ),
             const SizedBox(height: 4),
-            Icon(
-              Icons.touch_app,
-              size: 14,
-              color: color.withOpacity(0.7),
-            ),
+            Icon(Icons.touch_app, size: 14, color: color.withOpacity(0.7)),
           ],
         ),
       ),
@@ -320,7 +313,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   void _onSessionsCardTap() {
     // Cambiar a la pestaña de historial automáticamente
     _tabController.animateTo(1);
-    
+
     // Mostrar información adicional sobre las sesiones
     showDialog(
       context: context,
@@ -333,11 +326,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.calendar_today, color: AppConstants.primaryColor),
               const SizedBox(width: 8),
-              Expanded( 
+              Expanded(
                 child: Text(
                   'Resumen de Sesiones',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, 
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -346,17 +339,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDialogInfoRow('Total de sesiones:', '${_patient.totalSessions}'),
-              _buildDialogInfoRow('Sesiones completadas:', '${_patient.totalSessions}'),
-              _buildDialogInfoRow('Próxima sesión:', 
-                _patient.nextAppointment != null 
-                  ? _formatDateTime(_patient.nextAppointment!)
-                  : 'No programada'
+              _buildDialogInfoRow(
+                'Total de sesiones:',
+                '${_patient.totalSessions}',
               ),
-              _buildDialogInfoRow('Última sesión:', 
-                _patient.lastAppointment != null 
-                  ? _formatDateTime(_patient.lastAppointment!)
-                  : 'No hay registro'
+              _buildDialogInfoRow(
+                'Sesiones completadas:',
+                '${_patient.totalSessions}',
+              ),
+              _buildDialogInfoRow(
+                'Próxima sesión:',
+                _patient.nextAppointment != null
+                    ? _formatDateTime(_patient.nextAppointment!)
+                    : 'No programada',
+              ),
+              _buildDialogInfoRow(
+                'Última sesión:',
+                _patient.lastAppointment != null
+                    ? _formatDateTime(_patient.lastAppointment!)
+                    : 'No hay registro',
               ),
             ],
           ),
@@ -391,7 +392,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     final activeDays = DateTime.now().difference(_patient.createdAt).inDays;
     final weeks = (activeDays / 7).floor();
     final months = (activeDays / 30).floor();
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -403,11 +404,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.schedule, color: Colors.green),
               const SizedBox(width: 8),
-              Expanded( 
+              Expanded(
                 child: Text(
                   'Tiempo Activo',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, 
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -419,17 +420,20 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               _buildDialogInfoRow('Días activo:', '$activeDays días'),
               _buildDialogInfoRow('Equivale a:', '$weeks semanas'),
               _buildDialogInfoRow('Aproximadamente:', '$months meses'),
-              _buildDialogInfoRow('Fecha de registro:', _formatDateTime(_patient.createdAt)),
-              _buildDialogInfoRow('Última actualización:', _formatDateTime(_patient.updatedAt)),
+              _buildDialogInfoRow(
+                'Fecha de registro:',
+                _formatDateTime(_patient.createdAt),
+              ),
+              _buildDialogInfoRow(
+                'Última actualización:',
+                _formatDateTime(_patient.updatedAt),
+              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cerrar',
-                style: TextStyle(color: Colors.green),
-              ),
+              child: Text('Cerrar', style: TextStyle(color: Colors.green)),
             ),
           ],
         );
@@ -440,7 +444,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   void _onProgressCardTap() {
     final progressPercentage = _getProgressPercentage();
     final progressValue = int.parse(progressPercentage.replaceAll('%', ''));
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -452,11 +456,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(Icons.trending_up, color: Colors.orange),
               const SizedBox(width: 8),
-              Expanded( 
+              Expanded(
                 child: Text(
                   'Progreso del Tratamiento',
                   style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis, 
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -499,7 +503,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                 ),
                 const SizedBox(height: 16),
                 _buildDialogInfoRow('Progreso actual:', progressPercentage),
-                _buildDialogInfoRow('Sesiones completadas:', '${_patient.totalSessions}'),
+                _buildDialogInfoRow(
+                  'Sesiones completadas:',
+                  '${_patient.totalSessions}',
+                ),
                 _buildDialogInfoRow('Meta estimada:', '10 sesiones'),
                 _buildDialogInfoRow('Estado:', _patient.status.displayName),
                 const SizedBox(height: 8),
@@ -517,10 +524,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cerrar',
-                style: TextStyle(color: Colors.orange),
-              ),
+              child: Text('Cerrar', style: TextStyle(color: Colors.orange)),
             ),
             if (progressValue < 100)
               ElevatedButton(
@@ -528,9 +532,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                   Navigator.of(context).pop();
                   _tabController.animateTo(2); // IR a la pestaña de notas
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                 child: const Text(
                   'Agregar Nota',
                   style: TextStyle(color: Colors.white),
@@ -542,7 +544,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  
   Widget _buildDialogInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -550,7 +551,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100, 
+            width: 100,
             child: Text(
               label,
               style: TextStyle(
@@ -561,15 +562,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               ),
             ),
           ),
-          Expanded( 
+          Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-              ),
-              overflow: TextOverflow.ellipsis, 
-              maxLines: 2, 
+              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
         ],
@@ -664,13 +662,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           Text(
             'Historial de Sesiones',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
           ),
           const SizedBox(height: 16),
 
-         
           for (int i = 0; i < _patient.totalSessions; i++)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -694,7 +691,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded( 
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -704,8 +701,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                             fontWeight: FontWeight.w600,
                             fontFamily: 'Poppins',
                           ),
-                          overflow: TextOverflow.ellipsis, 
-                          maxLines: 1, 
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                         Text(
                           _formatDateTime(
@@ -764,14 +761,14 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded( 
+              Expanded(
                 child: Text(
                   'Notas del Paciente',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                      ),
-                  overflow: TextOverflow.ellipsis, 
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
+                  overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
               ),
@@ -799,7 +796,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     children: [
                       Icon(Icons.note, color: AppConstants.primaryColor),
                       const SizedBox(width: 8),
-                      Expanded( 
+                      Expanded(
                         child: Text(
                           'Notas iniciales',
                           style: TextStyle(
@@ -807,7 +804,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                             color: AppConstants.primaryColor,
                             fontFamily: 'Poppins',
                           ),
-                          overflow: TextOverflow.ellipsis, 
+                          overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
                       ),
@@ -874,7 +871,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             children: [
               Icon(icon, color: AppConstants.primaryColor),
               const SizedBox(width: 8),
-              Expanded( 
+              Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
@@ -883,8 +880,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     color: AppConstants.primaryColor,
                     fontFamily: 'Poppins',
                   ),
-                  overflow: TextOverflow.ellipsis, 
-                  maxLines: 1, 
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
             ],
@@ -913,12 +910,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
               ),
             ),
           ),
-          Expanded( 
+          Expanded(
             child: Text(
               value,
               style: const TextStyle(fontFamily: 'Poppins'),
-              overflow: TextOverflow.ellipsis, 
-              maxLines: 2, 
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
         ],
@@ -971,11 +968,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   void _scheduleAppointment() {
     final psychologistId = context.read<AuthBloc>().state.psychologist?.uid;
     final patient = widget.patient;
-    
+
     if (psychologistId == null || patient.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Error: No se pudo obtener el ID del usuario.')),
+          content: Text('Error: No se pudo obtener el ID del usuario.'),
+        ),
       );
       return;
     }

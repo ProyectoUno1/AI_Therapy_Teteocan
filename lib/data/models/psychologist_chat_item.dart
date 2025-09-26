@@ -29,20 +29,21 @@ class PsychologistChatItem extends Equatable {
     required Map<String, dynamic> chatData,
     required Map<String, dynamic> psychologistData,
   }) {
-    
     final psychologistId = psychologistData['uid'] as String;
-    final otherParticipantId = chatData['participants']
-        .firstWhere((id) => id != chatData['patientId']); 
-    
-    
+    final otherParticipantId = chatData['participants'].firstWhere(
+      (id) => id != chatData['patientId'],
+    );
+
     final lastMessage = chatData['lastMessage'] as String? ?? '';
-    final lastMessageTime = (chatData['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final lastMessageTime =
+        (chatData['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
 
     // Aquí se extrae la información del psicólogo usando tu PsychologistModel
-    final psychologistName = psychologistData['fullName'] as String? ?? 'Psicólogo Desconocido';
-    final psychologistImageUrl = psychologistData['profilePictureUrl'] as String?;
-    
-    
+    final psychologistName =
+        psychologistData['fullName'] as String? ?? 'Psicólogo Desconocido';
+    final psychologistImageUrl =
+        psychologistData['profilePictureUrl'] as String?;
+
     final unreadCount = chatData['unreadCount'] as int? ?? 0;
     final isOnline = psychologistData['isOnline'] as bool? ?? false;
     final isTyping = chatData['isTyping'] as bool? ?? false;

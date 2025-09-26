@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/add_article_screen.dart';
 
 class PsychologistPatient {
   final String id;
@@ -501,9 +500,25 @@ class PsychologistHomeContent extends StatelessWidget {
                   if (currentUserId != null) {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => AddArticleScreen(
-                          psychologistId:
-                              currentUserId, // Aquí se pasa el ID dinámico
+                        builder: (context) => Scaffold(
+                          appBar: AppBar(
+                            title: const Text('Crear Nuevo Artículo'),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).scaffoldBackgroundColor,
+                            iconTheme: Theme.of(
+                              context,
+                            ).iconTheme.copyWith(size: 24),
+                            elevation: 0,
+                            centerTitle: true,
+                          ),
+                          body: Center(
+                            child: Text(
+                              'Aquí puedes crear un nuevo artículo, Psicólogo ID: $currentUserId',
+                              style: const TextStyle(fontFamily: 'Poppins'),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ),
                       ),
                     );

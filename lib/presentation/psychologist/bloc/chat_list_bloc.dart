@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_chat_item.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_state.dart';
-import 'dart:developer'; 
+import 'dart:developer';
 
 class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -18,56 +18,75 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
     on<SearchChats>(_onSearchChats);
   }
 
-  Future<void> _onLoadChats(LoadChats event, Emitter<ChatListState> emit) async {
+  Future<void> _onLoadChats(
+    LoadChats event,
+    Emitter<ChatListState> emit,
+  ) async {
     emit(ChatListLoading());
     try {
       _chatsSubscription?.cancel();
 
-      _chatsSubscription = _firestore.collection('chats')
+      _chatsSubscription = _firestore
+          .collection('chats')
           .where('participants', arrayContains: event.userId)
           .orderBy('lastTimestamp', descending: true)
           .snapshots()
           .listen((snapshot) async {
-        List<PatientChatItem> chats = [];
-        for (var doc in snapshot.docs) {
-          final data = doc.data();
-          if (data['participants'] is! List) continue;
+            List<PatientChatItem> chats = [];
+            for (var doc in snapshot.docs) {
+              final data = doc.data();
+              if (data['participants'] is! List) continue;
 
-          final participants = (data['participants'] as List).cast<String>();
-          final otherMemberId = participants.firstWhere(
-            (id) => id != event.userId,
-            orElse: () => '',
-          );
-
-          if (otherMemberId.isNotEmpty) {
-            final patientDoc = await _firestore.collection('patients').doc(otherMemberId).get();
-            final patientData = patientDoc.data();
-            
-            // --- Obtener el estado de conexión del paciente ---
-            final userDoc = await _firestore.collection('users').doc(otherMemberId).get();
-            final userData = userDoc.data();
-            final bool isOnline = userData?['isOnline'] ?? false;
-            final Timestamp? lastSeenTimestamp = userData?['lastSeen'];
-
-            if (patientData != null) {
-              chats.add(
-                PatientChatItem(
-                  id: otherMemberId,
-                  name: patientData['full_name'] as String? ?? patientData['username'] as String? ?? 'Paciente',
-                  lastMessage: data['lastMessage'] as String? ?? 'No hay mensajes',
-                  lastMessageTime: (data['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                  profileImageUrl: patientData['profile_picture_url'] as String? ?? 'https://via.placeholder.com/60',
-                  isOnline: isOnline,
-                  lastSeen: lastSeenTimestamp?.toDate(),
-                  unreadCount: 0,
-                  isTyping: false,
-                ),
+              final participants = (data['participants'] as List)
+                  .cast<String>();
+              final otherMemberId = participants.firstWhere(
+                (id) => id != event.userId,
+                orElse: () => '',
               );
+
+              if (otherMemberId.isNotEmpty) {
+                final patientDoc = await _firestore
+                    .collection('patients')
+                    .doc(otherMemberId)
+                    .get();
+                final patientData = patientDoc.data();
+
+                // --- Obtener el estado de conexión del paciente ---
+                final userDoc = await _firestore
+                    .collection('users')
+                    .doc(otherMemberId)
+                    .get();
+                final userData = userDoc.data();
+                final bool isOnline = userData?['isOnline'] ?? false;
+                final Timestamp? lastSeenTimestamp = userData?['lastSeen'];
+
+                if (patientData != null) {
+                  chats.add(
+                    PatientChatItem(
+                      id: otherMemberId,
+                      name:
+                          patientData['full_name'] as String? ??
+                          patientData['username'] as String? ??
+                          'Paciente',
+                      lastMessage:
+                          data['lastMessage'] as String? ?? 'No hay mensajes',
+                      lastMessageTime:
+                          (data['lastTimestamp'] as Timestamp?)?.toDate() ??
+                          DateTime.now(),
+                      profileImageUrl:
+                          patientData['profile_picture_url'] as String? ??
+                          'https://via.placeholder.com/60',
+                      isOnline: isOnline,
+                      lastSeen: lastSeenTimestamp?.toDate(),
+                      unreadCount: 0,
+                      isTyping: false,
+                    ),
+                  );
+                }
+              }
             }
-          }
-        }
-        add(ChatsUpdated(chats));
-      });
+            add(ChatsUpdated(chats));
+          });
     } catch (e) {
       log('Error al cargar los chats: $e', name: 'ChatListBloc');
       emit(ChatListError('Error al cargar los chats: $e'));
@@ -81,7 +100,7 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
 
       final filteredChats = _allChats.where((chat) {
         return chat.name.toLowerCase().contains(query) ||
-               chat.lastMessage.toLowerCase().contains(query);
+            chat.lastMessage.toLowerCase().contains(query);
       }).toList();
 
       emit(loadedState.copyWith(filteredChats: filteredChats));

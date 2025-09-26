@@ -14,7 +14,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ChatRepository _chatRepository;
   final AiChatApiService _aiChatApiService;
 
-  ChatBloc(this._chatRepository, this._aiChatApiService) : super(const ChatState()) {
+  ChatBloc(this._chatRepository, this._aiChatApiService)
+    : super(const ChatState()) {
     on<LoadMessagesEvent>(_onLoadMessages);
     on<SendMessageEvent>(_onSendMessage);
     on<SetTypingStatusEvent>(_onSetTypingStatus);
@@ -30,17 +31,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       final messages = await _chatRepository.loadMessages(event.chatId);
       final userMessageCount = messages.where((msg) => msg.isUser).length;
       final isLimitReached = userMessageCount >= _freeMessageLimit;
-      
-      emit(state.copyWith(
-        status: ChatStatus.loaded,
-        messages: messages,
-        isMessageLimitReached: isLimitReached,
-      ));
+
+      emit(
+        state.copyWith(
+          status: ChatStatus.loaded,
+          messages: messages,
+          isMessageLimitReached: isLimitReached,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: ChatStatus.error,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(status: ChatStatus.error, errorMessage: e.toString()),
+      );
     }
   }
 
@@ -58,22 +60,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         senderId: event.userId!,
       );
 
-      final updatedMessages = List<MessageModel>.from(state.messages)..add(newMessage);
+      final updatedMessages = List<MessageModel>.from(state.messages)
+        ..add(newMessage);
       emit(state.copyWith(messages: updatedMessages));
 
       await _aiChatApiService.sendMessage(event.message);
 
-      emit(state.copyWith(
-        status: ChatStatus.loaded,
-        isTyping: false,
-      ));
-
+      emit(state.copyWith(status: ChatStatus.loaded, isTyping: false));
     } catch (e) {
-      emit(state.copyWith(
-        status: ChatStatus.error,
-        errorMessage: e.toString(),
-        isTyping: false,
-      ));
+      emit(
+        state.copyWith(
+          status: ChatStatus.error,
+          errorMessage: e.toString(),
+          isTyping: false,
+        ),
+      );
     }
   }
 
@@ -83,19 +84,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async {
     emit(state.copyWith(isTyping: event.isTyping));
   }
-  
-  Future<void> _onInitAIChat(
-  InitAIChat event,
-  Emitter<ChatState> emit,
-) async {
-  try {
-    final chatId = await _chatRepository.getOrCreateChatId(event.userId);
-    add(LoadMessagesEvent(chatId: chatId)); 
-  } catch (e) {
-    emit(state.copyWith(
-      status: ChatStatus.error,
-      errorMessage: e.toString(),
-    ));
+
+  Future<void> _onInitAIChat(InitAIChat event, Emitter<ChatState> emit) async {
+    try {
+      final chatId = await _chatRepository.getOrCreateChatId(event.userId);
+      add(LoadMessagesEvent(chatId: chatId));
+    } catch (e) {
+      emit(
+        state.copyWith(status: ChatStatus.error, errorMessage: e.toString()),
+      );
+    }
   }
-}
 }

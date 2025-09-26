@@ -10,7 +10,7 @@ class PsychologistSetupUseCase {
 
   Future<void> call({
     required String uid,
-    required String username, 
+    required String username,
     required String email,
     required String professionalTitle,
     required String licenseNumber,
@@ -41,7 +41,6 @@ class PsychologistSetupUseCase {
         isAvailable: isAvailable,
       );
     } catch (e) {
-      
       rethrow;
     }
   }

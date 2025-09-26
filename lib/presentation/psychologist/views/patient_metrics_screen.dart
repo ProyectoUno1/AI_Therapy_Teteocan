@@ -38,15 +38,15 @@ class PatientMetricsScreen extends StatelessWidget {
             // Resumen General
             _buildOverviewCard(context),
             const SizedBox(height: 20),
-            
+
             // Métricas por Estado
             _buildStatusMetrics(context),
             const SizedBox(height: 20),
-            
+
             // Métricas de Actividad
             _buildActivityMetrics(context),
             const SizedBox(height: 20),
-            
+
             // Tendencias
             _buildTrendsSection(context),
           ],
@@ -57,12 +57,16 @@ class PatientMetricsScreen extends StatelessWidget {
 
   Widget _buildOverviewCard(BuildContext context) {
     final totalPatients = patients.length;
-    final activePatients = patients.where((p) => 
-        p.status == PatientStatus.inTreatment || 
-        p.status == PatientStatus.accepted
-    ).length;
-    final averageSessions = patients.isNotEmpty 
-        ? patients.map((p) => p.totalSessions ?? 0).reduce((a, b) => a + b) / patients.length
+    final activePatients = patients
+        .where(
+          (p) =>
+              p.status == PatientStatus.inTreatment ||
+              p.status == PatientStatus.accepted,
+        )
+        .length;
+    final averageSessions = patients.isNotEmpty
+        ? patients.map((p) => p.totalSessions ?? 0).reduce((a, b) => a + b) /
+              patients.length
         : 0.0;
 
     return Card(
@@ -168,9 +172,9 @@ class PatientMetricsScreen extends StatelessWidget {
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontFamily: 'Poppins',
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontFamily: 'Poppins'),
           textAlign: TextAlign.center,
         ),
       ],
@@ -194,9 +198,9 @@ class PatientMetricsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ...PatientStatus.values.map((status) => 
-              _buildStatusMetricItem(context, status)
-            ).toList(),
+            ...PatientStatus.values
+                .map((status) => _buildStatusMetricItem(context, status))
+                .toList(),
           ],
         ),
       ),
@@ -205,7 +209,9 @@ class PatientMetricsScreen extends StatelessWidget {
 
   Widget _buildStatusMetricItem(BuildContext context, PatientStatus status) {
     final count = patients.where((p) => p.status == status).length;
-    final percentage = patients.isNotEmpty ? (count / patients.length) * 100 : 0.0;
+    final percentage = patients.isNotEmpty
+        ? (count / patients.length) * 100
+        : 0.0;
     final color = _getStatusColor(status);
     final isFocused = focusedStatus == status;
 
@@ -222,10 +228,7 @@ class PatientMetricsScreen extends StatelessWidget {
           Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -265,16 +268,22 @@ class PatientMetricsScreen extends StatelessWidget {
   }
 
   Widget _buildActivityMetrics(BuildContext context) {
-    final patientsWithUpcomingAppointments = patients.where((p) => 
-        p.nextAppointment != null && 
-        p.nextAppointment!.isAfter(DateTime.now())
-    ).length;
+    final patientsWithUpcomingAppointments = patients
+        .where(
+          (p) =>
+              p.nextAppointment != null &&
+              p.nextAppointment!.isAfter(DateTime.now()),
+        )
+        .length;
 
-    final totalSessions = patients.fold<int>(0, (sum, patient) => 
-        sum + (patient.totalSessions ?? 0));
+    final totalSessions = patients.fold<int>(
+      0,
+      (sum, patient) => sum + (patient.totalSessions ?? 0),
+    );
 
-    final patientsWithEmail = patients.where((p) => 
-        p.email != null && p.email!.isNotEmpty).length;
+    final patientsWithEmail = patients
+        .where((p) => p.email != null && p.email!.isNotEmpty)
+        .length;
 
     return Card(
       elevation: 2,
@@ -330,7 +339,10 @@ class PatientMetricsScreen extends StatelessWidget {
                   child: _buildActivityItem(
                     context,
                     'Completados',
-                    patients.where((p) => p.status == PatientStatus.completed).length.toString(),
+                    patients
+                        .where((p) => p.status == PatientStatus.completed)
+                        .length
+                        .toString(),
                     Icons.check_circle,
                     Colors.green,
                   ),
@@ -372,9 +384,9 @@ class PatientMetricsScreen extends StatelessWidget {
           ),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontFamily: 'Poppins',
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontFamily: 'Poppins'),
             textAlign: TextAlign.center,
           ),
         ],
@@ -408,49 +420,63 @@ class PatientMetricsScreen extends StatelessWidget {
 
   List<Widget> _generateInsights(BuildContext context) {
     List<Widget> insights = [];
-    
-    final pendingCount = patients.where((p) => p.status == PatientStatus.pending).length;
-    final inTreatmentCount = patients.where((p) => p.status == PatientStatus.inTreatment).length;
-    final completedCount = patients.where((p) => p.status == PatientStatus.completed).length;
+
+    final pendingCount = patients
+        .where((p) => p.status == PatientStatus.pending)
+        .length;
+    final inTreatmentCount = patients
+        .where((p) => p.status == PatientStatus.inTreatment)
+        .length;
+    final completedCount = patients
+        .where((p) => p.status == PatientStatus.completed)
+        .length;
 
     if (pendingCount > 0) {
-      insights.add(_buildInsightItem(
-        context,
-        'Pacientes Pendientes',
-        'Tienes $pendingCount pacientes esperando aceptación. Considera revisarlos pronto.',
-        Icons.pending_actions,
-        Colors.orange,
-      ));
+      insights.add(
+        _buildInsightItem(
+          context,
+          'Pacientes Pendientes',
+          'Tienes $pendingCount pacientes esperando aceptación. Considera revisarlos pronto.',
+          Icons.pending_actions,
+          Colors.orange,
+        ),
+      );
     }
 
     if (inTreatmentCount > completedCount * 2) {
-      insights.add(_buildInsightItem(
-        context,
-        'Alta Carga de Trabajo',
-        'Tienes muchos pacientes en tratamiento activo. Considera optimizar tu agenda.',
-        Icons.trending_up,
-        Colors.blue,
-      ));
+      insights.add(
+        _buildInsightItem(
+          context,
+          'Alta Carga de Trabajo',
+          'Tienes muchos pacientes en tratamiento activo. Considera optimizar tu agenda.',
+          Icons.trending_up,
+          Colors.blue,
+        ),
+      );
     }
 
     if (completedCount > 0) {
-      insights.add(_buildInsightItem(
-        context,
-        'Excelente Trabajo',
-        'Has completado el tratamiento de $completedCount pacientes. ¡Felicitaciones!',
-        Icons.celebration,
-        Colors.green,
-      ));
+      insights.add(
+        _buildInsightItem(
+          context,
+          'Excelente Trabajo',
+          'Has completado el tratamiento de $completedCount pacientes. ¡Felicitaciones!',
+          Icons.celebration,
+          Colors.green,
+        ),
+      );
     }
 
     if (insights.isEmpty) {
-      insights.add(_buildInsightItem(
-        context,
-        'Todo bajo Control',
-        'Tus métricas se ven bien. Mantén el buen trabajo.',
-        Icons.thumb_up,
-        AppConstants.primaryColor,
-      ));
+      insights.add(
+        _buildInsightItem(
+          context,
+          'Todo bajo Control',
+          'Tus métricas se ven bien. Mantén el buen trabajo.',
+          Icons.thumb_up,
+          AppConstants.primaryColor,
+        ),
+      );
     }
 
     return insights;
@@ -490,9 +516,9 @@ class PatientMetricsScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'Poppins',
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontFamily: 'Poppins'),
                 ),
               ],
             ),

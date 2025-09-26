@@ -12,13 +12,6 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Importaciones para EmotionBloc y HomeContentCubit
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/emotion/emotion_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
-import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
-import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
-import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
-
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -27,10 +20,8 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-
   @override
   Widget build(BuildContext context) {
-
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (!mounted) return;
@@ -39,15 +30,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ' AuthWrapper Listener: Error de autenticación - ${state.errorMessage}',
             name: 'AuthWrapper',
           );
+          // Verificar si el widget está montado antes de mostrar el SnackBar
           if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
           }
         } else if (state.isAuthenticated && state.isAuthenticatedPsychologist) {
           log(
             ' AuthWrapper Listener: Psicólogo autenticado, navegando a PsychologistHomeScreen',
             name: 'AuthWrapper',
           );
+          // No es necesario un SnackBar aquí, la navegación es la acción principal
         } else {
           log(
             ' AuthWrapper Listener: Usuario no autenticado, debería mostrar LoginScreen',
@@ -73,27 +67,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               ' AuthWrapper Builder: Mostrando PatientHomeScreen.',
               name: 'AuthWrapper',
             );
-            
-            // Crear EmotionBloc y HomeContentCubit específicos para el paciente
-            final emotionBloc = EmotionBloc(
-              emotionRepository: EmotionRepositoryImpl(
-                dataSource: EmotionRemoteDataSource(baseUrl: ApiConstants.baseUrl),
-              ),
-            );
-            
-            return MultiBlocProvider(
-              providers: [
-                BlocProvider.value(value: emotionBloc),
-                BlocProvider<HomeContentCubit>(
-                  create: (context) => HomeContentCubit(
-                    emotionBloc: emotionBloc,
-                    patientId: state.patient!.uid, // Usar el ID del paciente autenticado
-                  ),
-                ),
-              ],
-              child: PatientHomeScreen(),
-            );
-            
+            return PatientHomeScreen();
           } else if (state.isAuthenticatedPsychologist) {
             log(
               ' AuthWrapper Builder: Mostrando PsychologistHomeScreen.',
