@@ -34,6 +34,8 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
   bool _notificationsEnabled = true;
 
+  late final List<Widget> _widgetOptions;
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -52,9 +54,11 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
     });
   }
 
-  List<Widget> _buildWidgetOptions(String patientId) {
-    return <Widget>[
-      PatientHomeContent(patientId: patientId),
+  @override
+  void initState() {
+    super.initState();
+    _widgetOptions = <Widget>[
+      const PatientHomeContent(),
       ChatListScreen(
         onGoToPsychologists: _goToPsychologistsScreen,
         initialPsychologistId: widget.initialChatPsychologistId,
@@ -64,13 +68,9 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
       const PatientAppointmentsListScreen(),
       const ProfileScreenPatient(),
     ];
-  }
 
-  @override
-  void initState() {
-    super.initState();
-    
-    if (widget.initialChatPsychologistId != null || widget.initialChatId != null) {
+    if (widget.initialChatPsychologistId != null ||
+        widget.initialChatId != null) {
       _selectedIndex = 1;
     }
   }
@@ -85,24 +85,14 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
 
-    // Si no hay paciente autenticado, mostrar un indicador de carga o error
-    if (authState.patient == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // Crear _widgetOptions cada vez en build con el patientId actual
-    final widgetOptions = _buildWidgetOptions(authState.patient!.uid);
-
     return FutureBuilder<String?>(
       future: user?.getIdToken(),
       builder: (context, snapshot) {
         final String? userToken = snapshot.data;
-        final bool isTokenLoading = snapshot.connectionState == ConnectionState.waiting;
-        final bool isUserAuthenticated = user != null && userToken != null && authState.patient != null;
+        final bool isTokenLoading =
+            snapshot.connectionState == ConnectionState.waiting;
+        final bool isUserAuthenticated =
+            user != null && userToken != null && authState.patient != null;
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -124,20 +114,23 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
                 const Center(child: CircularProgressIndicator())
               else if (isUserAuthenticated)
                 BlocProvider(
-                  create: (context) => NotificationBloc(
-                    notificationRepository: NotificationRepository(),
-                  )..add(
-                      LoadNotifications(
-                        userId: authState.patient!.uid,
-                        userToken: userToken,
-                        userType: 'patient',
+                  create: (context) =>
+                      NotificationBloc(
+                        notificationRepository: NotificationRepository(),
+                      )..add(
+                        LoadNotifications(
+                          userId: authState.patient!.uid,
+                          userToken: userToken,
+                          userType: 'patient',
+                        ),
                       ),
-                    ),
                   child: BlocBuilder<NotificationBloc, NotificationState>(
                     builder: (context, state) {
                       int unreadCount = 0;
                       if (state is NotificationLoaded) {
-                        unreadCount = state.notifications.where((n) => !n.isRead).length;
+                        unreadCount = state.notifications
+                            .where((n) => !n.isRead)
+                            .length;
                       }
                       return Stack(
                         alignment: Alignment.center,
@@ -150,7 +143,8 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
                               color: Theme.of(context).iconTheme.color,
                             ),
                             onPressed: () {
-                              final notificationBloc = BlocProvider.of<NotificationBloc>(context);
+                              final notificationBloc =
+                                  BlocProvider.of<NotificationBloc>(context);
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (context) => BlocProvider.value(
@@ -208,12 +202,18 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
             ],
           ),
-          body: widgetOptions[_selectedIndex],
+          body: _widgetOptions[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-            selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-            unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+            backgroundColor: Theme.of(
+              context,
+            ).bottomNavigationBarTheme.backgroundColor,
+            selectedItemColor: Theme.of(
+              context,
+            ).bottomNavigationBarTheme.selectedItemColor,
+            unselectedItemColor: Theme.of(
+              context,
+            ).bottomNavigationBarTheme.unselectedItemColor,
             selectedLabelStyle: const TextStyle(
               fontWeight: FontWeight.bold,
               fontFamily: 'Poppins',
@@ -235,7 +235,10 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
                 icon: Icon(Icons.calendar_today),
                 label: 'Citas',
               ),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Perfil',
+              ),
             ],
           ),
         );

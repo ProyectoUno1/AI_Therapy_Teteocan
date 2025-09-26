@@ -219,7 +219,8 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                               ),
                               const Spacer(),
                               GestureDetector(
-                                onTap: () => _navigateToMetrics(context, null, state),
+                                onTap: () =>
+                                    _navigateToMetrics(context, null, state),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -644,7 +645,6 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
     );
   }
 
-
   Widget _buildClickableTab(
     BuildContext context,
     String title,
@@ -666,14 +666,14 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Text(title, style: const TextStyle(fontSize: 12)),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: status != null 
+                      color: status != null
                           ? _getStatusColor(status).withOpacity(0.2)
                           : AppConstants.primaryColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -683,7 +683,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: status != null 
+                        color: status != null
                             ? _getStatusColor(status)
                             : AppConstants.primaryColor,
                       ),
@@ -698,7 +698,11 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
     );
   }
 
-  void _navigateToMetrics(BuildContext context, PatientStatus? focusedStatus, PatientManagementState state) {
+  void _navigateToMetrics(
+    BuildContext context,
+    PatientStatus? focusedStatus,
+    PatientManagementState state,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(

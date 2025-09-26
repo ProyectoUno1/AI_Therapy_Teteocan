@@ -23,7 +23,10 @@ class NotificationModel extends Equatable {
     required this.data,
   });
 
-  factory NotificationModel.fromMap(Map<String, dynamic> map, String documentId) {
+  factory NotificationModel.fromMap(
+    Map<String, dynamic> map,
+    String documentId,
+  ) {
     return NotificationModel(
       id: documentId,
       userId: map['userId'] ?? '',
@@ -41,7 +44,7 @@ class NotificationModel extends Equatable {
     if (timestamp == null) {
       return DateTime.now();
     }
-    
+
     try {
       if (timestamp is String) {
         // Primero intentar parsear como ISO string
@@ -67,7 +70,7 @@ class NotificationModel extends Equatable {
           );
         }
       }
-      
+
       // Si no se pudo parsear, usar fecha actual
       return DateTime.now();
     } catch (e) {
@@ -80,62 +83,72 @@ class NotificationModel extends Equatable {
   static DateTime _parseSpanishDateTime(String dateString) {
     try {
       // Limpiar y normalizar el string
-      String normalized = dateString.replaceAll('a.m.', 'AM').replaceAll('p.m.', 'PM');
-      
+      String normalized = dateString
+          .replaceAll('a.m.', 'AM')
+          .replaceAll('p.m.', 'PM');
+
       // Extraer partes de la fecha
       final parts = normalized.split(', ');
       if (parts.length != 2) {
         return DateTime.now();
       }
-      
+
       final datePart = parts[0]; // "4 de septiembre de 2025"
       final timePart = parts[1]; // "6:49:36 PM UTC-7"
-      
+
       // Parsear la parte de la fecha
       final dateRegex = RegExp(r'(\d+) de (\w+) de (\d+)');
       final dateMatch = dateRegex.firstMatch(datePart);
       if (dateMatch == null) {
         return DateTime.now();
       }
-      
+
       final day = int.parse(dateMatch.group(1)!);
       final monthName = dateMatch.group(2)!;
       final year = int.parse(dateMatch.group(3)!);
-      
+
       // Mapear nombres de meses en español a números
       final monthMap = {
-        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
-        'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
-        'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+        'enero': 1,
+        'febrero': 2,
+        'marzo': 3,
+        'abril': 4,
+        'mayo': 5,
+        'junio': 6,
+        'julio': 7,
+        'agosto': 8,
+        'septiembre': 9,
+        'octubre': 10,
+        'noviembre': 11,
+        'diciembre': 12,
       };
-      
+
       final month = monthMap[monthName.toLowerCase()];
       if (month == null) {
         return DateTime.now();
       }
-      
+
       // Parsear la parte de la hora
       final timeRegex = RegExp(r'(\d+):(\d+):(\d+) ([AP]M) UTC([+-]\d+)');
       final timeMatch = timeRegex.firstMatch(timePart);
       if (timeMatch == null) {
         return DateTime.now();
       }
-      
+
       var hour = int.parse(timeMatch.group(1)!);
       final minute = int.parse(timeMatch.group(2)!);
       final second = int.parse(timeMatch.group(3)!);
       final period = timeMatch.group(4)!;
       final timezoneOffset = timeMatch.group(5)!;
-      
+
       // Convertir a formato 24 horas
       if (period == 'PM' && hour < 12) {
         hour += 12;
       } else if (period == 'AM' && hour == 12) {
         hour = 0;
       }
-      
+
       return DateTime(year, month, day, hour, minute, second);
-      
     } catch (e) {
       return DateTime.now();
     }

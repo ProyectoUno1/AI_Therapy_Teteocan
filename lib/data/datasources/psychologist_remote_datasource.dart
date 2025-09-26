@@ -36,7 +36,8 @@ class PsychologistRemoteDataSource {
     if (username != null) data['username'] = username;
     if (email != null) data['email'] = email;
     if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
-    if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
+    if (profilePictureUrl != null)
+      data['profilePictureUrl'] = profilePictureUrl;
 
     if (data.isEmpty) {
       print('Backend: No hay datos para actualizar.');
@@ -45,7 +46,7 @@ class PsychologistRemoteDataSource {
 
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/basic'), 
+        Uri.parse('$_baseUrl/psychologists/$uid/basic'),
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
@@ -77,8 +78,10 @@ class PsychologistRemoteDataSource {
 
     final Map<String, dynamic> data = {};
     if (fullName != null) data['fullName'] = fullName;
-    if (professionalTitle != null) data['professionalTitle'] = professionalTitle;
-    if (professionalLicense != null) data['professionalLicense'] = professionalLicense;
+    if (professionalTitle != null)
+      data['professionalTitle'] = professionalTitle;
+    if (professionalLicense != null)
+      data['professionalLicense'] = professionalLicense;
     if (yearsExperience != null) data['yearsExperience'] = yearsExperience;
     if (description != null) data['description'] = description;
     if (education != null) data['education'] = education;
@@ -86,7 +89,8 @@ class PsychologistRemoteDataSource {
     if (specialty != null) data['specialty'] = specialty;
     if (subSpecialties != null) data['subSpecialties'] = subSpecialties;
     if (schedule != null) data['schedule'] = schedule;
-    if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
+    if (profilePictureUrl != null)
+      data['profilePictureUrl'] = profilePictureUrl;
     if (isAvailable != null) data['isAvailable'] = isAvailable;
 
     if (data.isEmpty) {
@@ -96,7 +100,7 @@ class PsychologistRemoteDataSource {
 
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
+        Uri.parse('$_baseUrl/psychologists/$uid/professional'),
         headers: await _getHeaders(),
         body: jsonEncode(data),
       );
@@ -112,7 +116,7 @@ class PsychologistRemoteDataSource {
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/psychologists/$uid'), 
+        Uri.parse('$_baseUrl/psychologists/$uid'),
         headers: await _getHeaders(),
       );
 
@@ -125,7 +129,8 @@ class PsychologistRemoteDataSource {
         return null;
       } else {
         throw Exception(
-            'Error al obtener la información del psicólogo: ${response.statusCode} - ${response.body}');
+          'Error al obtener la información del psicólogo: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Error al obtener la información del psicólogo: $e');

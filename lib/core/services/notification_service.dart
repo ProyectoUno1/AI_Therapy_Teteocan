@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  
+
   // Callback para manejar navegación
   static Function(Map<String, dynamic>)? onNotificationTap;
 
@@ -29,7 +29,7 @@ class NotificationService {
       provisional: false,
       criticalAlert: false,
     );
-    
+
     print('Permisos de notificación: ${settings.authorizationStatus}');
   }
 
@@ -90,7 +90,9 @@ class NotificationService {
   static Future<void> _checkInitialMessage() async {
     RemoteMessage? initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      print('App abierta desde notificación (cerrada): ${initialMessage.messageId}');
+      print(
+        'App abierta desde notificación (cerrada): ${initialMessage.messageId}',
+      );
       _handleNotificationClick(initialMessage.data);
     }
   }
@@ -102,7 +104,7 @@ class NotificationService {
 
     // Aquí puedes crear un widget personalizado de notificación
     // o usar un SnackBar, Dialog, etc.
-    
+
     // Por ejemplo, usando un callback para mostrar en la UI:
     if (onInAppNotification != null) {
       onInAppNotification!({
@@ -158,29 +160,29 @@ class NotificationService {
 class NotificationNavigator {
   static void handleNotificationNavigation(Map<String, dynamic> data) {
     final type = data['type'] as String?;
-    
+
     switch (type) {
       case 'appointment_created':
       case 'appointment_confirmed':
       case 'appointment_cancelled':
         _navigateToAppointments(data);
         break;
-        
+
       case 'subscription_activated':
       case 'payment_succeeded':
       case 'payment_failed':
         _navigateToSubscription(data);
         break;
-        
+
       case 'session_started':
       case 'session_completed':
         _navigateToSession(data);
         break;
-        
+
       case 'session_rated':
         _navigateToRatings(data);
         break;
-        
+
       default:
         _navigateToNotifications();
         break;
@@ -254,11 +256,7 @@ class InAppNotificationWidget extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(
-                  _getIconForType(type),
-                  color: Colors.white,
-                  size: 24,
-                ),
+                Icon(_getIconForType(type), color: Colors.white, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

@@ -48,10 +48,11 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
     _psychologistsFuture = _fetchPsychologistsWithProfessionalInfo();
   }
 
-  Future<List<PsychologistModel>> _fetchPsychologistsWithProfessionalInfo() async {
+  Future<List<PsychologistModel>>
+  _fetchPsychologistsWithProfessionalInfo() async {
     try {
       print('Iniciando carga de psicólogos...');
-      
+
       final firestore = FirebaseFirestore.instance;
       final psychologistsRef = firestore.collection('psychologists');
       final professionalInfoRef = firestore.collection('psychologists');
@@ -90,7 +91,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
       // Cargar ratings después de obtener los psicólogos
       await _loadRatings();
-      
+
       _applyFilters();
       return _allPsychologists;
     } catch (e) {
@@ -112,7 +113,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
     try {
       print('Cargando ratings para ${_allPsychologists.length} psicólogos...');
-      
+
       // Primero probar conectividad
       final hasConnection = await PsychologistRatingService.testConnection();
       if (!hasConnection) {
@@ -121,23 +122,27 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
       final psychologistIds = _allPsychologists.map((p) => p.uid).toList();
       print('IDs a consultar: $psychologistIds');
-      
-      final ratingsData = await PsychologistRatingService.getPsychologistsRatings(psychologistIds);
-      
+
+      final ratingsData =
+          await PsychologistRatingService.getPsychologistsRatings(
+            psychologistIds,
+          );
+
       setState(() {
         _ratings = ratingsData;
         _isLoadingRatings = false;
       });
 
       print('Ratings cargados: ${_ratings.length}');
-      
+
       // Debug: Mostrar algunos ratings
       _ratings.forEach((id, rating) {
         if (rating.totalRatings > 0) {
-          print('$id: ${rating.averageRating} (${rating.totalRatings} reseñas)');
+          print(
+            '$id: ${rating.averageRating} (${rating.totalRatings} reseñas)',
+          );
         }
       });
-
     } catch (e) {
       print('Error cargando ratings: $e');
       setState(() {
@@ -166,12 +171,12 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
       _filteredPsychologists = _allPsychologists.where((psychologist) {
         final matchesSearch =
             (psychologist.fullName ?? '').toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ) ||
+            (psychologist.specialty?.toLowerCase().contains(
                   _searchQuery.toLowerCase(),
-                ) ||
-                (psychologist.specialty?.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ) ??
-                    false);
+                ) ??
+                false);
         final matchesSpecialty =
             _selectedSpecialty == 'Todas' ||
             (psychologist.specialty == _selectedSpecialty);
@@ -232,11 +237,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   else
-                    Icon(
-                      Icons.warning,
-                      size: 16,
-                      color: Colors.red[600],
-                    ),
+                    Icon(Icons.warning, size: 16, color: Colors.red[600]),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -245,8 +246,8 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                           : 'Error: $_ratingsError',
                       style: TextStyle(
                         fontSize: 12,
-                        color: _ratingsError != null 
-                            ? Colors.red[600] 
+                        color: _ratingsError != null
+                            ? Colors.red[600]
                             : Colors.blue[600],
                         fontFamily: 'Poppins',
                       ),
@@ -263,7 +264,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                 ],
               ),
             ),
-          
+
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(16),
@@ -317,7 +318,9 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                     ),
                     selected: isSelected,
                     selectedColor: AppConstants.lightAccentColor,
-                    backgroundColor: AppConstants.lightAccentColor.withOpacity(0.1),
+                    backgroundColor: AppConstants.lightAccentColor.withOpacity(
+                      0.1,
+                    ),
                     onSelected: (selected) {
                       _selectedSpecialty = specialty;
                       _applyFilters();
@@ -340,14 +343,19 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red[400],
+                        ),
                         const SizedBox(height: 16),
                         Text('Ocurrió un error: ${snapshot.error}'),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
-                              _psychologistsFuture = _fetchPsychologistsWithProfessionalInfo();
+                              _psychologistsFuture =
+                                  _fetchPsychologistsWithProfessionalInfo();
                             });
                           },
                           child: const Text('Reintentar'),
@@ -525,7 +533,8 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                     builder: (context) => PsychologistChatScreen(
                       psychologistUid: psychologist.uid,
                       psychologistName: psychologist.fullName ?? 'Psicólogo',
-                      psychologistImageUrl: psychologist.profilePictureUrl ?? '',
+                      psychologistImageUrl:
+                          psychologist.profilePictureUrl ?? '',
                     ),
                   ),
                 );
@@ -692,9 +701,14 @@ class _PsychologistDetailsModal extends StatelessWidget {
                         backgroundImage: psychologist.profilePictureUrl != null
                             ? NetworkImage(psychologist.profilePictureUrl!)
                             : null,
-                        backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+                        backgroundColor: AppConstants.lightAccentColor
+                            .withOpacity(0.3),
                         child: psychologist.profilePictureUrl == null
-                            ? const Icon(Icons.person, size: 40, color: Colors.white)
+                            ? const Icon(
+                                Icons.person,
+                                size: 40,
+                                color: Colors.white,
+                              )
                             : null,
                       ),
                       const SizedBox(width: 16),
@@ -772,20 +786,21 @@ class _PsychologistDetailsModal extends StatelessWidget {
                         child: _InfoCard(
                           icon: Icons.schedule,
                           title: 'Horarios',
-                          subtitle: psychologist.schedule != null &&
+                          subtitle:
+                              psychologist.schedule != null &&
                                   psychologist.schedule!.isNotEmpty
                               ? psychologist.schedule!.entries
-                                  .map((entry) {
-                                    final day = entry.key;
-                                    final scheduleForDay =
-                                        entry.value as Map<String, dynamic>;
-                                    final startTime =
-                                        scheduleForDay['startTime'] ?? '';
-                                    final endTime =
-                                        scheduleForDay['endTime'] ?? '';
-                                    return '$day: $startTime - $endTime';
-                                  })
-                                  .join('\n')
+                                    .map((entry) {
+                                      final day = entry.key;
+                                      final scheduleForDay =
+                                          entry.value as Map<String, dynamic>;
+                                      final startTime =
+                                          scheduleForDay['startTime'] ?? '';
+                                      final endTime =
+                                          scheduleForDay['endTime'] ?? '';
+                                      return '$day: $startTime - $endTime';
+                                    })
+                                    .join('\n')
                               : 'Horario no definido',
                         ),
                       ),
@@ -794,7 +809,8 @@ class _PsychologistDetailsModal extends StatelessWidget {
                         child: _InfoCard(
                           icon: Icons.attach_money,
                           title: 'Precio',
-                          subtitle: '\$${(psychologist.hourlyRate ?? 0.0).toInt()}/hora',
+                          subtitle:
+                              '\$${(psychologist.hourlyRate ?? 0.0).toInt()}/hora',
                         ),
                       ),
                     ],
@@ -808,17 +824,20 @@ class _PsychologistDetailsModal extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => BlocProvider<AppointmentBloc>(
-                                  create: (context) => AppointmentBloc(),
-                                  child: AppointmentBookingScreen(
-                                    psychologist: psychologist,
-                                  ),
-                                ),
+                                builder: (context) =>
+                                    BlocProvider<AppointmentBloc>(
+                                      create: (context) => AppointmentBloc(),
+                                      child: AppointmentBookingScreen(
+                                        psychologist: psychologist,
+                                      ),
+                                    ),
                               ),
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppConstants.lightAccentColor),
+                            side: BorderSide(
+                              color: AppConstants.lightAccentColor,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -837,7 +856,9 @@ class _PsychologistDetailsModal extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: (psychologist.isAvailable ?? false) ? onStartChat : null,
+                          onPressed: (psychologist.isAvailable ?? false)
+                              ? onStartChat
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConstants.lightAccentColor,
                             disabledBackgroundColor: Colors.grey[300],
@@ -847,7 +868,9 @@ class _PsychologistDetailsModal extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                           child: Text(
-                            (psychologist.isAvailable ?? false) ? 'Iniciar Chat' : 'No Disponible',
+                            (psychologist.isAvailable ?? false)
+                                ? 'Iniciar Chat'
+                                : 'No Disponible',
                             style: const TextStyle(
                               color: Colors.white,
                               fontFamily: 'Poppins',

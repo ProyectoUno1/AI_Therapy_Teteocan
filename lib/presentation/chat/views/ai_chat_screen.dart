@@ -15,7 +15,7 @@ import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_
 import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
-import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart'; 
+import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -29,12 +29,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  
+
   // Variables para controlar el auto-scroll
   bool _isUserScrolling = false;
   int _previousMessageCount = 0;
-  
-  
+
   StreamSubscription<DocumentSnapshot>? _userSubscription;
   int _usedMessages = 0;
   int _messageLimit = 5;
@@ -43,12 +42,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   void initState() {
     super.initState();
-  
+
     _scrollController.addListener(_onScrollListener);
-    
 
     _startListeningToUserData();
-    
+
     // Inicializar el chat
     final authState = context.read<AuthBloc>().state;
     if (authState.isAuthenticatedPatient) {
@@ -57,7 +55,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     }
   }
 
-  
   void _startListeningToUserData() {
     final userId = _auth.currentUser?.uid;
     if (userId != null) {
@@ -66,24 +63,25 @@ class _AIChatScreenState extends State<AIChatScreen> {
           .doc(userId)
           .snapshots()
           .listen((snapshot) {
-        if (snapshot.exists) {
-          final data = snapshot.data()!;
-          setState(() {
-            _usedMessages = data['messageCount'] ?? 0;
-            // Si es premium, límite muy alto, sino 5 mensajes
-            _messageLimit = data['isPremium'] == true ? 99999 : 5;
-            _isPremium = data['isPremium'] == true;
+            if (snapshot.exists) {
+              final data = snapshot.data()!;
+              setState(() {
+                _usedMessages = data['messageCount'] ?? 0;
+                // Si es premium, límite muy alto, sino 5 mensajes
+                _messageLimit = data['isPremium'] == true ? 99999 : 5;
+                _isPremium = data['isPremium'] == true;
+              });
+            }
           });
-        }
-      });
     }
   }
 
   void _onScrollListener() {
     if (_scrollController.position.isScrollingNotifier.value) {
       _isUserScrolling = true;
-      
-      if (_scrollController.offset <= _scrollController.position.minScrollExtent + 100) {
+
+      if (_scrollController.offset <=
+          _scrollController.position.minScrollExtent + 100) {
         _isUserScrolling = false;
       }
     }
@@ -94,14 +92,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _messageController.dispose();
     _scrollController.removeListener(_onScrollListener);
     _scrollController.dispose();
-    _userSubscription?.cancel(); 
+    _userSubscription?.cancel();
     super.dispose();
   }
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
 
-   
     if (!_isPremium && _usedMessages >= _messageLimit) {
       // Mostrar mensaje de límite alcanzado
       _showLimitReachedDialog();
@@ -117,7 +114,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _scrollToBottom();
   }
 
-  
   void _showLimitReachedDialog() {
     showDialog(
       context: context,
@@ -139,12 +135,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
             child: const Text('Cerrar'),
           ),
           ElevatedButton(
-            
             onPressed: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const SubscriptionScreen(),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -162,7 +159,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients && !_isUserScrolling) {
         _scrollController.animateTo(
@@ -234,7 +231,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
         .orderBy('timestamp', descending: true)
         .snapshots();
 
-    
     final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
 
     return Scaffold(
@@ -249,10 +245,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
           children: [
             CircleAvatar(
               backgroundColor: AppConstants.lightAccentColor,
-              child: Icon(
-                Icons.psychology,
-                color: Colors.white,
-              ),
+              child: Icon(Icons.psychology, color: Colors.white),
             ),
             const SizedBox(width: 12),
             const Column(
@@ -309,8 +302,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     return StreamBuilder<QuerySnapshot>(
                       stream: messagesStream,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         if (snapshot.hasError) {
                           return Center(
@@ -342,9 +338,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                                 SizedBox(height: 8),
                                 Text(
                                   'Inicia la conversación para comenzar',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                  ),
+                                  style: TextStyle(color: Colors.grey),
                                 ),
                               ],
                             ),
@@ -369,9 +363,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
                               return _buildTypingIndicator();
                             }
 
-                            final messageIndex = state.isTyping ? index - 1 : index;
+                            final messageIndex = state.isTyping
+                                ? index - 1
+                                : index;
 
-                            if (messageIndex >= 0 && messageIndex < messages.length) {
+                            if (messageIndex >= 0 &&
+                                messageIndex < messages.length) {
                               final message = messages[messageIndex];
                               return MessageBubble(
                                 message: message,
@@ -390,7 +387,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           ),
           BlocBuilder<ChatBloc, ChatState>(
             builder: (context, state) {
-             
               if (isLimitReached || state.isMessageLimitReached) {
                 return _buildSubscriptionPrompt(context);
               } else {
@@ -406,10 +402,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
   Widget _buildMessageInput(BuildContext context, bool isLoading) {
     // Determinar si mostrar límite alcanzado basado en datos locales
     final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
-    
+
     // Mostrar progreso hacia el límite si no es premium
     final bool showWarning = !_isPremium && _usedMessages >= _messageLimit - 1;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
@@ -428,8 +424,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber, 
-                         color: Colors.orange, size: 20),
+                    Icon(Icons.warning_amber, color: Colors.orange, size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -452,15 +447,15 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     decoration: InputDecoration(
                       hintText: isLimitReached
                           ? 'Límite de mensajes alcanzado'
-                          : isLoading 
-                              ? 'Aurora está pensando...' 
-                              : 'Escribe un mensaje...',
+                          : isLoading
+                          ? 'Aurora está pensando...'
+                          : 'Escribe un mensaje...',
                       hintStyle: TextStyle(
-                        color: isLimitReached 
+                        color: isLimitReached
                             ? Colors.red.shade400
-                            : isLoading 
-                                ? Colors.grey.shade400 
-                                : Colors.grey,
+                            : isLoading
+                            ? Colors.grey.shade400
+                            : Colors.grey,
                         fontFamily: 'Poppins',
                       ),
                       border: OutlineInputBorder(
@@ -470,15 +465,17 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       filled: true,
                       fillColor: isLimitReached
                           ? Colors.red.shade50
-                          : isLoading 
-                              ? Colors.grey[200] 
-                              : Colors.grey[100],
+                          : isLoading
+                          ? Colors.grey[200]
+                          : Colors.grey[100],
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 10,
                       ),
                     ),
-                    onSubmitted: (isLoading || isLimitReached) ? null : (_) => _sendMessage(),
+                    onSubmitted: (isLoading || isLimitReached)
+                        ? null
+                        : (_) => _sendMessage(),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
                   ),
@@ -487,25 +484,29 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 Container(
                   decoration: BoxDecoration(
                     color: (isLoading || isLimitReached)
-                        ? Colors.grey 
+                        ? Colors.grey
                         : AppConstants.lightAccentColor,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: isLoading 
+                    icon: isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Icon(
                             isLimitReached ? Icons.lock : Icons.send_rounded,
                             color: Colors.white,
                           ),
-                    onPressed: (isLoading || isLimitReached) ? null : _sendMessage,
+                    onPressed: (isLoading || isLimitReached)
+                        ? null
+                        : _sendMessage,
                   ),
                 ),
               ],
@@ -530,11 +531,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.lock_outline,
-            size: 48,
-            color: AppConstants.primaryColor,
-          ),
+          Icon(Icons.lock_outline, size: 48, color: AppConstants.primaryColor),
           const SizedBox(height: 12),
           Text(
             '¡Has usado $_usedMessages de $_messageLimit mensajes!',
@@ -549,10 +546,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
           const Text(
             'Actualiza tu plan a Premium para disfrutar de conversaciones ilimitadas con Aurora AI.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(

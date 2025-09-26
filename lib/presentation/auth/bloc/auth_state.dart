@@ -13,11 +13,7 @@ enum AuthStatus {
   success,
 }
 
-enum UserRole {
-  unknown,
-  patient,
-  psychologist,
-}
+enum UserRole { unknown, patient, psychologist }
 
 class AuthState extends Equatable {
   final AuthStatus status;
@@ -36,9 +32,14 @@ class AuthState extends Equatable {
   bool get isSuccess => status == AuthStatus.success;
   bool get isUnknown => status == AuthStatus.unknown;
 
-  bool get isAuthenticatedPatient => status == AuthStatus.authenticated && userRole == UserRole.patient && patient != null;
-  bool get isAuthenticatedPsychologist => status == AuthStatus.authenticated && userRole == UserRole.psychologist && psychologist != null;
-
+  bool get isAuthenticatedPatient =>
+      status == AuthStatus.authenticated &&
+      userRole == UserRole.patient &&
+      patient != null;
+  bool get isAuthenticatedPsychologist =>
+      status == AuthStatus.authenticated &&
+      userRole == UserRole.psychologist &&
+      psychologist != null;
 
   const AuthState({
     this.status = AuthStatus.unknown,
@@ -52,48 +53,49 @@ class AuthState extends Equatable {
     required this.userRole,
     this.patient,
     this.psychologist,
-  })  : status = AuthStatus.authenticated,
-        errorMessage = null,
-        assert(
-          (userRole == UserRole.patient && patient != null && psychologist == null) ||
-              (userRole == UserRole.psychologist && psychologist != null && patient == null),
-          'Authenticated state must have a user (patient or psychologist) matching the role.',
-        );
+  }) : status = AuthStatus.authenticated,
+       errorMessage = null,
+       assert(
+         (userRole == UserRole.patient &&
+                 patient != null &&
+                 psychologist == null) ||
+             (userRole == UserRole.psychologist &&
+                 psychologist != null &&
+                 patient == null),
+         'Authenticated state must have a user (patient or psychologist) matching the role.',
+       );
 
-  const AuthState.unauthenticated({
-    this.errorMessage,
-  })  : status = AuthStatus.unauthenticated,
-        userRole = UserRole.unknown,
-        patient = null,
-        psychologist = null;
+  const AuthState.unauthenticated({this.errorMessage})
+    : status = AuthStatus.unauthenticated,
+      userRole = UserRole.unknown,
+      patient = null,
+      psychologist = null;
 
   const AuthState.loading()
-      : status = AuthStatus.loading,
-        errorMessage = null,
-        userRole = UserRole.unknown,
-        patient = null,
-        psychologist = null;
+    : status = AuthStatus.loading,
+      errorMessage = null,
+      userRole = UserRole.unknown,
+      patient = null,
+      psychologist = null;
 
-  const AuthState.error({
-    this.errorMessage,
-  })  : status = AuthStatus.error,
-        userRole = UserRole.unknown,
-        patient = null,
-        psychologist = null;
+  const AuthState.error({this.errorMessage})
+    : status = AuthStatus.error,
+      userRole = UserRole.unknown,
+      patient = null,
+      psychologist = null;
 
-  const AuthState.success({
-    this.errorMessage,
-  })  : status = AuthStatus.success,
-        userRole = UserRole.unknown,
-        patient = null,
-        psychologist = null;
+  const AuthState.success({this.errorMessage})
+    : status = AuthStatus.success,
+      userRole = UserRole.unknown,
+      patient = null,
+      psychologist = null;
 
   const AuthState.unknown()
-      : status = AuthStatus.unknown,
-        errorMessage = null,
-        userRole = UserRole.unknown,
-        patient = null,
-        psychologist = null;
+    : status = AuthStatus.unknown,
+      errorMessage = null,
+      userRole = UserRole.unknown,
+      patient = null,
+      psychologist = null;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -106,17 +108,23 @@ class AuthState extends Equatable {
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       userRole: userRole ?? this.userRole,
-      patient: patient == null ? null : (patient is PatientModel ? patient : this.patient),
-      psychologist: psychologist == null ? null : (psychologist is PsychologistModel ? psychologist : this.psychologist),
+      patient: patient == null
+          ? null
+          : (patient is PatientModel ? patient : this.patient),
+      psychologist: psychologist == null
+          ? null
+          : (psychologist is PsychologistModel
+                ? psychologist
+                : this.psychologist),
     );
   }
 
   @override
   List<Object?> get props => [
-        status,
-        errorMessage,
-        userRole,
-        patient,
-        psychologist,
-      ];
+    status,
+    errorMessage,
+    userRole,
+    patient,
+    psychologist,
+  ];
 }

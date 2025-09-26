@@ -80,8 +80,8 @@ class _PsychologySessionPaymentScreenState
       final sessionId = uri.queryParameters['session_id'];
       if (sessionId != null) {
         context.read<PsychologyPaymentBloc>().add(
-              VerifyPsychologyPaymentEvent(sessionId: sessionId),
-            );
+          VerifyPsychologyPaymentEvent(sessionId: sessionId),
+        );
       }
     }
   }
@@ -133,17 +133,17 @@ class _PsychologySessionPaymentScreenState
     final userName = await _getUserName(user.uid);
 
     context.read<PsychologyPaymentBloc>().add(
-          StartPsychologyPaymentEvent(
-            userEmail: user.email!,
-            userId: user.uid,
-            userName: userName,
-            sessionDate: _formatDate(widget.sessionDateTime),
-            sessionTime: _formatTime(widget.sessionDateTime),
-            psychologistName: widget.psychologist.username,
-            psychologistId: widget.psychologist.uid,
-            sessionNotes: widget.notes,
-          ),
-        );
+      StartPsychologyPaymentEvent(
+        userEmail: user.email!,
+        userId: user.uid,
+        userName: userName,
+        sessionDate: _formatDate(widget.sessionDateTime),
+        sessionTime: _formatTime(widget.sessionDateTime),
+        psychologistName: widget.psychologist.username,
+        psychologistId: widget.psychologist.uid,
+        sessionNotes: widget.notes,
+      ),
+    );
   }
 
   @override
@@ -296,7 +296,9 @@ class _PsychologySessionPaymentScreenState
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.headlineMedium?.color,
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.color,
                         fontFamily: 'Poppins',
                       ),
                     ),

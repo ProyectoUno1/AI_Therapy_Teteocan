@@ -24,14 +24,13 @@ class PsychologistModel extends Equatable {
   final List<String>? subSpecialties;
   final Map<String, dynamic>? schedule;
 
-  // NUEVOS CAMPOS para el sistema de aprobación
-  final String status; // 'PENDING', 'APPROVED', 'REJECTED'
+  final String status; // 'PENDING', 'ACTIVE', 'REJECTED'
   final bool professionalInfoCompleted;
   final String? rejectionReason;
 
   final double? rating;
   final bool? isAvailable;
-  final double? hourlyRate;
+  final double? price;
 
   const PsychologistModel({
     required this.uid,
@@ -53,17 +52,16 @@ class PsychologistModel extends Equatable {
     this.specialty,
     this.subSpecialties,
     this.schedule,
-    this.status = 'PENDING', // NUEVO - Por defecto PENDING
-    this.professionalInfoCompleted = false, // NUEVO
-    this.rejectionReason, // NUEVO
+    this.status = 'PENDING',
+    this.professionalInfoCompleted = false,
+    this.rejectionReason,
     this.rating,
     this.isAvailable,
-    this.hourlyRate,
+    this.price,
   });
 
-  // NUEVOS MÉTODOS - Getters de conveniencia
   bool get isPending => status == 'PENDING';
-  bool get isApproved => status == 'APPROVED';
+  bool get isApproved => status == 'ACTIVE';
   bool get isRejected => status == 'REJECTED';
 
   String get statusDisplayText {
@@ -106,13 +104,13 @@ class PsychologistModel extends Equatable {
       specialty: json['specialty'] as String?,
       subSpecialties: (json['subSpecialties'] as List?)?.cast<String>(),
       schedule: json['schedule'] as Map<String, dynamic>?,
-      // NUEVOS CAMPOS
       status: json['status'] as String? ?? 'PENDING',
-      professionalInfoCompleted: json['professionalInfoCompleted'] as bool? ?? false,
+      professionalInfoCompleted:
+          json['professionalInfoCompleted'] as bool? ?? false,
       rejectionReason: json['rejectionReason'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       isAvailable: json['isAvailable'] as bool?,
-      hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
+      price: (json['price'] as num?)?.toDouble(),
     );
   }
 
@@ -143,13 +141,13 @@ class PsychologistModel extends Equatable {
       specialty: data['specialty'] as String?,
       subSpecialties: (data['subSpecialties'] as List?)?.cast<String>(),
       schedule: data['schedule'] as Map<String, dynamic>?,
-      // NUEVOS CAMPOS
       status: data['status'] as String? ?? 'PENDING',
-      professionalInfoCompleted: data['professionalInfoCompleted'] as bool? ?? false,
+      professionalInfoCompleted:
+          data['professionalInfoCompleted'] as bool? ?? false,
       rejectionReason: data['rejectionReason'] as String?,
       rating: (data['rating'] as num?)?.toDouble(),
       isAvailable: data['isAvailable'] as bool? ?? false,
-      hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
+      price: (data['price'] as num?)?.toDouble(),
     );
   }
 
@@ -162,7 +160,9 @@ class PsychologistModel extends Equatable {
       'professionalLicense': professionalLicense,
       'profilePictureUrl': profilePictureUrl,
       'role': role,
-      'dateOfBirth': dateOfBirth != null ? Timestamp.fromDate(dateOfBirth!) : null,
+      'dateOfBirth': dateOfBirth != null
+          ? Timestamp.fromDate(dateOfBirth!)
+          : null,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'fullName': fullName,
@@ -174,13 +174,12 @@ class PsychologistModel extends Equatable {
       'specialty': specialty,
       'subSpecialties': subSpecialties,
       'schedule': schedule,
-      // NUEVOS CAMPOS
       'status': status,
       'professionalInfoCompleted': professionalInfoCompleted,
       'rejectionReason': rejectionReason,
       'rating': rating,
       'isAvailable': isAvailable,
-      'hourlyRate': hourlyRate,
+      'price': price,
     };
   }
 
@@ -205,12 +204,13 @@ class PsychologistModel extends Equatable {
     education,
     certifications,
     schedule,
-    // NUEVOS CAMPOS
     status,
     professionalInfoCompleted,
     rejectionReason,
     rating,
     isAvailable,
-    hourlyRate,
+    price,
   ];
+
+  get hourlyRate => null;
 }

@@ -3,9 +3,11 @@ import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/patient_management_model.dart';
-import 'package:ai_therapy_teteocan/data/models/appointment_model.dart'; 
+import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
+
 class PatientManagementService {
   static const String baseUrl = 'http://10.0.2.2:3000/api';
+  static const Duration timeoutDuration = Duration(seconds: 10);
 
   Future<String?> _getAuthToken() async {
     try {
@@ -27,7 +29,6 @@ class PatientManagementService {
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
-
 
   Future<List<PatientManagementModel>> getPatientsForPsychologist({
     required String psychologistId,

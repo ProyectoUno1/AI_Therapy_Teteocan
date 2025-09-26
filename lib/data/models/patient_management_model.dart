@@ -68,7 +68,7 @@ class PatientManagementModel {
       name: json['name'],
       email: json['email'],
       phoneNumber: json['phoneNumber'],
-      dateOfBirth: json['dateOfBirth'] != null 
+      dateOfBirth: json['dateOfBirth'] != null
           ? DateTime.parse(json['dateOfBirth'])
           : null,
       profilePictureUrl: json['profilePictureUrl'],
