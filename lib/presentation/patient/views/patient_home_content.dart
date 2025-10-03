@@ -1,15 +1,142 @@
 // lib/presentation/patient/views/patient_home_content.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/feeling_model.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_state.dart';
-import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/widgets/daily_exercise_carousel.dart';
+
+class DailyTip {
+  final String title;
+  final String description;
+  final IconData icon;
+
+  const DailyTip({
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+}
+
+class DailyTipsManager {
+  static const List<DailyTip> _tips = [
+    DailyTip(
+      title: 'Practica la atención plena',
+      description:
+          'Dedica 5 minutos cada mañana a respirar conscientemente y observar tus pensamientos sin juzgarlos.',
+      icon: Icons.self_improvement,
+    ),
+    DailyTip(
+      title: 'Desconexión digital',
+      description:
+          'Toma un descanso de 30 minutos sin dispositivos para reconectar contigo mismo.',
+      icon: Icons.phone_disabled,
+    ),
+    DailyTip(
+      title: 'Diario de gratitud',
+      description:
+          'Escribe 3 cosas por las que te sientes agradecido hoy. La gratitud mejora tu bienestar.',
+      icon: Icons.favorite,
+    ),
+    DailyTip(
+      title: 'Ejercicio físico',
+      description:
+          'Camina al menos 15 minutos al aire libre. El ejercicio libera endorfinas naturales.',
+      icon: Icons.directions_walk,
+    ),
+    DailyTip(
+      title: 'Conexión social',
+      description:
+          'Llama o envía un mensaje a alguien importante para ti. Las conexiones nutren el alma.',
+      icon: Icons.group,
+    ),
+    DailyTip(
+      title: 'Momento de calma',
+      description:
+          'Encuentra 10 minutos de silencio completo para relajarte y recargar energías.',
+      icon: Icons.spa,
+    ),
+    DailyTip(
+      title: 'Aprendizaje nuevo',
+      description:
+          'Lee sobre algo que te interese durante 10 minutos. Mantén tu mente activa y curiosa.',
+      icon: Icons.menu_book,
+    ),
+    DailyTip(
+      title: 'Organiza tu espacio',
+      description:
+          'Dedica 15 minutos a organizar tu entorno. Un espacio limpio calma la mente.',
+      icon: Icons.cleaning_services,
+    ),
+    DailyTip(
+      title: 'Escucha música',
+      description:
+          'Escucha tu música favorita por 20 minutos. La música puede mejorar tu estado de ánimo.',
+      icon: Icons.music_note,
+    ),
+    DailyTip(
+      title: 'Ayuda a otros',
+      description:
+          'Realiza un pequeño acto de bondad hoy. Ayudar a otros también te ayuda a ti.',
+      icon: Icons.volunteer_activism,
+    ),
+    DailyTip(
+      title: 'Hidrátate bien',
+      description:
+          'Bebe al menos 8 vasos de agua hoy. La hidratación afecta tu energía y concentración.',
+      icon: Icons.local_drink,
+    ),
+    DailyTip(
+      title: 'Respiración profunda',
+      description:
+          'Practica 5 respiraciones profundas cuando te sientas estresado. Es tu calmante natural.',
+      icon: Icons.air,
+    ),
+    DailyTip(
+      title: 'Tiempo en la naturaleza',
+      description:
+          'Pasa al menos 20 minutos en contacto con la naturaleza. Reduce el estrés naturalmente.',
+      icon: Icons.park,
+    ),
+    DailyTip(
+      title: 'Sonríe más',
+      description:
+          'Sonríe intencionalmente 5 veces hoy. Incluso una sonrisa forzada puede mejorar tu humor.',
+      icon: Icons.sentiment_very_satisfied,
+    ),
+  ];
+
+  static List<DailyTip> getTipsForToday() {
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
+
+    // Selecciona 3 consejos diferentes basados en el día del año
+    List<DailyTip> todaysTips = [];
+    for (int i = 0; i < 3; i++) {
+      int index =
+          (dayOfYear + i * 5) %
+          _tips.length; // Multiplicar por 5 para mayor variación
+      todaysTips.add(_tips[index]);
+    }
+
+    return todaysTips;
+  }
+
+  static String getTodayMotivationalMessage() {
+    final messages = [
+      "¡Hoy es un nuevo día lleno de posibilidades!",
+      "Cada pequeño paso cuenta en tu bienestar.",
+      "Tu salud mental es una prioridad importante.",
+      "Recuerda: está bien no estar bien todo el tiempo.",
+      "Eres más fuerte de lo que crees.",
+      "El autocuidado no es egoísmo, es necesario.",
+      "Hoy es una oportunidad para cuidarte mejor.",
+    ];
+
+    final dayOfYear = DateTime.now()
+        .difference(DateTime(DateTime.now().year, 1, 1))
+        .inDays;
+    return messages[dayOfYear % messages.length];
+  }
+}
 
 class Article {
   final String title;
@@ -25,8 +152,74 @@ class Article {
   });
 }
 
-class PatientHomeContent extends StatelessWidget {
+class PatientHomeContent extends StatefulWidget {
   const PatientHomeContent({super.key});
+
+  @override
+  State<PatientHomeContent> createState() => _PatientHomeContentState();
+}
+
+class _PatientHomeContentState extends State<PatientHomeContent> {
+  Feeling? selectedFeeling;
+
+  String _getFeelingMessage(Feeling feeling) {
+    switch (feeling) {
+      case Feeling.terrible:
+        return 'Entiendo que hoy es un día difícil. Recuerda que está bien no sentirse bien siempre. 💜';
+      case Feeling.bad:
+        return 'Lamento que te sientas así. Considera hablar con alguien o practicar técnicas de relajación. 🌸';
+      case Feeling.neutral:
+        return 'Un día normal puede ser el inicio de algo mejor. ¿Qué tal si intentas algo que te guste? 🌟';
+      case Feeling.good:
+        return '¡Qué bueno saber que te sientes bien! Aprovecha esta energía positiva. ✨';
+      case Feeling.great:
+        return '¡Excelente! Tu energía positiva es contagiosa. Sigue así y comparte esa alegría. 🎉';
+    }
+  }
+
+  void _showTipDialog(BuildContext context, DailyTip tip) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(tip.icon, color: AppConstants.primaryColor, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tip.title,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            tip.description,
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Entendido',
+                style: TextStyle(
+                  color: AppConstants.primaryColor,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +246,7 @@ class PatientHomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Frase del día',
+            'Mensaje del día',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -66,112 +259,217 @@ class PatientHomeContent extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                '"El autocuidado es la forma de recuperar tu poder."\n\n— Lalah Delia',
-                style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.wb_sunny,
+                        color: AppConstants.primaryColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Inspiración para hoy',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    DailyTipsManager.getTodayMotivationalMessage(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Poppins',
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 24),
 
-          const Text(
-            'Ejercicios diarios',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              fontFamily: 'Poppins',
+          // Sección de sentimientos con diseño acogedor (con overflow arreglado)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppConstants.primaryColor.withOpacity(0.05),
+                  AppConstants.primaryColor.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppConstants.primaryColor.withOpacity(0.2),
+                width: 1,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          DailyExerciseCarousel(),
-
-          const SizedBox(height: 24),
-
-          const Text(
-            '¿Cómo te sientes?',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 8),
-          BlocBuilder<HomeContentCubit, HomeContentState>(
-            builder: (context, state) {
-              return Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '¿Cómo te sientes hoy?',
-                        style: TextStyle(fontFamily: 'Poppins'),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppConstants.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Icon(
+                        Icons.favorite_rounded,
+                        color: AppConstants.primaryColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _FeelingIcon(
-                            icon: Icons.thumb_down_alt_outlined,
-                            label: 'Terrible',
-                            isSelected:
-                                state.selectedFeeling == Feeling.terrible,
-                            onTap: () => context
-                                .read<HomeContentCubit>()
-                                .selectFeeling(Feeling.terrible),
+                          Text(
+                            '¿Cómo te sientes hoy?',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              fontFamily: 'Poppins',
+                              color: AppConstants.primaryColor,
+                            ),
                           ),
-                          _FeelingIcon(
-                            icon: Icons.sentiment_dissatisfied,
-                            label: 'Mal',
-                            isSelected: state.selectedFeeling == Feeling.bad,
-                            onTap: () => context
-                                .read<HomeContentCubit>()
-                                .selectFeeling(Feeling.bad),
-                          ),
-                          _FeelingIcon(
-                            icon: Icons.sentiment_neutral,
-                            label: 'Regular',
-                            isSelected:
-                                state.selectedFeeling == Feeling.neutral,
-                            onTap: () => context
-                                .read<HomeContentCubit>()
-                                .selectFeeling(Feeling.neutral),
-                          ),
-                          _FeelingIcon(
-                            icon: Icons.sentiment_satisfied,
-                            label: 'Bien',
-                            isSelected: state.selectedFeeling == Feeling.good,
-                            onTap: () => context
-                                .read<HomeContentCubit>()
-                                .selectFeeling(Feeling.good),
-                          ),
-                          _FeelingIcon(
-                            icon: Icons.thumb_up_alt_outlined,
-                            label: 'Genial',
-                            isSelected: state.selectedFeeling == Feeling.great,
-                            onTap: () => context
-                                .read<HomeContentCubit>()
-                                .selectFeeling(Feeling.great),
+                          Text(
+                            'Tu bienestar emocional es importante',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ImprovedFeelingIcon(
+                        emoji: '😢',
+                        label: 'Terrible',
+                        feeling: Feeling.terrible,
+                        isSelected: selectedFeeling == Feeling.terrible,
+                        onTap: () => setState(() {
+                          selectedFeeling = Feeling.terrible;
+                        }),
+                      ),
+                      _ImprovedFeelingIcon(
+                        emoji: '😔',
+                        label: 'Mal',
+                        feeling: Feeling.bad,
+                        isSelected: selectedFeeling == Feeling.bad,
+                        onTap: () => setState(() {
+                          selectedFeeling = Feeling.bad;
+                        }),
+                      ),
+                      _ImprovedFeelingIcon(
+                        emoji: '😐',
+                        label: 'Regular',
+                        feeling: Feeling.neutral,
+                        isSelected: selectedFeeling == Feeling.neutral,
+                        onTap: () => setState(() {
+                          selectedFeeling = Feeling.neutral;
+                        }),
+                      ),
+                      _ImprovedFeelingIcon(
+                        emoji: '😊',
+                        label: 'Bien',
+                        feeling: Feeling.good,
+                        isSelected: selectedFeeling == Feeling.good,
+                        onTap: () => setState(() {
+                          selectedFeeling = Feeling.good;
+                        }),
+                      ),
+                      _ImprovedFeelingIcon(
+                        emoji: '😄',
+                        label: 'Genial',
+                        feeling: Feeling.great,
+                        isSelected: selectedFeeling == Feeling.great,
+                        onTap: () => setState(() {
+                          selectedFeeling = Feeling.great;
+                        }),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+                if (selectedFeeling != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppConstants.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppConstants.primaryColor.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.emoji_emotions,
+                          color: AppConstants.primaryColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _getFeelingMessage(selectedFeeling!),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'Poppins',
+                              color: AppConstants.primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
           const Text(
-            'Tips de Psicología Semanales',
+            'Consejos diarios',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -180,164 +478,111 @@ class PatientHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 130,
-            child: ListView(
+            height: 120,
+            child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              children: [
-                _TipCard(
-                  title: 'Practica la atención plena',
+              itemCount: DailyTipsManager.getTipsForToday().length,
+              itemBuilder: (context, index) {
+                final tip = DailyTipsManager.getTipsForToday()[index];
+                return _TipCard(
+                  title: tip.title,
+                  description: tip.description,
+                  icon: tip.icon,
                   onTap: () {
-                    // TODO: Navegar a la pantalla de tips o de un tip específico.
+                    _showTipDialog(context, tip);
                   },
-                ),
-                _TipCard(
-                  title: 'Desconexión digital',
-                  onTap: () {
-                    // TODO: Navegar a la pantalla de tips o de un tip específico.
-                  },
-                ),
-                _TipCard(
-                  title: 'Diario de gratitud',
-                  onTap: () {
-                    // TODO: Navegar a la pantalla de tips o de un tip específico.
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          const Text(
-            'Próxima cita',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 12),
-          BlocBuilder<AppointmentBloc, AppointmentState>(
-            builder: (context, state) {
-              if (state.upcomingAppointments.isNotEmpty) {
-                final upcomingAppointment = state.upcomingAppointments.first;
-
-                return _AppointmentCard(appointment: upcomingAppointment);
-              } else {
-                return Card(
-                  elevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(
-                      child: Text(
-                        'No tienes citas próximas.',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
                 );
-              }
-            },
+              },
+            ),
           ),
           const SizedBox(height: 24),
 
+          // Artículos de psicología
           const Text(
-            'Artículos de psicólogos',
+            'Artículos de psicología',
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
               fontFamily: 'Poppins',
             ),
           ),
-          const SizedBox(height: 12),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: articles.length,
-            itemBuilder: (context, index) {
-              final article = articles[index];
-              return _ArticleCard(
-                article: article,
-                onTap: () {
-                  // TODO: Navegar a la pantalla de detalle del artículo.
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          ...articles.map((article) => _ArticleCard(article: article)),
         ],
       ),
     );
   }
 }
 
-class _AppointmentCard extends StatelessWidget {
-  final AppointmentModel appointment;
+class _ImprovedFeelingIcon extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final Feeling feeling;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const _AppointmentCard({required this.appointment});
+  const _ImprovedFeelingIcon({
+    required this.emoji,
+    required this.label,
+    required this.feeling,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppConstants.primaryColor.withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppConstants.primaryColor : Colors.transparent,
+            width: 2,
+          ),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              appointment.psychologistName,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                fontFamily: 'Poppins',
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppConstants.primaryColor.withOpacity(0.2)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppConstants.primaryColor.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 20)),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
-              appointment.psychologistSpecialty,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected
+                    ? AppConstants.primaryColor
+                    : Colors.grey.shade600,
                 fontFamily: 'Poppins',
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Text(
-                  '${appointment.scheduledDateTime.day}/${appointment.scheduledDateTime.month}/${appointment.scheduledDateTime.year}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Text(
-                  '${appointment.scheduledDateTime.hour}:${appointment.scheduledDateTime.minute}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -346,64 +591,63 @@ class _AppointmentCard extends StatelessWidget {
   }
 }
 
-class _FeelingIcon extends StatelessWidget {
+class _TipCard extends StatelessWidget {
+  final String title;
+  final String description;
   final IconData icon;
-  final String label;
-  final bool isSelected;
   final VoidCallback onTap;
 
-  const _FeelingIcon({
+  const _TipCard({
+    required this.title,
+    required this.description,
     required this.icon,
-    required this.label,
-    this.isSelected = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? AppConstants.lightAccentColor : Colors.grey;
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          CircleAvatar(
-            backgroundColor: isSelected
-                ? AppConstants.lightAccentColor.withOpacity(0.15)
-                : Colors.grey[200],
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 12, fontFamily: 'Poppins'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TipCard extends StatelessWidget {
-  final String title;
-  final VoidCallback? onTap;
-
-  const _TipCard({required this.title, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppConstants.lightAccentColor.withOpacity(0.1),
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      width: 170,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 14, fontFamily: 'Poppins'),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: AppConstants.primaryColor, size: 24),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      fontFamily: 'Poppins',
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.touch_app,
+                      color: AppConstants.primaryColor,
+                      size: 14,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -412,18 +656,20 @@ class _TipCard extends StatelessWidget {
 
 class _ArticleCard extends StatelessWidget {
   final Article article;
-  final VoidCallback? onTap;
 
-  const _ArticleCard({required this.article, this.onTap});
+  const _ArticleCard({required this.article});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          // TODO: Navegar al artículo completo
+        },
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -436,30 +682,21 @@ class _ArticleCard extends StatelessWidget {
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     height: 150,
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Icon(Icons.broken_image, color: Colors.grey),
+                    color: Colors.grey.shade300,
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      size: 50,
+                      color: Colors.grey,
                     ),
                   );
                 },
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -473,20 +710,20 @@ class _ArticleCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'By ${article.author}',
-                        style: const TextStyle(
-                          color: AppConstants.lightAccentColor,
-                          fontSize: 12,
+                        'Por ${article.author}',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
                           fontFamily: 'Poppins',
                         ),
                       ),
+                      const Spacer(),
                       Text(
                         article.date,
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Colors.grey.shade600,
                           fontSize: 12,
                           fontFamily: 'Poppins',
                         ),

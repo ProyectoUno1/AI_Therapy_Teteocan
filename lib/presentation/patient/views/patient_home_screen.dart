@@ -79,7 +79,7 @@ class PatientHomeScreenState extends State<PatientHomeScreen> {
   Widget build(BuildContext context) {
     String userName = 'Paciente';
     final authState = context.watch<AuthBloc>().state;
-    if (authState.patient != null) {
+    if (authState.patient != null && authState.patient!.username.isNotEmpty) {
       userName = authState.patient!.username;
     }
 
