@@ -20,7 +20,6 @@ class ChatListLoaded extends ChatListState {
 
   const ChatListLoaded({required this.chats, this.filteredChats = const []});
 
-  // Sobrescribe el método copyWith para facilitar la actualización del estado
   ChatListLoaded copyWith({
     List<PatientChatItem>? chats,
     List<PatientChatItem>? filteredChats,

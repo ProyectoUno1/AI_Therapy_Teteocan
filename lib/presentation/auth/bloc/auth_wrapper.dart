@@ -5,13 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/views/email_verification_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:ai_therapy_teteocan/splash_screen.dart';
 import 'dart:developer';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/emotion/emotion_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -21,67 +22,77 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  
+  bool _shouldShowProfessionalSetupDialog = false;
+
+  void _checkIfShouldShowDialog(AuthState state) {
+    if (state.isAuthenticatedPsychologist) {
+      final psychologist = state.psychologist;
+
+      final hasCompletedProfile =
+          psychologist?.specialty != null &&
+          psychologist?.specialty != '' &&
+          psychologist?.professionalTitle != null;
+
+      if (!hasCompletedProfile) {
+        setState(() {
+          _shouldShowProfessionalSetupDialog = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state.isError && state.errorMessage != null) {
-          log(
-            ' AuthWrapper Listener: Error de autenticación: ${state.errorMessage}',
-            name: 'AuthWrapper',
-          );
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-        }
-        if (!state.isAuthenticated) {
-          log(
-            ' AuthWrapper Listener: Usuario no autenticado, debería mostrar LoginScreen',
-            name: 'AuthWrapper',
-          );
+        if (state.isAuthenticatedPsychologist) {
+          _checkIfShouldShowDialog(state);
         }
       },
-      builder: (context, state) {
-        log(
-          ' AuthWrapper Builder: Estado actual del AuthBloc: ${state.status}',
-          name: 'AuthWrapper',
-        );
+      buildWhen: (previous, current) {
+        final shouldRebuild =
+            previous.status != current.status ||
+            previous.patient != current.patient ||
+            previous.psychologist != current.psychologist;
 
-        if (state.isUnknown || state.isLoading) {
-          log(
-            ' AuthWrapper Builder: Mostrando SplashScreen.',
-            name: 'AuthWrapper',
-          );
+        return shouldRebuild;
+      },
+      builder: (context, state) {
+        if (state.isLoading) {
+          log('AuthWrapper: Mostrando SplashScreen', name: 'AuthWrapper');
           return const SplashScreen();
-        } else if (state.isAuthenticated) {
-          if (state.isAuthenticatedPatient) {
-            log(
-              ' AuthWrapper Builder: Mostrando PatientHomeScreen.',
-              name: 'AuthWrapper',
-            );
-            return PatientHomeScreen();
-          } else if (state.isAuthenticatedPsychologist) {
-            log(
-              ' AuthWrapper Builder: Mostrando PsychologistHomeScreen.',
-              name: 'AuthWrapper',
-            );
-            return PsychologistHomeScreen();
-          } else {
-            log(
-              ' AuthWrapper Builder: Estado autenticado sin rol definido. Volviendo a LoginScreen.',
-              name: 'AuthWrapper',
-            );
-            return const LoginScreen();
-          }
-        } else {
-          log(
-            ' AuthWrapper Builder: Mostrando LoginScreen.',
-            name: 'AuthWrapper',
-          );
-          return const LoginScreen();
         }
+
+        if (state.isAuthenticatedPatient) {
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider<HomeContentCubit>(
+                create: (context) => HomeContentCubit(
+                  emotionBloc: context.read<EmotionBloc>(),
+                  patientId: state.patient!.uid,
+                ),
+              ),
+            ],
+            child: const PatientHomeScreen(),
+          );
+        }
+        if (state.isAuthenticatedPsychologist) {
+          return const PsychologistHomeScreen();
+        }
+
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && !currentUser.emailVerified) {
+          String userRole = 'patient';
+          if (state.userRole == UserRole.psychologist) {
+            userRole = 'psychologist';
+          }
+
+          return EmailVerificationScreen(
+            userEmail: currentUser.email ?? '',
+            userRole: userRole,
+          );
+        }
+        return const LoginScreen();
       },
     );
   }

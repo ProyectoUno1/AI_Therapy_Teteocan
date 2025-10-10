@@ -13,6 +13,9 @@ abstract class AuthRemoteDataSource {
   });
   Future<void> signOut();
   Stream<fb_auth.User?> get authStateChanges;
+
+  Future<void> sendPasswordResetEmail({required String email});
+  Future<void> updateEmail({required String newEmail});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -96,6 +99,48 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         return AppException(
           'Error de autenticación: ${e.message ?? 'Desconocido'}',
         );
+    }
+  }
+
+  @override
+Future<void> sendPasswordResetEmail({required String email}) async {
+  try {
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
+  } on fb_auth.FirebaseAuthException catch (e) {
+    throw _handleFirebaseAuthException(e);
+  } catch (e) {
+    throw FetchDataException(
+      'Ocurrió un error inesperado al enviar el correo de recuperación: $e',
+    );
+  }
+}
+
+@override
+Future<void> sendEmailVerification() async {
+  try {
+    final user = _firebaseAuth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  } catch (e) {
+    throw FetchDataException('Error al enviar correo de verificación: $e');
+  }
+}
+@override
+  Future<void> updateEmail({required String newEmail}) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        await user.verifyBeforeUpdateEmail(newEmail);
+      } else {
+        throw AuthException('No hay usuario autenticado');
+      }
+    } on fb_auth.FirebaseAuthException catch (e) {
+      throw _handleFirebaseAuthException(e);
+    } catch (e) {
+      throw FetchDataException(
+        'Ocurrió un error inesperado al actualizar el email: $e',
+      );
     }
   }
 }

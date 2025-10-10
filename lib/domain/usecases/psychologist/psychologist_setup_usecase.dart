@@ -10,7 +10,7 @@ class PsychologistSetupUseCase {
 
   Future<void> call({
     required String uid,
-    required String fullName, 
+    required String username, 
     required String email,
     required String professionalTitle,
     required String licenseNumber,
@@ -23,11 +23,12 @@ class PsychologistSetupUseCase {
     required List<String>? selectedSubSpecialties,
     required Map<String, dynamic>? schedule,
     required bool? isAvailable,
+    required double? price,
   }) async {
     try {
       await _repository.updateProfessionalInfo(
         uid: uid,
-        fullName: fullName,
+        username: username,
         professionalTitle: professionalTitle,
         professionalLicense: licenseNumber,
         yearsExperience: yearsExperience,
@@ -39,9 +40,10 @@ class PsychologistSetupUseCase {
         schedule: schedule,
         profilePictureUrl: profilePictureUrl,
         isAvailable: isAvailable,
+        price: price,
       );
     } catch (e) {
-      debugPrint('Error en PsychologistSetupUseCase: $e');
+      
       rethrow;
     }
   }

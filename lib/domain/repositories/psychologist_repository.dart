@@ -1,7 +1,9 @@
 // lib/domain/repositories/psychologist_repository.dart
+
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 
 abstract class PsychologistRepository {
+
   Future<void> updateBasicInfo({
     required String uid,
     String? username,
@@ -9,9 +11,10 @@ abstract class PsychologistRepository {
     String? profilePictureUrl,
   });
 
+
   Future<void> updateProfessionalInfo({
     required String uid,
-    String? fullName,
+    String? username,
     String? professionalLicense,
     String? professionalTitle,
     int? yearsExperience,
@@ -23,6 +26,15 @@ abstract class PsychologistRepository {
     Map<String, dynamic>? schedule,
     String? profilePictureUrl,
     bool? isAvailable,
+    double? price,
   });
+
+
+  Future<String> uploadProfilePicture(String imagePath);
+
   Future<PsychologistModel?> getPsychologistInfo(String uid);
+
+
+
+
 }

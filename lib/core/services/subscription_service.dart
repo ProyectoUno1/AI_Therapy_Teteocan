@@ -9,41 +9,46 @@ class SubscriptionService {
   static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
 
   // OBTENER ESTADO DE SUSCRIPCIÓN DEL USUARIO
-  static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
+static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
 
-      // 1. Primero verificar en Firebase local
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+    // Buscar SOLO en la colección 'subscriptions'
+    final subscriptionDocs = await FirebaseFirestore.instance
+        .collection('subscriptions')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', whereIn: ['active', 'trialing'])
+        .limit(1)
+        .get();
 
-      if (!userDoc.exists) return null;
-
-      final userData = userDoc.data()!;
-
-      // 2. Si tiene suscripción, verificar con el backend
-      if (userData['hasSubscription'] == true &&
-          userData['subscriptionId'] != null) {
-        final response = await http.get(
-          Uri.parse('$baseUrl/subscription-status/${user.uid}'),
-          headers: {'Content-Type': 'application/json'},
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          return SubscriptionStatus.fromJson(data);
-        }
-      }
-
-      return SubscriptionStatus(hasSubscription: false, subscription: null);
-    } catch (e) {
-      print('Error obteniendo estado de suscripción: $e');
-      return null;
+    if (subscriptionDocs.docs.isNotEmpty) {
+      final subscriptionData = subscriptionDocs.docs.first.data();
+      final subscriptionDoc = subscriptionDocs.docs.first;
+      
+      return SubscriptionStatus(
+        hasSubscription: true,
+        subscription: SubscriptionData.fromJson({
+          'id': subscriptionDoc.id,
+          'status': subscriptionData['status'] ?? 'active',
+          'currentPeriodEnd': subscriptionData['currentPeriodEnd']?.toDate(),
+          'cancelAtPeriodEnd': subscriptionData['cancelAtPeriodEnd'] ?? false,
+          'userId': subscriptionData['userId'],
+          'userEmail': subscriptionData['userEmail'] ?? user.email,
+          'userName': subscriptionData['userName'] ?? user.displayName,
+          'planName': subscriptionData['planName'] ?? 'Premium'
+        })
+      );
     }
+
+    // Si no encuentra suscripción activa, retornar null
+    return null;
+
+  } catch (e) {
+    print("Error al obtener el estado de la suscripción: $e");
+    return null;
   }
+}
 
   // VERIFICAR SI EL USUARIO TIENE SUSCRIPCIÓN ACTIVA
   static Future<bool> hasActiveSubscription() async {
@@ -58,47 +63,68 @@ class SubscriptionService {
   }
 
   // CANCELAR SUSCRIPCIÓN
-  static Future<CancellationResult> cancelSubscription({
-    bool immediate = false,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('Usuario no autenticado');
-      }
+static Future<CancellationResult> cancelSubscription({
+  bool immediate = false,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado');
+    }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/cancel-subscription'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': user.uid, 'immediate': immediate}),
-      );
+    // Primero buscar la suscripción activa del usuario
+    final subscriptionDocs = await FirebaseFirestore.instance
+        .collection('subscriptions')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', whereIn: ['active', 'trialing'])
+        .limit(1)
+        .get();
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return CancellationResult(
-          success: true,
-          message: data['message'],
-          subscription: data['subscription'] != null
-              ? SubscriptionData.fromJson(data['subscription'])
-              : null,
-        );
-      } else {
-        return CancellationResult(
-          success: false,
-          message: data['error'] ?? 'Error desconocido',
-          subscription: null,
-        );
-      }
-    } catch (e) {
-      print('Error cancelando suscripción: $e');
+    if (subscriptionDocs.docs.isEmpty) {
       return CancellationResult(
         success: false,
-        message: 'Error al cancelar suscripción: $e',
+        message: 'No se encontró una suscripción activa',
         subscription: null,
       );
     }
+
+    final subscriptionId = subscriptionDocs.docs.first.id;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/cancel-subscription'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'subscriptionId': subscriptionId,
+        'immediate': immediate
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return CancellationResult(
+        success: true,
+        message: data['message'],
+        subscription: data['subscription'] != null
+            ? SubscriptionData.fromJson(data['subscription'])
+            : null,
+      );
+    } else {
+      return CancellationResult(
+        success: false,
+        message: data['error'] ?? 'Error desconocido',
+        subscription: null,
+      );
+    }
+  } catch (e) {
+    print('Error cancelando suscripción: $e');
+    return CancellationResult(
+      success: false,
+      message: 'Error al cancelar suscripción: $e',
+      subscription: null,
+    );
   }
+}
 
   // CREAR SESIÓN DE CHECKOUT
   static Future<CheckoutResult> createCheckoutSession({
@@ -132,6 +158,7 @@ class SubscriptionService {
           'userEmail': user.email!,
           'userId': user.uid,
           'userName': userName,
+          
         }),
       );
 

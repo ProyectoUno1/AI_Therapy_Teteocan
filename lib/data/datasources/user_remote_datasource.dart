@@ -30,6 +30,7 @@ abstract class UserRemoteDataSource {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
+    required String status,
   });
 
   Future<void> updatePatientData({
@@ -58,6 +59,7 @@ abstract class UserRemoteDataSource {
     String? specialty,
     List<String>? subSpecialties,
     Map<String, dynamic>? schedule,
+    String? status,
   });
 
   Future<dynamic> getUserData(String uid);
@@ -69,20 +71,19 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   // URL base 
   static const String _baseUrl = 'http://10.0.2.2:3000';
 
-
   UserRemoteDataSourceImpl(this._firestore);
-Future<String> _getFirebaseIdToken() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    throw FetchDataException('No hay usuario autenticado');
+  
+  Future<String> _getFirebaseIdToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw FetchDataException('No hay usuario autenticado');
+    }
+    final token = await user.getIdToken();
+    if (token == null) {
+      throw FetchDataException('No se pudo obtener el token de autenticación');
+    }
+    return token;
   }
-  final token = await user.getIdToken();
-  if (token == null) {
-    throw FetchDataException('No se pudo obtener el token de autenticación');
-  }
-  return token;
-}
-
 
   @override
   Future<PatientModel?> getPatientData(String uid) async {
@@ -101,12 +102,8 @@ Future<String> _getFirebaseIdToken() async {
       }
       return null;
     } on FirebaseException catch (e) {
-      log('Error de Firestore al obtener datos del paciente: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw FetchDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al obtener datos del paciente: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw FetchDataException('Error al obtener datos del paciente: $e');
     }
@@ -115,30 +112,21 @@ Future<String> _getFirebaseIdToken() async {
   @override
   Future<PsychologistModel?> getPsychologistData(String uid) async {
     try {
-      final psychologistDoc =
-          await _firestore.collection('psychologists').doc(uid).get();
-      if (!psychologistDoc.exists) {
-        return null;
-      }
-      final coreData = psychologistDoc.data() as Map<String, dynamic>;
-
-      final professionalInfoDoc = await _firestore
-          .collection('psychologist_professional_info')
+      final psychologistDoc = await _firestore
+          .collection('psychologists')
           .doc(uid)
           .get();
-
-      if (professionalInfoDoc.exists && professionalInfoDoc.data() != null) {
-        coreData.addAll(professionalInfoDoc.data() as Map<String, dynamic>);
+      
+      if (!psychologistDoc.exists || psychologistDoc.data() == null) {
+        return null;
       }
 
-      return PsychologistModel.fromFirestore(coreData);
+      final data = psychologistDoc.data()!;
+      return PsychologistModel.fromFirestore(data);
+      
     } on FirebaseException catch (e) {
-      log('Error de Firestore al obtener datos del psicólogo: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw FetchDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al obtener datos del psicólogo: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw FetchDataException('Error al obtener datos del psicólogo: $e');
     }
@@ -175,12 +163,8 @@ Future<String> _getFirebaseIdToken() async {
 
       return patientModel;
     } on FirebaseException catch (e) {
-      log('Error de Firestore al crear paciente: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw CreateDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al crear paciente: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw CreateDataException('Error al crear paciente: $e');
     }
@@ -196,10 +180,57 @@ Future<String> _getFirebaseIdToken() async {
     required DateTime dateOfBirth,
     String? profilePictureUrl,
     required String role,
+    required String status,
   }) async {
     try {
+      log('Creando psicólogo en Firestore: $uid', name: 'UserRemoteDataSource');
+      
       final now = DateTime.now();
-      final psychologistModel = PsychologistModel(
+      
+      // CREAR UN SOLO OBJETO CON TODOS LOS CAMPOS
+      final psychologistData = {
+        // Campos básicos en camelCase
+        'firebaseUid': uid,
+        'uid': uid,
+        'username': username,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'professionalLicense': professionalLicense,
+        'dateOfBirth': Timestamp.fromDate(dateOfBirth),
+        'profilePictureUrl': profilePictureUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'role': role,
+        'status': status.isEmpty ? 'pending' : status,
+        
+        // Campos profesionales inicializados a null/vacío
+        'fullName': null,
+        'professionalTitle': null,
+        'yearsExperience': null,
+        'description': null,
+        'education': [],
+        'certifications': [],
+        'specialty': null,
+        'subSpecialties': [],
+        'schedule': {},
+        'isAvailable': true,
+        'price': null,
+        'isProfileComplete': false,
+        'professionalInfoCompleted': false,
+        'fcmToken': null,
+        'rating': null,
+        'rejectionReason': null,
+      };
+
+      // GUARDAR UNA SOLA VEZ
+      await _firestore
+          .collection('psychologists')
+          .doc(uid)
+          .set(psychologistData);
+
+      log('Psicólogo creado exitosamente', name: 'UserRemoteDataSource');
+
+      return PsychologistModel(
         uid: uid,
         username: username,
         email: email,
@@ -210,43 +241,11 @@ Future<String> _getFirebaseIdToken() async {
         createdAt: now,
         updatedAt: now,
         role: role,
+        status: status.isEmpty ? 'pending' : status,
       );
-
-      final psychologistCoreData = {
-        'uid': uid,
-        'username': username,
-        'email': email,
-        'phoneNumber': phoneNumber,
-        'dateOfBirth': dateOfBirth,
-        'profilePictureUrl': profilePictureUrl,
-        'createdAt': now,
-        'updatedAt': now,
-        'role': role,
-      };
-      await _firestore
-          .collection('psychologists')
-          .doc(uid)
-          .set(psychologistCoreData);
-
-      final psychologistProfessionalData = {
-        'uid': uid,
-        'professionalLicense': professionalLicense,
-        'createdAt': now,
-        'updatedAt': now,
-      };
-      await _firestore
-          .collection('psychologist_professional_info')
-          .doc(uid)
-          .set(psychologistProfessionalData);
-
-      return psychologistModel;
     } on FirebaseException catch (e) {
-      log('Error de Firestore al crear psicólogo: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw CreateDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al crear psicólogo: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw CreateDataException('Error al crear psicólogo: $e');
     }
@@ -259,6 +258,7 @@ Future<String> _getFirebaseIdToken() async {
     String? dateOfBirth,
     String? phoneNumber,
     String? profilePictureUrl,
+    String? status,
   }) async {
     try {
       final docRef = _firestore.collection('patients').doc(uid);
@@ -272,36 +272,33 @@ Future<String> _getFirebaseIdToken() async {
       if (profilePictureUrl != null) {
         updateData['profilePictureUrl'] = profilePictureUrl;
       }
+      if (status != null) updateData['status'] = status;
 
       await docRef.set(updateData, SetOptions(merge: true));
     } on FirebaseException catch (e) {
-      log('Error de Firestore al actualizar datos del paciente: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw FetchDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al actualizar datos del paciente: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw FetchDataException('Error al actualizar datos de paciente: $e');
     }
   }
 
   @override
-Future<void> updateBasicPsychologistData({
-  required String uid,
-  String? username,
-  String? phoneNumber,
-  String? profilePictureUrl,
-}) async {
-  final Map<String, dynamic> data = {};
-  if (username != null) data['username'] = username;
-  if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
-  if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
-  
-  if (data.isNotEmpty) {
-    await _firestore.collection('psychologists').doc(uid).update(data);
+  Future<void> updateBasicPsychologistData({
+    required String uid,
+    String? username,
+    String? phoneNumber,
+    String? profilePictureUrl,
+  }) async {
+    final Map<String, dynamic> data = {};
+    if (username != null) data['username'] = username;
+    if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
+    if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
+    
+    if (data.isNotEmpty) {
+      await _firestore.collection('psychologists').doc(uid).update(data);
+    }
   }
-}
 
   @override
   Future<void> updateProfessionalPsychologistData({
@@ -315,6 +312,7 @@ Future<void> updateBasicPsychologistData({
     String? specialty,
     List<String>? subSpecialties,
     Map<String, dynamic>? schedule,
+    String? status,
   }) async {
     try {
       final token = await _getFirebaseIdToken();
@@ -335,23 +333,22 @@ Future<void> updateBasicPsychologistData({
       if (specialty != null) updateData['specialty'] = specialty;
       if (subSpecialties != null) updateData['subSpecialties'] = subSpecialties;
       if (schedule != null) updateData['schedule'] = schedule;
+      if (status != null) updateData['status'] = status;
 
       final response = await http.patch(
-      Uri.parse('$_baseUrl/api/psychologists/$uid/professional'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(updateData),
-    );
+        Uri.parse('$_baseUrl/api/psychologists/$uid/professional'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(updateData),
+      );
 
       if (response.statusCode != 200) {
         throw FetchDataException(
             'Error al actualizar datos profesionales: ${response.body}');
       }
     } catch (e) {
-      log('Error al actualizar datos profesionales vía backend: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw FetchDataException('Error al actualizar datos profesionales: $e');
     }
@@ -375,12 +372,8 @@ Future<void> updateBasicPsychologistData({
     } on NotFoundException {
       rethrow;
     } on FirebaseException catch (e) {
-      log('Error de Firestore al obtener datos de usuario: ${e.message}',
-          name: 'UserRemoteDataSourceImpl');
       throw FetchDataException('Error de Firestore: ${e.message}');
     } catch (e) {
-      log('Error inesperado al obtener datos de usuario: $e',
-          name: 'UserRemoteDataSourceImpl');
       if (e is AppException) rethrow;
       throw FetchDataException('Error al obtener datos de usuario: $e');
     }

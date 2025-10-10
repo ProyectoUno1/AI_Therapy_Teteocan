@@ -19,6 +19,10 @@ enum AppointmentStateStatus {
   completed,
   error,
   success, 
+  startingSession, 
+  sessionStarted,  
+  completingSession, 
+  sessionCompleted,  
 }
 
 class TimeSlot {
@@ -55,6 +59,7 @@ class AppointmentState extends Equatable {
   final List<AppointmentModel> pendingAppointments;
   final List<AppointmentModel> upcomingAppointments;
   final List<AppointmentModel> pastAppointments;
+  final List<AppointmentModel> inProgressAppointments;
   final List<TimeSlot> availableTimeSlots;
   final AppointmentModel? selectedAppointment;
   final String? errorMessage;
@@ -73,7 +78,8 @@ class AppointmentState extends Equatable {
     this.errorMessage,
     this.successMessage,
     this.isLoading = false,
-    this.message, 
+    this.message,
+    this.inProgressAppointments = const [],
   });
 
   AppointmentState copyWith({
@@ -87,7 +93,8 @@ class AppointmentState extends Equatable {
     String? errorMessage,
     String? successMessage,
     bool? isLoading,
-    String? message, 
+    String? message,
+    List<AppointmentModel>? inProgressAppointments, 
   }) {
     return AppointmentState(
       status: status ?? this.status,
@@ -100,7 +107,8 @@ class AppointmentState extends Equatable {
       errorMessage: errorMessage,
       successMessage: successMessage,
       isLoading: isLoading ?? this.isLoading,
-      message: message, 
+      message: message,
+      inProgressAppointments: inProgressAppointments ?? this.inProgressAppointments,
     );
   }
 
@@ -120,14 +128,17 @@ class AppointmentState extends Equatable {
     required List<AppointmentModel> pendingAppointments,
     required List<AppointmentModel> upcomingAppointments,
     required List<AppointmentModel> pastAppointments,
+    required List<AppointmentModel> inProgressAppointments,
   }) {
     return AppointmentState(
       status: AppointmentStateStatus.loaded,
-      appointments: [...pendingAppointments, ...upcomingAppointments, ...pastAppointments],
+      appointments: [...pendingAppointments, ...upcomingAppointments, ...pastAppointments, ...inProgressAppointments],
       pendingAppointments: pendingAppointments,
       upcomingAppointments: upcomingAppointments,
       pastAppointments: pastAppointments,
+      inProgressAppointments: inProgressAppointments,
       isLoading: false,
+      
     );
   }
 
@@ -199,6 +210,17 @@ class AppointmentState extends Equatable {
       isLoading: false,
     );
   }
+  
+
+  factory AppointmentState.startingSession({
+    required AppointmentModel appointment,
+  }) {
+    return AppointmentState(
+      status: AppointmentStateStatus.startingSession,
+      selectedAppointment: appointment,
+      isLoading: true,
+    );
+  } 
 
   factory AppointmentState.error({required String errorMessage}) {
     return AppointmentState(
@@ -230,6 +252,12 @@ class AppointmentState extends Equatable {
   bool get isCancelled => status == AppointmentStateStatus.cancelled;
   bool get isError => status == AppointmentStateStatus.error;
   bool get isSuccess => status == AppointmentStateStatus.success; 
+  bool get isStartingSession => status == AppointmentStateStatus.startingSession;
+  bool get isSessionStarted => status == AppointmentStateStatus.sessionStarted;
+  bool get isCompletingSession => status == AppointmentStateStatus.completingSession;
+  bool get isSessionCompleted => status == AppointmentStateStatus.sessionCompleted;
+  bool get hasInProgressAppointments => inProgressAppointments.isNotEmpty;
+  int get inProgressCount => inProgressAppointments.length;
 
   bool get hasAppointments => appointments.isNotEmpty;
   bool get hasPendingAppointments => pendingAppointments.isNotEmpty;
@@ -242,6 +270,7 @@ class AppointmentState extends Equatable {
   int get pendingCount => pendingAppointments.length;
   int get upcomingCount => upcomingAppointments.length;
   int get pastCount => pastAppointments.length;
+  
 
   @override
   List<Object?> get props => [
@@ -256,5 +285,6 @@ class AppointmentState extends Equatable {
     successMessage,
     isLoading,
     message,
+    inProgressAppointments,
   ];
 }

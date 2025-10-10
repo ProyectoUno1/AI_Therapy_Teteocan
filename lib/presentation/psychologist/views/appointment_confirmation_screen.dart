@@ -24,120 +24,117 @@ class _AppointmentConfirmationScreenState
     extends State<AppointmentConfirmationScreen> {
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _meetingLinkController = TextEditingController();
-  AppointmentStateStatus? _previousStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _previousStatus = BlocProvider.of<AppointmentBloc>(context).state.status;
-  }
+  
+  bool _dialogShown = false;
 
   @override
   void dispose() {
     try {
       _notesController.dispose();
     } catch (e) {
-      debugPrint('Error disposing notes controller: $e');
+      // Error disposing notes controller
     }
 
     try {
       _meetingLinkController.dispose();
     } catch (e) {
-      debugPrint('Error disposing meeting link controller: $e');
+      // Error disposing meeting link controller
     }
 
     super.dispose();
   }
 
-  void _closeAnyOpenDialogs() {
-    try {
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-        debugPrint('Diálogo cerrado exitosamente');
-      }
-    } catch (e) {
-      debugPrint('Error al cerrar diálogo: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Confirmar Cita',
-          style: TextStyle(
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: BlocListener<AppointmentBloc, AppointmentState>(
-        listener: (context, state) {
-          if (!mounted) return;
+    return BlocListener<AppointmentBloc, AppointmentState>(
+      listenWhen: (previous, current) {
+        return !_dialogShown && (
+          (previous.status != current.status) &&
+          (current.isConfirmed || 
+           current.isSessionStarted || 
+           current.isSessionCompleted || 
+           current.isCancelled ||
+           current.isError)
+        );
+      },
+      listener: (context, state) {
+        if (!mounted || _dialogShown) return;
+        _dialogShown = true;
 
-          // SOLO manejar estados de éxito/error, no estados intermedios
-          if (state.status == AppointmentStateStatus.confirmed &&
-              state.status != _previousStatus) {
-            _previousStatus = state.status;
-            _showSuccessDialog();
-          } else if (state.status == AppointmentStateStatus.cancelled &&
-              state.status != _previousStatus) {
-            _previousStatus = state.status;
-            _showCancelledDialog();
-          } else if (state.status == AppointmentStateStatus.error &&
-              state.errorMessage != null &&
-              state.status != _previousStatus) {
-            _previousStatus = state.status;
-            _showErrorSnackBar(state.errorMessage!);
-          }
-        },
-        child: SingleChildScrollView(
+        if (state.isConfirmed) {
+          _showSuccessDialog(
+            title: 'Cita Confirmada',
+            message: state.message ?? 'La cita ha sido confirmada exitosamente.',
+            icon: Icons.check_circle_outline,
+            color: Colors.green,
+          );
+        } else if (state.isSessionStarted) {
+          _showSuccessDialog(
+            title: 'Sesión Iniciada',
+            message: state.message ?? 'La sesión ha sido iniciada correctamente.',
+            icon: Icons.play_circle_outline,
+            color: Colors.blue,
+          );
+        } else if (state.isSessionCompleted) {
+          _showSuccessDialog(
+            title: 'Sesión Completada',
+            message: state.message ?? 'La sesión ha sido completada exitosamente.',
+            icon: Icons.check_circle_outline,
+            color: Colors.green,
+          );
+        } else if (state.isCancelled) {
+          _showSuccessDialog(
+            title: 'Cita Cancelada',
+            message: state.message ?? 'La cita ha sido cancelada exitosamente.',
+            icon: Icons.cancel_outlined,
+            color: Colors.orange,
+          );
+        } else if (state.isError) {
+          _showErrorDialog(state.errorMessage ?? 'Ocurrió un error inesperado.');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            'Confirmar Cita',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Estado de la cita
                 _buildStatusBanner(),
-
                 const SizedBox(height: 24),
-
-                // Información del paciente
                 _buildPatientInfo(),
-
                 const SizedBox(height: 24),
-
-                // Detalles de la cita
                 _buildAppointmentDetails(),
-
                 const SizedBox(height: 24),
-
-                // Notes del paciente (si las hay)
                 if (widget.appointment.patientNotes != null) ...[
                   _buildPatientNotes(),
                   const SizedBox(height: 24),
                 ],
-
-                // Formulario de confirmación
                 if (widget.appointment.isPending) ...[
                   _buildConfirmationForm(),
                   const SizedBox(height: 24),
                 ],
-
-                // Botones de acción
                 _buildActionButtons(),
               ],
             ),
@@ -145,6 +142,149 @@ class _AppointmentConfirmationScreenState
         ),
       ),
     );
+  }
+
+  void _showSuccessDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+  }) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontFamily: 'Poppins',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) {
+                    Navigator.pop(context, true); 
+                  }
+                });
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _dialogShown = false;
+        });
+      }
+    });
+  }
+
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 50,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Error',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontFamily: 'Poppins',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _dialogShown = false;
+        });
+      }
+    });
   }
 
   Widget _buildStatusBanner() {
@@ -305,9 +445,7 @@ class _AppointmentConfirmationScreenState
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppConstants.lightAccentColor.withOpacity(
-                              0.1,
-                            ),
+                            color: AppConstants.lightAccentColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -582,7 +720,6 @@ class _AppointmentConfirmationScreenState
             ],
           ),
           const SizedBox(height: 16),
-          // Notas profesionales
           Text(
             'Notas profesionales (opcional)',
             style: const TextStyle(
@@ -623,7 +760,6 @@ class _AppointmentConfirmationScreenState
           ),
           if (widget.appointment.type == AppointmentType.online) ...[
             const SizedBox(height: 16),
-            // Enlace de reunión
             Text(
               'Enlace de videollamada',
               style: const TextStyle(
@@ -690,7 +826,6 @@ class _AppointmentConfirmationScreenState
 
   Widget _buildActionButtons() {
     if (!widget.appointment.isPending) {
-      // Mostrar botones limitados para citas ya procesadas
       return Column(
         children: [
           if (widget.appointment.isConfirmed) ...[
@@ -698,7 +833,6 @@ class _AppointmentConfirmationScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Implementar inicio de videollamada o navegación
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Función de iniciar sesión próximamente'),
@@ -731,29 +865,105 @@ class _AppointmentConfirmationScreenState
               ),
             ),
             const SizedBox(height: 12),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _showCancelConfirmationDialog(),
-              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-              label: const Text(
-                'Cancelar Cita',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                ),
+            SizedBox(
+              width: double.infinity,
+              child: BlocBuilder<AppointmentBloc, AppointmentState>(
+                builder: (context, state) {
+                  return ElevatedButton.icon(
+                    onPressed: state.isLoading ? null : _startSession,
+                    icon: state.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.play_arrow, color: Colors.white),
+                    label: Text(
+                      state.isLoading ? 'Iniciando...' : 'Iniciar Sesión',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                },
               ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (widget.appointment.status == AppointmentStatus.in_progress) ...[
+            SizedBox(
+              width: double.infinity,
+              child: BlocBuilder<AppointmentBloc, AppointmentState>(
+                builder: (context, state) {
+                  return ElevatedButton.icon(
+                    onPressed: state.isLoading ? null : _completeSession,
+                    icon: state.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.check, color: Colors.white),
+                    label: Text(
+                      state.isLoading ? 'Completando...' : 'Completar Sesión',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (widget.appointment.status != AppointmentStatus.completed &&
+              widget.appointment.status != AppointmentStatus.cancelled)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showCancelConfirmationDialog(),
+                icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                label: const Text(
+                  'Cancelar Cita',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       );
     }
@@ -851,8 +1061,6 @@ class _AppointmentConfirmationScreenState
   void _showCancelConfirmationDialog() {
     final reasonController = TextEditingController();
 
-    debugPrint('Mostrando diálogo de confirmación de cancelación');
-
     showDialog<String>(
       context: context,
       builder: (dialogContext) {
@@ -913,8 +1121,8 @@ class _AppointmentConfirmationScreenState
                 Navigator.of(dialogContext).pop(reason);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // Color de fondo del botón
-                foregroundColor: Colors.white, // Color del texto del botón
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
               ),
               child: Text('Cancelar Cita'),
             ),
@@ -945,32 +1153,40 @@ class _AppointmentConfirmationScreenState
     });
   }
 
-  void _showSuccessDialog() {
-    if (!mounted) return;
+  void _showCancelDialog() {
+    final reasonController = TextEditingController();
 
-    showDialog(
+    showDialog<String>(
       context: context,
-      barrierDismissible: false,
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 20,
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.red.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, color: Colors.green, size: 40),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: 50,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
-                '¡Cita confirmada!',
+                'Cancelar Cita',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -980,165 +1196,80 @@ class _AppointmentConfirmationScreenState
               ),
               const SizedBox(height: 12),
               Text(
-                'La cita ha sido confirmada exitosamente. El paciente será notificado.',
+                '¿Estás seguro de que deseas cancelar esta cita?',
                 style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+                  color: Colors.grey[700],
                   fontFamily: 'Poppins',
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    debugPrint(
-                      'Botón entendido presionado en diálogo de confirmación',
-                    );
-                    Navigator.of(dialogContext).pop();
-                    if (mounted) {
-                      // Usar un pequeño delay para asegurar que la navegación se complete correctamente
-                      Future.delayed(const Duration(milliseconds: 100), () {
-                        if (mounted && Navigator.of(context).canPop()) {
-                          debugPrint(
-                            'Navegando de vuelta después de confirmación',
-                          );
-                          Navigator.of(context).pop(true);
-                        }
-                      });
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.lightAccentColor,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Motivo de cancelación',
+                  hintText: 'Explica brevemente el motivo...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Entendido',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
+                  contentPadding: const EdgeInsets.all(12),
                 ),
+                style: const TextStyle(fontFamily: 'Poppins'),
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(
+                'Volver',
+                style: TextStyle(fontFamily: 'Poppins'),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Por favor proporciona un motivo'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop(reason);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Cancelar Cita'),
+            ),
+          ],
         );
       },
-    );
-  }
+    ).then((reason) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (reasonController.hasListeners) {
+          reasonController.dispose();
+        }
+      });
 
-  void _showCancelledDialog() {
-    if (!mounted) return;
-
-    debugPrint('Intentando mostrar diálogo de cancelación');
-
-    showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) {
-            return PopScope(
-              canPop: false,
-              onPopInvoked: (didPop) {
-                if (didPop) {
-                  debugPrint('Diálogo de cancelación cerrado por gesto');
-                }
-              },
-              child: AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.red,
-                        size: 40,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Cita cancelada',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'La cita ha sido cancelada. El paciente será notificado.',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                        fontFamily: 'Poppins',
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          debugPrint(
-                            'Botón entendido presionado en diálogo de cancelación',
-                          );
-                          Navigator.of(dialogContext).pop();
-
-                          // Delay para asegurar que el diálogo se cierre completamente
-                          Future.delayed(const Duration(milliseconds: 200), () {
-                            if (mounted && Navigator.of(context).canPop()) {
-                              debugPrint(
-                                'Navegando de vuelta después de cancelación',
-                              );
-                              
-                              Navigator.of(context).pop(true);
-                            }
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.lightAccentColor,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Entendido',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      if (reason != null && reason.isNotEmpty && mounted) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            BlocProvider.of<AppointmentBloc>(context, listen: false).add(
+              CancelAppointmentEvent(
+                appointmentId: widget.appointment.id,
+                reason: reason,
+                isPsychologistCancelling: true,
               ),
             );
-          },
-        )
-        .then((_) {
-          debugPrint('Diálogo de cancelación cerrado');
-        })
-        .catchError((error) {
-          debugPrint('Error en diálogo de cancelación: $error');
+          }
         });
+      }
+    });
   }
 
   void _showErrorSnackBar(String message) {
@@ -1153,7 +1284,86 @@ class _AppointmentConfirmationScreenState
         ),
       );
     } catch (e) {
-      debugPrint('Error showing snackbar: $e');
+      // Error showing snackbar
     }
+  }
+
+  void _completeSession() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final notesController = TextEditingController();
+
+        return AlertDialog(
+          title: const Text('Completar Sesión'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('¿Estás seguro de que deseas completar esta sesión?'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Notas de la sesión (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final notes = notesController.text.trim();
+                Navigator.pop(dialogContext);
+
+                BlocProvider.of<AppointmentBloc>(context).add(
+                  CompleteAppointmentSessionEvent(
+                    appointmentId: widget.appointment.id,
+                    notes: notes.isNotEmpty ? notes : null,
+                  ),
+                );
+              },
+              child: const Text('Completar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startSession() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Iniciar Sesión'),
+          content: const Text(
+            '¿Estás seguro de que deseas iniciar esta sesión?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                BlocProvider.of<AppointmentBloc>(context).add(
+                  StartAppointmentSessionEvent(
+                    appointmentId: widget.appointment.id,
+                  ),
+                );
+              },
+              child: const Text('Iniciar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

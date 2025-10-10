@@ -5,10 +5,23 @@ const router = express.Router();
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { db } from '../firebase-admin.js';
 import { FieldValue } from 'firebase-admin/firestore'; 
+import multer from 'multer'; 
+import { v2 as cloudinary } from 'cloudinary'; 
+import { genericUploadHandler } from '../middlewares/upload_handler.js';
+import streamifier from 'streamifier'; 
+
+// Configuracion de cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET, 
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
+
 
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
-        console.log('Datos recibidos para registro de paciente:', req.body);
         const { uid, username, email, phoneNumber, dateOfBirth, profilePictureUrl } = req.body;
         const firebaseUser = req.firebaseUser;
 
@@ -30,6 +43,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             phone_number: phoneNumber,
             date_of_birth: dateOfBirth,
             profile_picture_url: profilePictureUrl || null,
+            terms_accepted: false,
             created_at: FieldValue.serverTimestamp(), 
         };
 
@@ -65,39 +79,7 @@ router.get('/profile', verifyFirebaseToken, async (req, res) => {
 router.put('/profile', verifyFirebaseToken, async (req, res) => {
     try {
         const uid = req.firebaseUser.uid;
-        const { username, email, phoneNumber, profilePictureUrl } = req.body;
-
-        const patientRef = db.collection('patients').doc(uid);
-        const doc = await patientRef.get();
-
-        if (!doc.exists) {
-            return res.status(404).json({ error: 'Paciente no encontrado' });
-        }
-
-        const updateData = {
-            username: username,
-            email: email,
-            phone_number: phoneNumber,
-            profile_picture_url: profilePictureUrl || null,
-            updated_at: FieldValue.serverTimestamp(), 
-        };
-
-        await patientRef.update(updateData);
-
-        const updatedDoc = await patientRef.get();
-
-        res.json({ message: 'Perfil actualizado', patient: { id: updatedDoc.id, ...updatedDoc.data() } });
-    } catch (error) {
-        console.error('Error al actualizar perfil paciente en Firestore:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-router.put('/profile', verifyFirebaseToken, async (req, res) => {
-    try {
-        const uid = req.firebaseUser.uid;
         const { username, email, phoneNumber, dateOfBirth, profilePictureUrl } = req.body;
-
         const patientRef = db.collection('patients').doc(uid);
         const doc = await patientRef.get();
 
@@ -122,6 +104,61 @@ router.put('/profile', verifyFirebaseToken, async (req, res) => {
         res.json({ message: 'Perfil actualizado', patient: { id: updatedDoc.id, ...updatedDoc.data() } });
     } catch (error) {
         console.error('Error al actualizar perfil paciente en Firestore:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+
+router.post('/upload-profile-picture', verifyFirebaseToken, async (req, res, next) => {
+    const uid = req.firebaseUser.uid;
+    genericUploadHandler('patients_profile_pictures', uid)[0](req, res, (err) => {
+        if (err) return next(err); 
+
+        genericUploadHandler('patients_profile_pictures', uid)[1](req, res, async (err) => {
+            if (err) return next(err); 
+
+            try {
+                const profilePictureUrl = req.uploadedFile.url;
+                const patientRef = db.collection('patients').doc(uid);
+                await patientRef.update({
+                    profile_picture_url: profilePictureUrl,
+                    updated_at: FieldValue.serverTimestamp(), 
+                });
+
+                res.json({ 
+                    message: 'Foto de perfil subida y URL actualizada', 
+                    profilePictureUrl: profilePictureUrl 
+                });
+            } catch (dbError) {
+                console.error('Error al actualizar Firestore:', dbError);
+                res.status(500).json({ error: 'Error al actualizar la base de datos.' });
+            }
+        });
+    });
+});
+
+router.patch('/accept-terms', verifyFirebaseToken, async (req, res) => {
+    try {
+        const uid = req.firebaseUser.uid;
+        const patientRef = db.collection('patients').doc(uid);
+        
+        const doc = await patientRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Paciente no encontrado' });
+        }
+
+        await patientRef.update({
+            terms_accepted: true,
+            terms_accepted_at: FieldValue.serverTimestamp(),
+            updated_at: FieldValue.serverTimestamp(),
+        });
+
+        res.json({ 
+            message: 'Términos aceptados exitosamente',
+            terms_accepted: true 
+        });
+    } catch (error) {
+        console.error('Error al actualizar términos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });

@@ -9,6 +9,10 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/privacy_policy_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_reviews_screen_psychologist.dart ';
+import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
 
 class ProfileScreenPsychologist extends StatefulWidget {
   const ProfileScreenPsychologist({super.key});
@@ -18,8 +22,6 @@ class ProfileScreenPsychologist extends StatefulWidget {
 }
 
 class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
-  // Los colores ahora se obtienen del tema dinámicamente
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -200,19 +202,6 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   thickness: 1,
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
-                ProfileListItem(
-                  icon: Icons.schedule_outlined,
-                  text: 'Horarios',
-                  secondaryText: 'Gestionar disponibilidad',
-                  onTap: () {
-                    // TODO: Implementar gestión de horarios
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
-                      ),
-                    );
-                  },
-                ),
                 Divider(
                   height: 1,
                   thickness: 1,
@@ -223,10 +212,11 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Reseñas',
                   secondaryText: 'Ver calificaciones',
                   onTap: () {
-                    // TODO: Implementar vista de reseñas
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const PsychologistReviewsScreenPsychologist(),
                       ),
                     );
                   },
@@ -275,79 +265,6 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   thickness: 1,
                   color: Theme.of(context).dividerColor.withOpacity(0.5),
                 ),
-                ProfileListItem(
-                  icon: Icons.analytics_outlined,
-                  text: 'Estadísticas',
-                  secondaryText: 'Ver reportes',
-                  onTap: () {
-                    // TODO: Implementar estadísticas
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Sección Notificaciones
-          Text(
-            'Notificaciones',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).textTheme.bodySmall?.color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-            ),
-            child: Column(
-              children: [
-                _buildNotificationToggle(
-                  'Notificaciones Push',
-                  'Recibir notificaciones de nuevos pacientes',
-                  true,
-                  (value) {
-                    // TODO: Implementar toggle de notificaciones
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                _buildNotificationToggle(
-                  'Recordatorios de citas',
-                  'Alertas 15 minutos antes de cada sesión',
-                  true,
-                  (value) {
-                    // TODO: Implementar toggle de recordatorios
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
-                ),
-                _buildNotificationToggle(
-                  'Mensajes de pacientes',
-                  'Notificar cuando recibas mensajes',
-                  true,
-                  (value) {
-                    // TODO: Implementar toggle de mensajes
-                  },
-                ),
               ],
             ),
           ),
@@ -379,7 +296,12 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Apariencia',
                   secondaryText: 'Tema y colores',
                   onTap: () {
-                    _showThemeSelector(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ThemeSettingsScreen(),
+                      ),
+                    );
                   },
                 ),
                 Divider(
@@ -410,10 +332,11 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Soporte',
                   secondaryText: 'Ayuda y contacto',
                   onTap: () {
-                    // TODO: Implementar soporte
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SupportScreen(userType: 'psychologist'),
                       ),
                     );
                   },
@@ -428,10 +351,10 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Política de privacidad',
                   secondaryText: 'Términos y condiciones',
                   onTap: () {
-                    // TODO: Implementar política de privacidad
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
                       ),
                     );
                   },
@@ -608,90 +531,7 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
       },
     );
   }
-
-  void _showThemeSelector(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Seleccionar Tema',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.brightness_7),
-                title: const Text('Tema Claro'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Tema claro - Cambia configuración en ajustes del dispositivo',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.brightness_3),
-                title: const Text('Tema Oscuro'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Tema oscuro - Cambia configuración en ajustes del dispositivo',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings_system_daydream),
-                title: const Text('Seguir sistema'),
-                subtitle: const Text(
-                  'La app seguirá la configuración del dispositivo',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'La app sigue automáticamente la configuración del sistema',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
-
-// --- Sub-pantallas específicas para el perfil del psicólogo ---
 
 class PersonalInfoScreenPsychologist extends StatelessWidget {
   final Color primaryColor = AppConstants.primaryColor;
@@ -722,14 +562,34 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: lightAccentColor,
-                    child: const Icon(
-                      Icons.person,
-                      size: 60,
-                      color: Colors.white,
-                    ),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, authState) {
+                      String? profileImageUrl;
+
+                      if (authState.status == AuthStatus.authenticated &&
+                          authState.psychologist != null) {
+                        profileImageUrl =
+                            authState.psychologist!.profilePictureUrl;
+                      }
+
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundColor: lightAccentColor,
+                        backgroundImage:
+                            profileImageUrl != null &&
+                                profileImageUrl.isNotEmpty
+                            ? NetworkImage(profileImageUrl)
+                            : null,
+                        child:
+                            profileImageUrl == null || profileImageUrl.isEmpty
+                            ? const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.white,
+                              )
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -786,7 +646,6 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Guardando cambios...')),
                   );
-                  // Lógica para guardar la información
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
@@ -1012,7 +871,6 @@ class ProfessionalInfoScreenPsychologist extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Guardando cambios...')),
                   );
-                  // Lógica para guardar la información
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,

@@ -6,7 +6,7 @@ class PsychologistChatItem extends Equatable {
   final String chatId;
   final String psychologistId;
   final String psychologistName;
-  final String? psychologistImageUrl;
+  final String? profilePictureUrl;
   final String lastMessage;
   final DateTime lastMessageTime;
   final int unreadCount;
@@ -17,7 +17,7 @@ class PsychologistChatItem extends Equatable {
     required this.chatId,
     required this.psychologistId,
     required this.psychologistName,
-    this.psychologistImageUrl,
+    this.profilePictureUrl,
     required this.lastMessage,
     required this.lastMessageTime,
     this.unreadCount = 0,
@@ -37,10 +37,8 @@ class PsychologistChatItem extends Equatable {
     
     final lastMessage = chatData['lastMessage'] as String? ?? '';
     final lastMessageTime = (chatData['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
-
-    // Aquí se extrae la información del psicólogo usando tu PsychologistModel
     final psychologistName = psychologistData['fullName'] as String? ?? 'Psicólogo Desconocido';
-    final psychologistImageUrl = psychologistData['profilePictureUrl'] as String?;
+    final profilePictureUrl = psychologistData['profilePictureUrl'] as String?;
     
     
     final unreadCount = chatData['unreadCount'] as int? ?? 0;
@@ -51,7 +49,7 @@ class PsychologistChatItem extends Equatable {
       chatId: chatData['chatId'] as String,
       psychologistId: psychologistId,
       psychologistName: psychologistName,
-      psychologistImageUrl: psychologistImageUrl,
+      profilePictureUrl: profilePictureUrl,
       lastMessage: lastMessage,
       lastMessageTime: lastMessageTime,
       unreadCount: unreadCount,
@@ -65,7 +63,7 @@ class PsychologistChatItem extends Equatable {
     chatId,
     psychologistId,
     psychologistName,
-    psychologistImageUrl,
+    profilePictureUrl,
     lastMessage,
     lastMessageTime,
     unreadCount,

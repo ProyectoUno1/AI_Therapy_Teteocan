@@ -1,23 +1,24 @@
-// lib/presentation/chat/bloc/chat_bloc.dart
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_event.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_state.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/core/services/ai_chat_api_service.dart';
 import 'package:uuid/uuid.dart';
 
 const Uuid _uuid = Uuid();
+const int _freeMessageLimit = 5;
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ChatRepository _chatRepository;
+  final AiChatApiService _aiChatApiService;
 
-  ChatBloc(this._chatRepository) : super(const ChatState()) {
+  ChatBloc(this._chatRepository, this._aiChatApiService) : super(const ChatState()) {
     on<LoadMessagesEvent>(_onLoadMessages);
     on<SendMessageEvent>(_onSendMessage);
     on<SetTypingStatusEvent>(_onSetTypingStatus);
-    
+    on<InitAIChat>(_onInitAIChat);
   }
 
   Future<void> _onLoadMessages(
@@ -27,9 +28,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(state.copyWith(status: ChatStatus.loading));
     try {
       final messages = await _chatRepository.loadMessages(event.chatId);
+      final userMessageCount = messages.where((msg) => msg.isUser).length;
+      final isLimitReached = userMessageCount >= _freeMessageLimit;
+      
       emit(state.copyWith(
         status: ChatStatus.loaded,
         messages: messages,
+        isMessageLimitReached: isLimitReached,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -43,50 +48,54 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     SendMessageEvent event,
     Emitter<ChatState> emit,
   ) async {
-    emit(state.copyWith(status: ChatStatus.sending));
+    emit(state.copyWith(status: ChatStatus.sending, isTyping: true));
     try {
-      const String currentChatId = 'ai-chat';
-
       final newMessage = MessageModel(
         id: _uuid.v4(),
-        content: event.message, 
-        isUser: true, 
+        content: event.message,
+        isUser: true,
         timestamp: DateTime.now(),
+        senderId: event.userId!,
       );
 
       final updatedMessages = List<MessageModel>.from(state.messages)..add(newMessage);
       emit(state.copyWith(messages: updatedMessages));
-      emit(state.copyWith(isTyping: true));
 
-      final aiResponseContent = await _chatRepository.sendAIMessage(currentChatId, event.message);
-
-      final aiMessage = MessageModel(
-        id: _uuid.v4(),
-        content: aiResponseContent, 
-        isUser: false, 
-        timestamp: DateTime.now(),
-
-      );
+      await _aiChatApiService.sendMessage(event.message);
 
       emit(state.copyWith(
         status: ChatStatus.loaded,
-        messages: List<MessageModel>.from(state.messages)..add(aiMessage),
+        isTyping: false,
       ));
-      emit(state.copyWith(isTyping: false));
 
     } catch (e) {
       emit(state.copyWith(
         status: ChatStatus.error,
         errorMessage: e.toString(),
+        isTyping: false,
       ));
-      emit(state.copyWith(isTyping: false));
     }
   }
 
-  void _onSetTypingStatus(
+  Future<void> _onSetTypingStatus(
     SetTypingStatusEvent event,
     Emitter<ChatState> emit,
-  ) {
+  ) async {
     emit(state.copyWith(isTyping: event.isTyping));
   }
+  
+  Future<void> _onInitAIChat(
+  InitAIChat event,
+  Emitter<ChatState> emit,
+) async {
+  try {
+    final chatId = await _chatRepository.getOrCreateChatId(event.userId);
+    add(LoadMessagesEvent(chatId: chatId)); 
+  } catch (e) {
+    emit(state.copyWith(
+      status: ChatStatus.error,
+      errorMessage: e.toString(),
+    ));
+  }
+}
 }

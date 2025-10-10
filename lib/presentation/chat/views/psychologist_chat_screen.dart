@@ -6,24 +6,24 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
   final String psychologistName;
-  final String psychologistImageUrl;
+  final String profilePictureUrl;
 
   const PsychologistChatScreen({
     super.key,
     required this.psychologistUid,
     required this.psychologistName,
-    required this.psychologistImageUrl,
+    required this.profilePictureUrl,
   });
 
   @override
   State<PsychologistChatScreen> createState() => _PsychologistChatScreenState();
 }
-
 
 class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final TextEditingController _messageController = TextEditingController();
@@ -32,9 +32,9 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   late final String _chatId;
-
-  
+  late final ChatRepository _chatRepository;
   late final Stream<DocumentSnapshot> _psychologistStatusStream;
+  String? _currentUserImageUrl;
 
   @override
   void initState() {
@@ -43,8 +43,33 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     final uids = [currentUserUid, widget.psychologistUid]..sort();
     _chatId = uids.join('_');
 
-    
-    _psychologistStatusStream = _firestore.collection('users').doc(widget.psychologistUid).snapshots();
+    _chatRepository = ChatRepository();
+
+    _psychologistStatusStream = _firestore
+        .collection('users')
+        .doc(widget.psychologistUid)
+        .snapshots();
+    _loadCurrentUserImage();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _chatRepository.markMessagesAsRead(
+        chatId: _chatId,
+        currentUserId: currentUserUid,
+      );
+    });
+  }
+
+  void _loadCurrentUserImage() async {
+    final currentUserUid = _auth.currentUser!.uid;
+    try {
+      final userDoc = await _firestore.collection('patients').doc(currentUserUid).get();
+      if (userDoc.exists && mounted) {
+        setState(() {
+          _currentUserImageUrl = userDoc.data()?['profilePictureUrl'];
+        });
+      }
+    } catch (e) {
+      print('Error cargando imagen de usuario: $e');
+    }
   }
 
   @override
@@ -60,34 +85,22 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     final messageContent = _messageController.text.trim();
     _messageController.clear();
 
-    final currentUserUid = _auth.currentUser!.uid;
-
-    //  Paso 1: Guarda el mensaje en la subcolección de mensajes.
-    final messageDocRef = _firestore
-        .collection('chats')
-        .doc(_chatId)
-        .collection('messages')
-        .doc();
-
-    await messageDocRef.set({
-      'senderId': currentUserUid,
-      'content': messageContent,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
-    //  Paso 2: Actualiza el documento de resumen en la colección 'chats'.
-    await _firestore.collection('chats').doc(_chatId).set(
-      {
-        'participants': [currentUserUid, widget.psychologistUid],
-        'lastMessage': messageContent,
-        'lastTimestamp': FieldValue.serverTimestamp(),
-      },
-      SetOptions(
-        merge: true,
-      ),
-    );
-
     _scrollToBottom();
+
+    try {
+      await _chatRepository.sendHumanMessage(
+        chatId: _chatId,
+        senderId: _auth.currentUser!.uid,
+        receiverId: widget.psychologistUid,
+        content: messageContent,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar el mensaje: $e')),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -104,90 +117,89 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(widget.psychologistImageUrl),
+              backgroundImage: widget.profilePictureUrl.isNotEmpty
+                  ? NetworkImage(widget.profilePictureUrl)
+                  : const AssetImage('assets/images/default_avatar.png') as ImageProvider,
               radius: 20,
             ),
             const SizedBox(width: 12),
-            
-            StreamBuilder<DocumentSnapshot>(
-              stream: _psychologistStatusStream,
-              builder: (context, snapshot) {
-                // Estado por defecto
-                bool isOnline = false;
-                String lastSeenText = 'Última vez visto: N/A';
+            Expanded(
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: _psychologistStatusStream,
+                builder: (context, snapshot) {
+                  bool isOnline = false;
+                  String lastSeenText = 'Última vez visto: N/A';
 
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  isOnline = data['isOnline'] as bool? ?? false;
-                  final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final data = snapshot.data!.data() as Map<String, dynamic>;
+                    isOnline = data['isOnline'] as bool? ?? false;
+                    final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
 
-                  if (lastSeenTimestamp != null) {
-                    final lastSeenDate = lastSeenTimestamp.toDate();
-                    final now = DateTime.now();
-                    final difference = now.difference(lastSeenDate);
+                    if (lastSeenTimestamp != null) {
+                      final lastSeenDate = lastSeenTimestamp.toDate();
+                      final now = DateTime.now();
+                      final difference = now.difference(lastSeenDate);
 
-                    if (difference.inMinutes < 1) {
-                      lastSeenText = 'En línea';
-                    } else if (difference.inHours < 1) {
-                      lastSeenText = 'Última vez visto hace ${difference.inMinutes} min';
-                    } else if (difference.inDays < 1) {
-                      lastSeenText = 'Última vez visto hoy a las ${DateFormat('HH:mm').format(lastSeenDate)}';
-                    } else if (difference.inDays < 2) {
-                      lastSeenText = 'Última vez visto ayer a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                      if (difference.inMinutes < 1) {
+                        lastSeenText = 'En línea';
+                      } else if (difference.inHours < 1) {
+                        lastSeenText = 'Hace ${difference.inMinutes} min';
+                      } else if (difference.inDays < 1) {
+                        lastSeenText = 'Hoy a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                      } else if (difference.inDays < 2) {
+                        lastSeenText = 'Ayer a las ${DateFormat('HH:mm').format(lastSeenDate)}';
+                      } else {
+                        lastSeenText = 'El ${DateFormat('dd MMM').format(lastSeenDate)}';
+                      }
                     } else {
-                      lastSeenText = 'Última vez visto el ${DateFormat('dd MMM').format(lastSeenDate)}';
+                      lastSeenText = 'Última vez visto: N/A';
                     }
-                  } else {
-                    lastSeenText = 'Última vez visto: N/A';
                   }
-                }
-                
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.psychologistName,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.psychologistName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      isOnline ? 'En línea' : lastSeenText,
-                      style: TextStyle(
-                        color: isOnline ? Colors.green : Colors.grey,
-                        fontSize: 12,
-                        fontFamily: 'Poppins',
+                      Text(
+                        isOnline ? 'En línea' : lastSeenText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isOnline
+                              ? Colors.green
+                              : theme.textTheme.bodySmall?.color,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                );
-              },
+                      )
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.black87),
-            onPressed: () {
-              // Iniciar videollamada
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black87),
+            icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
             onPressed: () {
               // Mostrar opciones adicionales
             },
@@ -196,33 +208,9 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            color: AppConstants.lightAccentColor.withOpacity(0.1),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: AppConstants.lightAccentColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Tu sesión está programada para hoy a las 15:00',
-                    style: TextStyle(
-                      color: AppConstants.lightAccentColor,
-                      fontSize: 13,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: Container(
-              color: Colors.grey[50],
+              color: theme.scaffoldBackgroundColor,
               child: StreamBuilder<QuerySnapshot>(
                 stream: _firestore
                     .collection('chats')
@@ -244,11 +232,16 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   final messages = snapshot.data!.docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final timestamp = data['timestamp'] as Timestamp?;
+                    final senderId = data['senderId'] as String? ?? '';
+                    
                     return MessageModel(
                       id: doc.id,
                       content: data['content'],
                       timestamp: timestamp?.toDate() ?? DateTime.now(),
-                      isUser: data['senderId'] == _auth.currentUser!.uid,
+                      isUser: senderId == _auth.currentUser!.uid,
+                      senderId: senderId,
+                      receiverId: data['receiverId'] as String?,
+                      isRead: data['isRead'] as bool? ?? false,
                     );
                   }).toList();
 
@@ -261,6 +254,10 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                       return MessageBubble(
                         message: message,
                         isMe: message.isUser,
+                        profilePictureUrl: message.isUser 
+                            ? _currentUserImageUrl
+                            : widget.profilePictureUrl, 
+                        isRead: message.isRead,
                       );
                     },
                   );
@@ -270,7 +267,12 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              border: Border(
+                top: BorderSide(color: theme.dividerColor, width: 1),
+              ),
+            ),
             child: SafeArea(
               child: Row(
                 children: [
@@ -286,16 +288,26 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                       controller: _messageController,
                       decoration: InputDecoration(
                         hintText: 'Escribe un mensaje...',
-                        hintStyle: const TextStyle(
-                          color: Colors.grey,
-                          fontFamily: 'Poppins',
+                        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 10,
@@ -307,11 +319,14 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppConstants.lightAccentColor,
+                      color: theme.colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white),
+                       icon: Icon(
+                        Icons.send_rounded,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                       onPressed: _sendMessage,
                     ),
                   ),

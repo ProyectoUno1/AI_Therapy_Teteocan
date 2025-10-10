@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-//vista del psicologo
+// Vista del psicólogo
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +13,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
@@ -36,6 +37,41 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   String? _currentUserId;
   late String _chatId;
   late Stream<DocumentSnapshot> _patientStatusStream;
+  late final ChatRepository _chatRepository;
+
+  bool get _isChatEnabled {
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    final status = authState.psychologist?.status;
+    return status == 'ACTIVE';
+  }
+
+  String _getStatusBasedBlockingMessage() {
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    final status = authState.psychologist?.status;
+
+    switch (status) {
+      case 'PENDING':
+        return 'Tu perfil profesional está en revisión. No podrás chatear con pacientes hasta que sea aprobado.';
+      case 'REJECTED':
+        return 'Tu perfil profesional fue rechazado. Revisa tu información y reenvía tu solicitud para habilitar el chat.';
+      default:
+        return 'No puedes acceder al chat hasta que tu perfil profesional esté activo.';
+    }
+  }
+  
+  String _getChatDisabledHintText() {
+    final authState = BlocProvider.of<AuthBloc>(context).state;
+    final status = authState.psychologist?.status;
+
+    switch (status) {
+      case 'PENDING':
+        return 'Chat bloqueado. Perfil en revisión.';
+      case 'REJECTED':
+        return 'Chat bloqueado. Perfil rechazado.';
+      default:
+        return 'Chat bloqueado. Perfil no activo.';
+    }
+  }
 
   @override
   void initState() {
@@ -45,14 +81,27 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       _currentUserId = authState.psychologist!.uid;
       final ids = [_currentUserId!, widget.patientId]..sort();
       _chatId = '${ids[0]}_${ids[1]}';
-
-      BlocProvider.of<PsychologistChatBloc>(context).add(LoadChatMessages(_chatId, _currentUserId!));
     }
 
+    _chatRepository = ChatRepository();
+
+    BlocProvider.of<PsychologistChatBloc>(context).add(
+      LoadChatMessages(
+        _chatId,
+        _currentUserId!,
+      ),
+    );
+    
     _patientStatusStream = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.patientId)
         .snapshots();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _chatRepository.markMessagesAsRead(
+        chatId: _chatId,
+        currentUserId: _currentUserId!,
+      );
+    });
   }
 
   @override
@@ -62,17 +111,29 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
+    if (!_isChatEnabled) return;
 
-    BlocProvider.of<PsychologistChatBloc>(context).add(
-      SendMessage(
-        chatId: _chatId,
-        content: _messageController.text.trim(),
-        senderId: _currentUserId!,
-      ),
-    );
+    final messageContent = _messageController.text.trim();
     _messageController.clear();
+    
+    _scrollToBottom();
+
+    try {
+      await _chatRepository.sendHumanMessage(
+        chatId: _chatId,
+        senderId: _currentUserId!,
+        receiverId: widget.patientId,
+        content: messageContent,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar el mensaje: $e')),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -112,8 +173,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               isOnline = data['isOnline'] ?? false;
               final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
               statusText = isOnline
-                  ? 'En l\u00ednea'
-                  : 'Última vez: ${_formatTimestamp(lastSeenTimestamp)}';
+                  ? 'En línea'
+                  : '${_formatTimestamp(lastSeenTimestamp)}';
             }
 
             return Row(
@@ -176,14 +237,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.videocam, color: AppConstants.primaryColor),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(Icons.phone, color: AppConstants.primaryColor),
-            onPressed: () {},
-          ),
           PopupMenuButton<String>(
             icon: Icon(
               Icons.more_vert,
@@ -207,7 +260,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                   children: [
                     Icon(Icons.note),
                     SizedBox(width: 8),
-                    Text('Notas de sesi\u00f3n'),
+                    Text('Notas de sesión'),
                   ],
                 ),
               ),
@@ -251,11 +304,13 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     itemCount: state.messages.length,
                     itemBuilder: (context, index) {
                       final message = state.messages[index];
+                      final isMe = message.senderId == _currentUserId;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: MessageBubble(
                           message: message,
-                          isMe: message.isUser,
+                          isMe: isMe,
+                          isRead: message.isRead,
                         ),
                       );
                     },
@@ -265,56 +320,119 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               },
             ),
           ),
+          
+          if (!_isChatEnabled)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _getStatusBasedBlockingMessage(),
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(
-                  offset: const Offset(0, -2),
-                  blurRadius: 4,
-                  color: Colors.black.withOpacity(0.1),
+              border: Border(
+                top: BorderSide(
+                  color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.1),
+                  width: 2,
                 ),
-              ],
+              ),
             ),
             child: Row(
               children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.attach_file, 
+                    size: 20,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                  onPressed: _isChatEnabled ? () {
+                    // Mostrar opciones de adjuntos
+                  } : null,
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
+                ),
+                
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.light
-                          ? Colors.grey[100]
-                          : Colors.grey[800],
-                      borderRadius: BorderRadius.circular(25),
-                    ),
                     child: TextField(
                       controller: _messageController,
-                      maxLines: null,
                       decoration: InputDecoration(
                         hintText: 'Escribe un mensaje...',
-                        hintStyle: TextStyle(
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                          fontFamily: 'Poppins',
+                        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        border: InputBorder.none,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,
-                          vertical: 12,
+                          vertical: 10,
                         ),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                
+                const SizedBox(width: 4),
+                
                 Container(
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryColor,
+                    color: _isChatEnabled
+                        ? AppConstants.primaryColor 
+                        : Colors.grey,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
+                    icon: const Icon(
+                      Icons.send, 
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    onPressed: _isChatEnabled ? _sendMessage : null,
+                    padding: EdgeInsets.zero,
                   ),
                 ),
               ],
@@ -338,13 +456,12 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     } else if (difference.inHours < 24) {
       return 'hace ${difference.inHours} h';
     } else if (difference.inDays < 7) {
-      return 'hace ${difference.inDays} d\u00edas';
+      return 'hace ${difference.inDays} días';
     } else {
       final formatter = DateFormat('dd/MM/yyyy');
       return formatter.format(lastSeenDate);
     }
   }
-
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -354,7 +471,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Inicia la conversaci\u00f3n',
+            'Inicia la conversación',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
@@ -362,7 +479,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Env\u00eda el primer mensaje a ${widget.patientName}',
+            'Envía el primer mensaje a ${widget.patientName}',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),

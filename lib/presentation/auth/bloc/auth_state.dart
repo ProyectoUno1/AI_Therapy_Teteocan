@@ -26,8 +26,6 @@ class AuthState extends Equatable {
   final PatientModel? patient;
   final PsychologistModel? psychologist;
 
-  // 1. Añade un getter para el perfil del usuario
-  // Esto unifica el acceso al perfil, ya sea de paciente o psicólogo.
   Object? get userProfile => patient ?? psychologist;
 
   // Getters para verificar el estado
