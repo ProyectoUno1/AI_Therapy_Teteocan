@@ -187,34 +187,29 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
+        title: Text(
           'Psicólogos Disponibles',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-          ),
+          style: theme.appBarTheme.titleTextStyle,
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: Icon(Icons.arrow_back_ios, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.black),
+            icon: Icon(Icons.filter_list, color: theme.iconTheme.color),
             onPressed: _showFilterBottomSheet,
           ),
           // Debug button para recargar ratings
           IconButton(
             icon: Icon(
               Icons.refresh,
-              color: _isLoadingRatings ? Colors.orange : Colors.black,
+              color: _isLoadingRatings ? Colors.orange : theme.iconTheme.color,
             ),
             onPressed: _isLoadingRatings ? null : _loadRatings,
           ),
@@ -226,7 +221,9 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
           if (_isLoadingRatings || _ratingsError != null)
             Container(
               width: double.infinity,
-              color: _ratingsError != null ? Colors.red[50] : Colors.blue[50],
+              color: _ratingsError != null
+                  ? theme.colorScheme.error.withOpacity(0.1)
+                  : theme.colorScheme.primary.withOpacity(0.1),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [

@@ -389,50 +389,493 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   ThemeData _darkTheme() {
-    final darkColorScheme = FlexColorScheme.dark(scheme: FlexScheme.tealM3);
-    return FlexThemeData.dark(
-      scheme: FlexScheme.tealM3,
-      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
-      blendLevel: 13,
-      subThemesData: const FlexSubThemesData(
-        blendOnLevel: 20,
-        useTextTheme: true,
-        useM2StyleDividerInM3: true,
-        alignedDropdown: true,
-        useInputDecoratorThemeInDialogs: true,
-        bottomNavigationBarElevation: 0,
-        navigationBarSelectedLabelSchemeColor: SchemeColor.onSurface,
-        navigationBarUnselectedLabelSchemeColor: SchemeColor.onSurfaceVariant,
-        navigationBarIndicatorSchemeColor: SchemeColor.secondaryContainer,
-        navigationBarBackgroundSchemeColor: SchemeColor.surface,
-      ),
-      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+    // Colores personalizados para mejor visibilidad en modo oscuro
+    const darkBackground = Color(0xFF121212); // Fondo muy oscuro
+    const darkSurface = Color(0xFF1E1E1E); // Superficie de cards/containers
+    const darkSurfaceVariant = Color(0xFF2C2C2C); // Superficie elevada
+    const tealPrimary = Color(0xFF4DB6AC); // Teal principal (más brillante)
+    const tealSecondary = Color(0xFF80CBC4); // Teal secundario
+    const textPrimary = Color(0xFFE0E0E0); // Texto principal (muy legible)
+    const textSecondary = Color(0xFFB0B0B0); // Texto secundario
+    const borderColor = Color(0xFF3A3A3A); // Bordes visibles
+
+    return ThemeData(
       useMaterial3: true,
-      swapLegacyOnMaterial3: true,
+      brightness: Brightness.dark,
       fontFamily: 'Poppins',
-    ).copyWith(
+
+      // Colores base
+      scaffoldBackgroundColor: darkBackground,
+      canvasColor: darkBackground,
+      cardColor: darkSurface,
+      dividerColor: borderColor,
+      disabledColor: textSecondary.withOpacity(0.5),
+      highlightColor: tealPrimary.withOpacity(0.1),
+      splashColor: tealPrimary.withOpacity(0.2),
+      hoverColor: tealPrimary.withOpacity(0.1),
+      focusColor: tealPrimary.withOpacity(0.2),
+
+      // ColorScheme completo
+      colorScheme: ColorScheme.dark(
+        brightness: Brightness.dark,
+        primary: tealPrimary,
+        onPrimary: Colors.black,
+        primaryContainer: tealPrimary.withOpacity(0.3),
+        onPrimaryContainer: textPrimary,
+        secondary: tealSecondary,
+        onSecondary: Colors.black,
+        secondaryContainer: tealSecondary.withOpacity(0.3),
+        onSecondaryContainer: textPrimary,
+        tertiary: tealSecondary,
+        onTertiary: Colors.black,
+        error: Color(0xFFCF6679),
+        onError: Colors.black,
+        errorContainer: Color(0xFFCF6679).withOpacity(0.3),
+        onErrorContainer: textPrimary,
+        surface: darkSurface,
+        onSurface: textPrimary,
+        surfaceContainerHighest: darkSurfaceVariant,
+        onSurfaceVariant: textSecondary,
+        outline: borderColor,
+        outlineVariant: Color(0xFF2A2A2A),
+        shadow: Colors.black,
+        scrim: Colors.black.withOpacity(0.5),
+        inverseSurface: textPrimary,
+        onInverseSurface: darkBackground,
+        inversePrimary: tealPrimary,
+      ),
+
+      // Cards con bordes visibles
+      cardTheme: CardThemeData(
+        color: darkSurface,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.5),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+        margin: const EdgeInsets.all(8),
+      ),
+
+      // AppBar
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: darkColorScheme.surface,
+        backgroundColor: darkBackground,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: darkColorScheme.onSurface,
-        titleTextStyle: TextStyle(
+        foregroundColor: textPrimary,
+        shadowColor: Colors.transparent,
+        titleTextStyle: const TextStyle(
           fontFamily: 'Poppins',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: darkColorScheme.onSurface,
+          color: textPrimary,
         ),
-        iconTheme: IconThemeData(color: darkColorScheme.onSurface),
+        iconTheme: const IconThemeData(color: textPrimary, size: 24),
+        actionsIconTheme: const IconThemeData(color: textPrimary, size: 24),
       ),
+
+      // Bottom Navigation
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: darkColorScheme.surface,
-        selectedItemColor: darkColorScheme.primary,
-        unselectedItemColor: Colors.grey[400],
-        elevation: 0,
+        backgroundColor: darkSurface,
+        selectedItemColor: tealPrimary,
+        unselectedItemColor: textSecondary,
+        elevation: 8,
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.normal,
+          fontSize: 12,
+        ),
+        selectedIconTheme: const IconThemeData(size: 26),
+        unselectedIconTheme: const IconThemeData(size: 24),
+      ),
+
+      // Navigation Bar (Material 3)
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: darkSurface,
+        indicatorColor: tealPrimary.withOpacity(0.3),
+        elevation: 8,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              color: tealPrimary,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+            );
+          }
+          return const TextStyle(color: textSecondary, fontFamily: 'Poppins');
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: tealPrimary);
+          }
+          return const IconThemeData(color: textSecondary);
+        }),
+      ),
+
+      // Input Fields con bordes visibles
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: borderColor, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: borderColor, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: tealPrimary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Color(0xFFCF6679), width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Color(0xFFCF6679), width: 2),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: borderColor.withOpacity(0.5), width: 1),
+        ),
+        labelStyle: TextStyle(color: textSecondary, fontFamily: 'Poppins'),
+        hintStyle: TextStyle(
+          color: textSecondary.withOpacity(0.6),
+          fontFamily: 'Poppins',
+        ),
+        prefixIconColor: textSecondary,
+        suffixIconColor: textSecondary,
+      ),
+
+      // Containers y ListTiles
+      listTileTheme: ListTileThemeData(
+        tileColor: Colors.transparent,
+        textColor: textPrimary,
+        iconColor: textPrimary,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        titleTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 16,
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w500,
+        ),
+        subtitleTextStyle: TextStyle(
+          color: textSecondary,
+          fontSize: 14,
+          fontFamily: 'Poppins',
+        ),
+        leadingAndTrailingTextStyle: TextStyle(
+          color: textSecondary,
+          fontSize: 12,
+          fontFamily: 'Poppins',
+        ),
+      ),
+
+      // Dividers visibles
+      dividerTheme: DividerThemeData(
+        color: borderColor,
+        thickness: 1,
+        space: 1,
+      ),
+
+      // Text Theme completo
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 57,
+          fontWeight: FontWeight.w400,
+        ),
+        displayMedium: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 45,
+          fontWeight: FontWeight.w400,
+        ),
+        displaySmall: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 36,
+          fontWeight: FontWeight.w400,
+        ),
+        headlineLarge: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineMedium: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        titleSmall: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+        ),
+        bodyMedium: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+        ),
+        bodySmall: TextStyle(
+          color: textSecondary,
+          fontFamily: 'Poppins',
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+        ),
+        labelLarge: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          color: textSecondary,
+          fontFamily: 'Poppins',
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+
+      // Diálogos con bordes
+      dialogTheme: DialogThemeData(
+        backgroundColor: darkSurface,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+        titleTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Poppins',
+        ),
+        contentTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 16,
+          fontFamily: 'Poppins',
+        ),
+      ),
+
+      // Bottom Sheets
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: darkSurface,
+        modalBackgroundColor: darkSurface,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+      ),
+
+      // Snackbar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: darkSurfaceVariant,
+        contentTextStyle: const TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+        ),
+        actionTextColor: tealPrimary,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+      ),
+
+      // Buttons
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: tealPrimary,
+          foregroundColor: Colors.black,
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: tealPrimary,
+          textStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: tealPrimary,
+          side: BorderSide(color: tealPrimary, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
+      // Floating Action Button
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: tealPrimary,
+        foregroundColor: Colors.black,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+
+      // Chips con bordes
+      chipTheme: ChipThemeData(
+        backgroundColor: darkSurface,
+        deleteIconColor: textSecondary,
+        disabledColor: darkSurface.withOpacity(0.5),
+        selectedColor: tealPrimary.withOpacity(0.3),
+        secondarySelectedColor: tealSecondary.withOpacity(0.3),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(8),
+        side: BorderSide(color: borderColor, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        labelStyle: const TextStyle(color: textPrimary, fontFamily: 'Poppins'),
+        secondaryLabelStyle: const TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+        ),
+        brightness: Brightness.dark,
+      ),
+
+      // Progress Indicators
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: tealPrimary,
+        linearTrackColor: darkSurfaceVariant,
+        circularTrackColor: darkSurfaceVariant,
+      ),
+
+      // Sliders
+      sliderTheme: SliderThemeData(
+        activeTrackColor: tealPrimary,
+        inactiveTrackColor: darkSurfaceVariant,
+        thumbColor: tealPrimary,
+        overlayColor: tealPrimary.withOpacity(0.2),
+        valueIndicatorColor: tealPrimary,
+        valueIndicatorTextStyle: const TextStyle(
+          color: Colors.black,
+          fontFamily: 'Poppins',
+        ),
+      ),
+
+      // Switch
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tealPrimary;
+          }
+          return textSecondary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tealPrimary.withOpacity(0.5);
+          }
+          return darkSurfaceVariant;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(borderColor),
+      ),
+
+      // Checkbox
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tealPrimary;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(Colors.black),
+        side: BorderSide(color: borderColor, width: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      ),
+
+      // Radio
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tealPrimary;
+          }
+          return textSecondary;
+        }),
+      ),
+
+      // Tab Bar
+      tabBarTheme: TabBarThemeData(
+        labelColor: tealPrimary,
+        unselectedLabelColor: textSecondary,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: tealPrimary, width: 3),
+        ),
+        labelStyle: const TextStyle(
           fontFamily: 'Poppins',
           fontWeight: FontWeight.w600,
         ),
@@ -441,7 +884,104 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           fontWeight: FontWeight.normal,
         ),
       ),
-      scaffoldBackgroundColor: darkColorScheme.surface,
+
+      // Tooltip
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: darkSurfaceVariant,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor),
+        ),
+        textStyle: const TextStyle(color: textPrimary, fontFamily: 'Poppins'),
+      ),
+
+      // Icon Theme
+      iconTheme: const IconThemeData(color: textPrimary, size: 24),
+
+      primaryIconTheme: const IconThemeData(color: tealPrimary, size: 24),
+
+      // PopupMenu
+      popupMenuTheme: PopupMenuThemeData(
+        color: darkSurface,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+        textStyle: const TextStyle(color: textPrimary, fontFamily: 'Poppins'),
+      ),
+
+      // Badge
+      badgeTheme: BadgeThemeData(
+        backgroundColor: tealPrimary,
+        textColor: Colors.black,
+        textStyle: const TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+
+      // Banner
+      bannerTheme: MaterialBannerThemeData(
+        backgroundColor: darkSurface,
+        contentTextStyle: const TextStyle(
+          color: textPrimary,
+          fontFamily: 'Poppins',
+        ),
+      ),
+
+      // Drawer
+      drawerTheme: DrawerThemeData(
+        backgroundColor: darkSurface,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.5),
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.horizontal(right: Radius.circular(16)),
+        ),
+      ),
+
+      // Time Picker
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: darkSurface,
+        dialBackgroundColor: darkSurfaceVariant,
+        dialHandColor: tealPrimary,
+        dialTextColor: textPrimary,
+        hourMinuteTextColor: textPrimary,
+        dayPeriodTextColor: textPrimary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+      ),
+
+      // Date Picker
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: darkSurface,
+        headerBackgroundColor: tealPrimary,
+        headerForegroundColor: Colors.black,
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.black;
+          }
+          return textPrimary;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tealPrimary;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.all(tealPrimary),
+        todayBackgroundColor: WidgetStateProperty.all(Colors.transparent),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+      ),
     );
   }
 

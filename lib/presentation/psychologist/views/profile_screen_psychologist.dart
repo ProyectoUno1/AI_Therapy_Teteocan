@@ -9,6 +9,8 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/profile_list_item.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
 
 class ProfileScreenPsychologist extends StatefulWidget {
   const ProfileScreenPsychologist({super.key});
@@ -379,7 +381,12 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Apariencia',
                   secondaryText: 'Tema y colores',
                   onTap: () {
-                    _showThemeSelector(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ThemeSettingsScreen(),
+                      ),
+                    );
                   },
                 ),
                 Divider(
@@ -410,10 +417,11 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Soporte',
                   secondaryText: 'Ayuda y contacto',
                   onTap: () {
-                    // TODO: Implementar soporte
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SupportScreen(userType: 'psychologist'),
                       ),
                     );
                   },
@@ -604,87 +612,6 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
               ),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  void _showThemeSelector(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Seleccionar Tema',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.brightness_7),
-                title: const Text('Tema Claro'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Tema claro - Cambia configuración en ajustes del dispositivo',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.brightness_3),
-                title: const Text('Tema Oscuro'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Tema oscuro - Cambia configuración en ajustes del dispositivo',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings_system_daydream),
-                title: const Text('Seguir sistema'),
-                subtitle: const Text(
-                  'La app seguirá la configuración del dispositivo',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'La app sigue automáticamente la configuración del sistema',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
         );
       },
     );

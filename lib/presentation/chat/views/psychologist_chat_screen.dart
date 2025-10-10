@@ -3,13 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:intl/intl.dart';
 
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
-
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -26,7 +24,6 @@ class PsychologistChatScreen extends StatefulWidget {
   @override
   State<PsychologistChatScreen> createState() => _PsychologistChatScreenState();
 }
-
 
 class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   final TextEditingController _messageController = TextEditingController();
@@ -70,15 +67,13 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
     _scrollToBottom();
 
-    
     try {
       await _chatRepository.sendHumanMessage(
         chatId: _chatId,
         senderId: _auth.currentUser!.uid,
         receiverId: widget.psychologistUid,
         content: messageContent,
-        isUser:
-            false, 
+        isUser: false,
       );
     } catch (e) {
       if (mounted) {
@@ -103,25 +98,27 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
               backgroundImage: widget.psychologistImageUrl.isNotEmpty
-                  ? NetworkImage(widget.psychologistImageUrl) as ImageProvider<Object>
+                  ? NetworkImage(widget.psychologistImageUrl)
+                        as ImageProvider<Object>
                   : const AssetImage('assets/images/default_avatar.png'),
               radius: 20,
             ),
             const SizedBox(width: 12),
 
-           
             Expanded(
               child: StreamBuilder<DocumentSnapshot>(
                 stream: _psychologistStatusStream,
@@ -165,23 +162,18 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                     children: [
                       Text(
                         widget.psychologistName,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
                         ),
-                        // Add overflow ellipsis to prevent text overflow
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         isOnline ? 'En línea' : lastSeenText,
-                        style: TextStyle(
-                          color: isOnline ? Colors.green : Colors.grey,
-                          fontSize: 12,
-                          fontFamily: 'Poppins',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isOnline
+                              ? Colors.green
+                              : theme.textTheme.bodySmall?.color,
                         ),
-                        // Add overflow ellipsis to prevent text overflow
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -193,13 +185,13 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.black87),
+            icon: Icon(Icons.videocam, color: theme.iconTheme.color),
             onPressed: () {
               // Iniciar videollamada
             },
           ),
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black87),
+            icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
             onPressed: () {
               // Mostrar opciones adicionales
             },
@@ -210,22 +202,20 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            color: AppConstants.lightAccentColor.withOpacity(0.1),
+            color: theme.colorScheme.primary.withOpacity(0.1),
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline,
-                  color: AppConstants.lightAccentColor,
+                  color: theme.colorScheme.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Tu sesión está programada para hoy a las 15:00',
-                    style: TextStyle(
-                      color: AppConstants.lightAccentColor,
-                      fontSize: 13,
-                      fontFamily: 'Poppins',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
                     ),
                   ),
                 ),
@@ -234,7 +224,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
           ),
           Expanded(
             child: Container(
-              color: Colors.grey[50],
+              color: theme.scaffoldBackgroundColor,
               child: StreamBuilder<QuerySnapshot>(
                 stream: _firestore
                     .collection('chats')
@@ -283,13 +273,18 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              border: Border(
+                top: BorderSide(color: theme.dividerColor, width: 1),
+              ),
+            ),
             child: SafeArea(
               child: Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.attach_file),
-                    color: Colors.grey[600],
+                    color: theme.iconTheme.color,
                     onPressed: () {
                       // Mostrar opciones de adjuntos
                     },
@@ -297,18 +292,29 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      style: theme.textTheme.bodyMedium,
                       decoration: InputDecoration(
                         hintText: 'Escribe un mensaje...',
-                        hintStyle: const TextStyle(
-                          color: Colors.grey,
-                          fontFamily: 'Poppins',
+                        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 10,
@@ -320,11 +326,14 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppConstants.lightAccentColor,
+                      color: theme.colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white),
+                      icon: Icon(
+                        Icons.send_rounded,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                       onPressed: _sendMessage,
                     ),
                   ),

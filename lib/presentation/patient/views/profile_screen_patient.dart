@@ -14,10 +14,11 @@ import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.da
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
 
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
@@ -361,7 +362,7 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SettingsScreenPatient(),
+                            builder: (context) => const ThemeSettingsScreen(),
                           ),
                         );
                       },
@@ -375,7 +376,13 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
                       icon: Icons.contact_support_outlined,
                       text: 'Contáctanos',
                       onTap: () {
-                        /* Lógica para Contáctanos */
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                SupportScreen(userType: 'patient'),
+                          ),
+                        );
                       },
                     ),
                     Divider(
@@ -1087,101 +1094,6 @@ class _NotificationsScreenPatientState
           ],
         );
       },
-    );
-  }
-}
-
-class SettingsScreenPatient extends StatefulWidget {
-  @override
-  _SettingsScreenPatientState createState() => _SettingsScreenPatientState();
-}
-
-class _SettingsScreenPatientState extends State<SettingsScreenPatient> {
-  final Color primaryColor = AppConstants.primaryColor;
-  final Color accentColor = AppConstants.accentColor;
-  final Color lightAccentColor = AppConstants.lightAccentColor;
-
-  String _selectedTheme = 'system';
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Configuración',
-          style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
-        ),
-        backgroundColor: accentColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Text(
-              'APARIENCIA',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                letterSpacing: 0.8,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildThemeOption('Tema del sistema', 'system', Icons.sync),
-            _buildThemeOption('Tema Claro', 'light', Icons.wb_sunny_outlined),
-            _buildThemeOption('Tema Oscuro', 'dark', Icons.nightlight_round),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThemeOption(String title, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.5),
-          ),
-        ),
-        child: RadioListTile<String>(
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          secondary: Icon(icon, color: primaryColor),
-          value: value,
-          groupValue: _selectedTheme,
-          onChanged: (String? newValue) {
-            setState(() {
-              if (newValue != null) {
-                _selectedTheme = newValue;
-              }
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Tema seleccionado: $title')),
-            );
-          },
-          activeColor: accentColor,
-        ),
-      ),
     );
   }
 }
