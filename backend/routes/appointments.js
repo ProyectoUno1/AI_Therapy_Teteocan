@@ -2,7 +2,12 @@ import express from 'express';
 import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { createNotification } from './notifications.js'; 
+import { createNotification } from './notifications.js';
+import { 
+  cleanupOldAppointments, 
+  getCleanupStats, 
+  cleanupAppointmentsOlderThan 
+} from './services/appointmentsCleanup.js';
 
 const router = express.Router();
 
@@ -15,10 +20,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
     try {
         // Obtener el ID del usuario autenticado
         const authenticatedUserId = req.firebaseUser.uid;
-        
+
         const {
             psychologistId,
-            patientId, 
+            patientId,
             scheduledDateTime,
             type,
             notes
@@ -32,9 +37,9 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 
         let finalPatientId;
         let isSchedulingForOtherPatient = false;
-      
+
         if (patientId !== authenticatedUserId) {
-            
+
             if (psychologistId !== authenticatedUserId) {
                 return res.status(403).json({
                     error: 'Solo el psicólogo puede agendar citas para sus pacientes'
@@ -43,7 +48,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             finalPatientId = patientId;
             isSchedulingForOtherPatient = true;
         } else {
-            
+
             finalPatientId = authenticatedUserId;
         }
 
@@ -90,12 +95,13 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             const psychologistData = psychologistDoc.data();
             const psychologistProfData = psychologistProfDoc.exists ? psychologistProfDoc.data() : {};
 
+            const isPremiumUser = patientData.isPremium === true;
+
             const appointmentData = {
                 patientId: finalPatientId,
                 patientName: patientData.username || 'Usuario desconocido',
                 patientEmail: patientData.email,
-                patientProfileUrl: patientData.profilePictureUrl || null,
-                psychologistId,
+                profile_picture_url: patientData.profile_picture_url,
                 psychologistName: psychologistProfData.fullName || 'Psicólogo desconocido',
                 psychologistSpecialty: psychologistProfData.specialty || 'Psicología General',
                 psychologistProfileUrl: psychologistData.profilePictureUrl || null,
@@ -103,8 +109,11 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                 durationMinutes: 60,
                 type,
                 status: isSchedulingForOtherPatient ? 'confirmed' : 'pending',
-                price: psychologistProfData.hourlyRate || 100.0,
+                price: psychologistProfData.price || 100.0,
                 patientNotes: notes || null,
+                isPaid: isPremiumUser,
+                paymentType: isPremiumUser ? 'subscription' : 'pending',
+                stripeSessionId: null,
                 scheduledBy: authenticatedUserId,
                 createdAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp()
@@ -132,7 +141,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             });
 
             const psychologistNotificationRef = db.collection('notifications').doc();
-            
+
             let psychologistNotificationBody;
             if (isSchedulingForOtherPatient) {
                 psychologistNotificationBody = `Has agendado una cita con el paciente ${patientData.username}.`;
@@ -154,7 +163,7 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                     status: appointmentData.status
                 }
             });
-            
+
         });
 
         if (!appointmentId) {
@@ -280,50 +289,78 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
     try {
         const { psychologistId } = req.params;
         const { startDate, endDate } = req.query;
-
-
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'startDate y endDate son requeridos (YYYY-MM-DD)' });
         }
-        const start = new Date(startDate + 'T00:00:00Z'); // UTC
-        const end = new Date(endDate + 'T23:59:59Z');     // UTC
 
+        const start = new Date(startDate + 'T00:00:00Z');
+        const end = new Date(endDate + 'T23:59:59Z');
+        const now = new Date();
 
         if (isNaN(start) || isNaN(end) || start > end) {
             return res.status(400).json({ error: 'Rango de fechas inválido' });
         }
 
+        const adjustedStart = start < now ? now : start;
+        if (end < now) {
+            return res.status(200).json({ availableSlots: [] });
+        }
+
+        const psychologistDoc = await db.collection('psychologists').doc(psychologistId).get();
+        if (!psychologistDoc.exists) {
+            return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        }
+
+        const psychologistData = psychologistDoc.data();
+        const schedule = psychologistData.schedule || {};
         const appointmentsSnapshot = await db.collection('appointments')
             .where('psychologistId', '==', psychologistId)
-            .where('scheduledDateTime', '>=', start)
+            .where('scheduledDateTime', '>=', adjustedStart)
             .where('scheduledDateTime', '<=', end)
             .where('status', 'in', ['pending', 'confirmed'])
             .get();
 
-        const existingAppointments = [];
+        const occupiedSlots = new Set();
         appointmentsSnapshot.forEach(doc => {
             const data = doc.data();
-            existingAppointments.push(data);
-        });
-
-        const occupiedSlots = new Set();
-        existingAppointments.forEach(data => {
             const appointmentTime = data.scheduledDateTime.toDate();
             const hour = appointmentTime.getUTCHours();
             const date = appointmentTime.toISOString().split('T')[0];
             occupiedSlots.add(`${date}-${hour}`);
-            
         });
 
         const availableSlots = [];
-        const now = new Date();
         const nowUTC = new Date(now.toISOString());
 
-        for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        const dayMap = {
+            'Sunday': 'Domingo',
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes',
+            'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'Sábado'
+        };
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        for (let d = new Date(adjustedStart); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
             const currentDate = new Date(d);
             const dateStr = currentDate.toISOString().split('T')[0];
 
-            for (let hour = 9; hour < 18; hour++) {
+            const dayName = daysOfWeek[currentDate.getUTCDay()];
+            const dayNameInSpanish = dayMap[dayName];
+            const daySchedule = schedule[dayNameInSpanish];
+
+            if (!daySchedule) {
+                continue;
+            }
+
+            const [startH, startM] = daySchedule.startTime.split(':').map(Number);
+            const [endH, endM] = daySchedule.endTime.split(':').map(Number);
+            const scheduleStartInMins = startH * 60 + startM;
+            const scheduleEndInMins = endH * 60 + endM;
+
+            for (let hour = 0; hour < 24; hour++) {
                 const slotDateTime = new Date(Date.UTC(
                     currentDate.getUTCFullYear(),
                     currentDate.getUTCMonth(),
@@ -331,16 +368,28 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
                     hour, 0, 0
                 ));
 
+                const slotStartInMins = hour * 60;
+                const slotEndInMins = (hour + 1) * 60;
+                const isRegisteredAvailable =
+                    slotStartInMins >= scheduleStartInMins &&
+                    slotEndInMins <= scheduleEndInMins;
+
+                if (!isRegisteredAvailable) {
+                    continue;
+                }
+
                 const isOccupied = occupiedSlots.has(`${dateStr}-${hour}`);
                 const isPast = slotDateTime <= nowUTC;
                 const isAvailable = !isOccupied && !isPast;
 
-                availableSlots.push({
-                    time: `${hour.toString().padStart(2, '0')}:00`,
-                    dateTime: slotDateTime.toISOString(),
-                    isAvailable,
-                    reason: isOccupied ? 'Ocupado' : isPast ? 'Pasado' : null
-                });
+                if (isAvailable) {
+                    availableSlots.push({
+                        time: `${hour.toString().padStart(2, '0')}:00`,
+                        dateTime: slotDateTime.toISOString(),
+                        isAvailable: true,
+                        reason: null
+                    });
+                }
             }
         }
 
@@ -385,7 +434,7 @@ router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
             meetingLink: meetingLink || null,
             updatedAt: FieldValue.serverTimestamp(),
         });
-        
+
         // --- Notificación para el paciente  ---
         await createNotification({
             userId: appointmentData.patientId,
@@ -398,7 +447,7 @@ router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
                 status: 'confirmed'
             }
         });
-       
+
 
         res.status(200).json({ message: 'Cita confirmada exitosamente' });
 
@@ -436,8 +485,7 @@ router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
             cancelledAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         });
-        
-        // --- Notificación para la otra parte ---
+
         let notificationTitle = 'Cita Cancelada';
         let notificationBody = '';
         let recipientId = '';
@@ -464,7 +512,7 @@ router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
                 status: 'cancelled'
             }
         });
-       
+
 
         res.status(200).json({ message: 'Cita cancelada exitosamente' });
 
@@ -502,7 +550,7 @@ router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
         };
 
         await appointmentRef.update(updateData);
-        
+
         // --- Notificación para el paciente ---
         await createNotification({
             userId: appointmentData.patientId,
@@ -515,7 +563,7 @@ router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
                 status: 'in_progress'
             }
         });
-        
+
 
         res.status(200).json({ message: 'Sesión iniciada exitosamente' });
 
@@ -555,7 +603,7 @@ router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
         };
 
         await appointmentRef.update(updateData);
-        
+
         // --- Notificación para el paciente---
         await createNotification({
             userId: appointmentData.patientId,
@@ -568,7 +616,7 @@ router.patch('/:id/complete-session', verifyFirebaseToken, async (req, res) => {
                 status: 'completed'
             }
         });
-     
+
 
         res.status(200).json({ message: 'Sesión completada exitosamente' });
 
@@ -613,7 +661,7 @@ router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
         };
 
         await appointmentRef.update(updateData);
-        
+
         // --- Notificación para el psicólogo---
         await createNotification({
             userId: appointmentData.psychologistId,
@@ -624,10 +672,10 @@ router.patch('/:id/rate', verifyFirebaseToken, async (req, res) => {
                 appointmentId: id,
                 patientId: appointmentData.patientId,
                 patientName: appointmentData.patientName,
-                
+
             }
         });
-       
+
 
         res.status(200).json({ message: 'Cita calificada exitosamente' });
 
@@ -666,7 +714,7 @@ router.get('/psychologist-rating/:psychologistId', async (req, res) => {
         ratedAppointmentsSnapshot.forEach(doc => {
             const appointmentData = doc.data();
             const rating = appointmentData.rating;
-            
+
             if (rating && rating >= 1 && rating <= 5) {
                 totalRating += rating;
                 totalRatings++;
@@ -678,7 +726,7 @@ router.get('/psychologist-rating/:psychologistId', async (req, res) => {
 
         res.status(200).json({
             psychologistId,
-            averageRating: Math.round(averageRating * 10) / 10, // Redondear a 1 decimal
+            averageRating: Math.round(averageRating * 10) / 10, 
             totalRatings,
             ratingDistribution
         });
@@ -723,7 +771,7 @@ router.post('/psychologists-ratings', async (req, res) => {
                 ratedAppointmentsSnapshot.forEach(doc => {
                     const appointmentData = doc.data();
                     const rating = appointmentData.rating;
-                    
+
                     if (rating && rating >= 1 && rating <= 5) {
                         totalRating += rating;
                         totalRatings++;
@@ -761,5 +809,252 @@ router.post('/psychologists-ratings', async (req, res) => {
     }
 });
 
+router.patch('/:appointmentId/complete-session', async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        const { notes } = req.body;
+        const authenticatedUserId = req.firebaseUser.uid;
+
+        // 1. Obtener datos de la cita
+        const appointmentRef = db.collection('appointments').doc(appointmentId);
+        const appointmentDoc = await appointmentRef.get();
+
+        if (!appointmentDoc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+
+        const appointmentData = appointmentDoc.data();
+        if (appointmentData.psychologistId !== authenticatedUserId) {
+            return res.status(403).json({ error: 'Acceso no autorizado para completar la sesión' });
+        }
+
+        const patientId = appointmentData.patientId;
+        const patientRef = db.collection('patients').doc(patientId);
+        const patientDoc = await patientRef.get();
+
+        // 2. Actualizar la cita
+        await appointmentRef.update({
+            status: 'completed',
+            sessionNotes: notes,
+            completedAt: FieldValue.serverTimestamp(),
+        });
+
+        if (patientDoc.exists) {
+            const patientData = patientDoc.data();
+            const updates = {
+   
+                totalSessions: FieldValue.increment(1),
+ 
+                lastAppointment: appointmentData.scheduledDateTime.toDate ? appointmentData.scheduledDateTime.toDate() : new Date(appointmentData.scheduledDateTime),
+                updatedAt: FieldValue.serverTimestamp(),
+            };
+
+            const currentStatus = patientData.status;
+            const preTreatmentStatuses = ['pending', 'accepted'];
+            if (!currentStatus || preTreatmentStatuses.includes(currentStatus)) {
+                updates.status = 'inTreatment'; 
+            }
+
+            await patientRef.update(updates);
+
+        } else {
+            console.warn(`Paciente ${patientId} no encontrado en la colección 'patients'. No se pudo actualizar el estado.`);
+        }
+
+        res.status(200).json({
+            message: 'Sesión completada y estado del paciente actualizado con éxito.'
+        });
+
+    } catch (error) {
+        console.error('Error al completar la sesión:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor al completar la sesión',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * Middleware para verificar admin (puedes adaptarlo según tu sistema de roles)
+ */
+async function verifyAdmin(req, res, next) {
+  try {
+    const userId = req.firebaseUser.uid;
+    
+    // Opción 1: Verificar custom claims
+    const userRecord = await auth.getUser(userId);
+    if (userRecord.customClaims?.admin === true) {
+      return next();
+    }
+
+    // Opción 2: Verificar en colección de usuarios
+    const psychologistDoc = await db.collection('psychologists').doc(userId).get();
+    if (psychologistDoc.exists && psychologistDoc.data().role === 'admin') {
+      return next();
+    }
+
+    return res.status(403).json({ 
+      error: 'Acceso denegado. Solo administradores pueden ejecutar esta acción.' 
+    });
+
+  } catch (error) {
+    console.error('Error verificando admin:', error);
+    res.status(500).json({ error: 'Error de autenticación' });
+  }
+}
+
+//Obtener estadísticas de citas que serían eliminadas
+
+router.get('/cleanup/stats', verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  try {
+    const stats = await getCleanupStats();
+    
+    res.status(200).json({
+      message: 'Estadísticas de limpieza obtenidas exitosamente',
+      ...stats
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener estadísticas',
+      details: error.message 
+    });
+  }
+});
+
+// Ejecutar limpieza manual (solo admin)
+ 
+router.post('/cleanup/execute', verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  try {
+    const result = await cleanupOldAppointments();
+    
+    if (result.success) {
+      res.status(200).json({
+        message: 'Limpieza ejecutada exitosamente',
+        deletedCount: result.deletedCount,
+        timestamp: result.timestamp
+      });
+    } else {
+      res.status(500).json({
+        error: 'Error durante la limpieza',
+        details: result.error
+      });
+    }
+
+  } catch (error) {
+    console.error('Error ejecutando limpieza manual:', error);
+    res.status(500).json({ 
+      error: 'Error al ejecutar limpieza',
+      details: error.message 
+    });
+  }
+});
+
+
+router.post('/cleanup/custom', verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  try {
+    const { days } = req.body;
+
+    if (!days || days < 1) {
+      return res.status(400).json({ 
+        error: 'Se requiere el parámetro "days" con un valor mayor a 0' 
+      });
+    }
+    
+    const result = await cleanupAppointmentsOlderThan(days);
+    
+    res.status(200).json({
+      message: `Limpieza ejecutada exitosamente para citas mayores a ${days} días`,
+      deletedCount: result.deletedCount,
+      days: result.days
+    });
+
+  } catch (error) {
+    console.error('Error ejecutando limpieza personalizada:', error);
+    res.status(500).json({ 
+      error: 'Error al ejecutar limpieza personalizada',
+      details: error.message 
+    });
+  }
+});
+
+
+// Obtener todas las reseñas de un psicólogo con detalles
+router.get('/psychologist-reviews/:psychologistId', async (req, res) => {
+    try {
+        const { psychologistId } = req.params;
+        const ratedAppointmentsSnapshot = await db.collection('appointments')
+            .where('psychologistId', '==', psychologistId)
+            .where('status', '==', 'rated')
+            .where('rating', '>', 0)
+            .orderBy('rating', 'desc')
+            .orderBy('ratedAt', 'desc')
+            .get();
+
+        if (ratedAppointmentsSnapshot.empty) {
+            return res.status(200).json({
+                psychologistId,
+                reviews: [],
+                totalReviews: 0
+            });
+        }
+
+        const reviewsPromises = ratedAppointmentsSnapshot.docs.map(async (doc) => {
+            const appointmentData = doc.data();
+            const patientId = appointmentData.patientId; 
+            let profile_picture_url = appointmentData.profile_picture_urll || null;
+            let patientName = appointmentData.patientName || 'Usuario';
+            
+            try {
+                const patientDoc = await db.collection('patients')
+                    .doc(patientId) 
+                    .get();
+                
+                if (patientDoc.exists) {
+                    const patientData = patientDoc.data();
+   
+                    profile_picture_url = patientData.profile_picture_url || 
+                                       patientData.profileImageUrl || 
+                                       patientData.photoURL || 
+                                       null;
+
+                    if (patientData.username) {
+                        patientName = patientData.username;
+                    }
+                } else {
+                    console.log(`Documento del paciente no encontrado: ${patientId}`);
+                }
+            } catch (error) {
+                console.log(`Error obteniendo info del paciente ${patientId}:`, error.message);
+            }
+
+            return {
+                id: doc.id,
+                patientId: patientId,  
+                patientName: patientName,
+               profile_picture_url: profile_picture_url,
+                rating: appointmentData.rating,
+                ratingComment: appointmentData.ratingComment || null,
+                ratedAt: appointmentData.ratedAt?.toDate()?.toISOString() || null,
+                scheduledDateTime: appointmentData.scheduledDateTime?.toDate()?.toISOString() || null,
+            };
+        });
+
+        const reviews = await Promise.all(reviewsPromises);
+
+        res.status(200).json({
+            psychologistId,
+            reviews,
+            totalReviews: reviews.length
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
 
 export default router;

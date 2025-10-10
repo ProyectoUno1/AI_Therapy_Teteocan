@@ -121,30 +121,31 @@ class _PsychologySessionPaymentScreenState
   }
 
   Future<void> _processPayment() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _setPaymentResult(
-        'error',
-        'Usuario no autenticado. Por favor, inicia sesión.',
-      );
-      return;
-    }
-
-    final userName = await _getUserName(user.uid);
-
-    context.read<PsychologyPaymentBloc>().add(
-          StartPsychologyPaymentEvent(
-            userEmail: user.email!,
-            userId: user.uid,
-            userName: userName,
-            sessionDate: _formatDate(widget.sessionDateTime),
-            sessionTime: _formatTime(widget.sessionDateTime),
-            psychologistName: widget.psychologist.username,
-            psychologistId: widget.psychologist.uid,
-            sessionNotes: widget.notes,
-          ),
-        );
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    _setPaymentResult(
+      'error',
+      'Usuario no autenticado. Por favor, inicia sesión.',
+    );
+    return;
   }
+
+  final userName = await _getUserName(user.uid);
+
+  context.read<PsychologyPaymentBloc>().add(
+    StartPsychologyPaymentEvent(
+      userEmail: user.email!,
+      userId: user.uid,
+      userName: userName,
+      sessionDate: _formatDate(widget.sessionDateTime),
+      sessionTime: _formatTime(widget.sessionDateTime),
+      psychologistName: widget.psychologist.username,
+      psychologistId: widget.psychologist.uid,
+      sessionNotes: widget.notes,
+      appointmentType: widget.appointmentType.name, 
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -301,7 +302,7 @@ class _PsychologySessionPaymentScreenState
                       ),
                     ),
                     Text(
-                      '\$${(widget.psychologist.hourlyRate ?? 100.0).toInt()}',
+                      '\$${(widget.psychologist.price ?? 100.0).toInt()}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -477,7 +478,7 @@ class _PsychologySessionPaymentScreenState
           _buildDetailRow(
             icon: Icons.attach_money,
             label: 'Precio',
-            value: '\$${(widget.psychologist.hourlyRate ?? 100.0).toInt()}',
+            value: '\$${(widget.psychologist.price ?? 100.0).toInt()}',
           ),
           if (widget.notes != null && widget.notes!.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -504,7 +505,7 @@ class _PsychologySessionPaymentScreenState
                 ),
               ),
               Text(
-                '\$${(widget.psychologist.hourlyRate ?? 100.0).toInt()}',
+                '\$${(widget.psychologist.price ?? 100.0).toInt()}',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

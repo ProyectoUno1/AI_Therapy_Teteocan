@@ -67,7 +67,7 @@ class ChatListCubit extends Cubit<ChatListState> {
                   chatId: chatDoc.id,
                   psychologistId: otherParticipantUid,
                   psychologistName: psychologistData['fullName'] as String? ?? 'Psicólogo',
-                  psychologistImageUrl: psychologistData['profilePictureUrl'] as String?,
+                  profilePictureUrl: psychologistData['profilePictureUrl'] as String?,
                   lastMessage: chatData['lastMessage'] as String? ?? 'Inicia una conversación',
                   lastMessageTime: (chatData['lastTimestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
                 

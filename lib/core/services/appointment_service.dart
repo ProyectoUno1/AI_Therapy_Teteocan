@@ -17,7 +17,6 @@ class AppointmentService {
       }
       return null;
     } catch (e) {
-      log('Error obteniendo token: $e', name: 'AppointmentService');
       return null;
     }
   }
@@ -29,6 +28,7 @@ class AppointmentService {
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
+
 
  
   Future<String?> _getUserRoleFromFirestore(String uid) async {
@@ -240,56 +240,51 @@ Future<AppointmentModel> createAppointment({
 
   // Obtener horarios disponibles
   Future<List<TimeSlot>> getAvailableTimeSlots({
-    required String psychologistId,
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
-    try {
-      final headers = await _getHeaders();
-      final startDateStr =
-          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
-      final endDateStr =
-          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+  required String psychologistId,
+  required DateTime startDate,
+  required DateTime endDate,
+}) async {
+  try {
+    final headers = await _getHeaders();
+    final normalizedStartDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final normalizedEndDate = DateTime(endDate.year, endDate.month, endDate.day);
+    final startDateStr = '${normalizedStartDate.year}-${normalizedStartDate.month.toString().padLeft(2, '0')}-${normalizedStartDate.day.toString().padLeft(2, '0')}';
+    final endDateStr = '${normalizedEndDate.year}-${normalizedEndDate.month.toString().padLeft(2, '0')}-${normalizedEndDate.day.toString().padLeft(2, '0')}';
+    final url = '$baseUrl/appointments/available-slots/$psychologistId?startDate=$startDateStr&endDate=$endDateStr';
+    final response = await http.get(Uri.parse(url), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-      final url =
-          '$baseUrl/appointments/available-slots/$psychologistId?startDate=$startDateStr&endDate=$endDateStr';
-
-      final response = await http.get(Uri.parse(url), headers: headers);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        
-        if (data['availableSlots'] == null) {
-          return [];
-        }
-
-        final slotsList = data['availableSlots'] as List;
-
-        return slotsList
-            .map(
-              (json) => TimeSlot(
-                time: json['time'] ?? '00:00',
-                dateTime: DateTime.parse(json['dateTime']).toLocal(),
-                isAvailable: json['isAvailable'] ?? false,
-                reason: json['reason'],
-              ),
-            )
-            .toList();
-      } else {
-        throw Exception(_handleHttpError(response));
-      }
-    } catch (e) {
-      // Manejo específico de errores
-      if (e is FormatException) {
-        throw Exception('Error de formato en la respuesta del servidor');
-      } else if (e is http.ClientException) {
-        throw Exception('Error de conexión: ${e.message}');
+      if (data['availableSlots'] == null) {
+        return [];
       }
 
-      throw Exception('Error al obtener horarios disponibles: ${e.toString()}');
+      final slotsList = data['availableSlots'] as List;
+
+      return slotsList
+          .map(
+            (json) => TimeSlot(
+              time: json['time'] ?? '00:00',
+              dateTime: DateTime.parse(json['dateTime']).toLocal(),
+              isAvailable: json['isAvailable'] ?? false,
+              reason: json['reason'],
+            ),
+          )
+          .toList();
+    } else {
+      throw Exception(_handleHttpError(response));
     }
+  } catch (e) {
+    
+    if (e is FormatException) {
+      throw Exception('Error de formato en la respuesta del servidor');
+    } else if (e is http.ClientException) {
+      throw Exception('Error de conexión: ${e.message}');
+    }
+
+    throw Exception('Error al obtener horarios disponibles: ${e.toString()}');
   }
+}
 
   String _handleHttpError(http.Response response) {
     try {

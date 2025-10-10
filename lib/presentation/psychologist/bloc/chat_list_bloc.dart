@@ -69,7 +69,6 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         add(ChatsUpdated(chats));
       });
     } catch (e) {
-      log('Error al cargar los chats: $e', name: 'ChatListBloc');
       emit(ChatListError('Error al cargar los chats: $e'));
     }
   }

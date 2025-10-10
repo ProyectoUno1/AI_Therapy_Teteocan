@@ -2,7 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus { pending, confirmed, cancelled, completed, rescheduled, rated, in_progress,}
+enum AppointmentStatus { pending, confirmed, cancelled, completed, rescheduled, rated, in_progress,refunded}
 
 enum AppointmentType { online, inPerson }
 
@@ -23,6 +23,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return 'Calificada';
       case AppointmentStatus.in_progress:
         return 'En Progreso';
+      case AppointmentStatus.refunded:
+        return 'Reembolsada';  
     }
   }
 
@@ -42,6 +44,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
         return '⭐';
       case AppointmentStatus.in_progress:
         return '▶️';
+      case AppointmentStatus.refunded:
+        return '💰'; 
     }
   }
 }
@@ -123,7 +127,6 @@ class AppointmentModel extends Equatable {
     this.completedAt,
     this.meetingLink,
     this.address,
-    // INICIALIZAR CAMPOS DE RATING
     this.rating,
     this.ratingComment,
     this.ratedAt,
@@ -156,7 +159,6 @@ class AppointmentModel extends Equatable {
     DateTime? completedAt,
     String? meetingLink,
     String? address,
-    // CAMPOS DE RATING EN COPYWITH
     int? rating,
     String? ratingComment,
     DateTime? ratedAt,
@@ -190,7 +192,6 @@ class AppointmentModel extends Equatable {
       completedAt: completedAt ?? this.completedAt,
       meetingLink: meetingLink ?? this.meetingLink,
       address: address ?? this.address,
-      // CAMPOS DE RATING
       rating: rating ?? this.rating,
       ratingComment: ratingComment ?? this.ratingComment,
       ratedAt: ratedAt ?? this.ratedAt,
@@ -198,7 +199,6 @@ class AppointmentModel extends Equatable {
     );
   }
 
-  // Métodos de utilidad
   bool get isPending => status == AppointmentStatus.pending;
   bool get isConfirmed => status == AppointmentStatus.confirmed;
   bool get isCancelled => status == AppointmentStatus.cancelled;
@@ -207,6 +207,7 @@ class AppointmentModel extends Equatable {
   bool get isRated => status == AppointmentStatus.rated;
   bool get isInProgress => status == AppointmentStatus.in_progress;
   bool get isPast => scheduledDateTime.isBefore(DateTime.now());
+  bool get isRefunded => status == AppointmentStatus.refunded;
 
   bool get isToday {
     final now = DateTime.now();
@@ -320,7 +321,6 @@ class AppointmentModel extends Equatable {
       'completedAt': completedAt?.toIso8601String(),
       'meetingLink': meetingLink,
       'address': address,
-      // CAMPOS DE RATING EN TOJSON
       'rating': rating,
       'ratingComment': ratingComment,
       'ratedAt': ratedAt?.toIso8601String(),
@@ -369,7 +369,6 @@ class AppointmentModel extends Equatable {
           : null,
       meetingLink: json['meetingLink'] as String?,
       address: json['address'] as String?,
-      // CAMPOS DE RATING EN FROMJSON
       rating: json['rating'] as int?,
       ratingComment: json['ratingComment'] as String?,
       ratedAt: json['ratedAt'] != null

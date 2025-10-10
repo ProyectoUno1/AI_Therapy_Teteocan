@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import aiRoutes from "./routes/aiRoutes.js";
 import patientsRoutes from "./routes/patients.js";
 import psychologistsRoutes from "./routes/psychologists.js";
 import aiChatRoutes from "./routes/aiChatRoutes.js";
@@ -11,8 +10,10 @@ import notificationsRoutes from './routes/notifications.js';
 import { verifyFirebaseToken } from "./middlewares/auth_middleware.js";
 import stripeRouter from "./routes/stripeRoutes.js";
 import fcmRoutes from './routes/fcm.js';
-import { auth, db } from "./firebase-admin.js";
+import { db } from './firebase-admin.js';
 import articleRouter from './routes/articleRoutes.js';
+import { scheduleCleanupTask } from './routes/services/appointmentsCleanup.js';
+import supportRoutes from "./routes/supportRoutes.js";
 
 const app = express();
 
@@ -38,16 +39,20 @@ app.get("/", (req, res) => {
 
 // --- Rutas Unificadas ---
 app.use("/api/patients", verifyFirebaseToken, patientsRoutes);
-app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes); // RUTA UNIFICADA
+app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes);
 app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes);
-app.use("/api/ai", verifyFirebaseToken, aiRoutes);
 app.use("/api/chats/ai-chat", verifyFirebaseToken, aiChatRoutes);
 app.use("/api/chats", verifyFirebaseToken, chatRoutes);
 app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
 app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
-app.use('/api', fcmRoutes); // Rutas FCM
+app.use('/api', fcmRoutes);
 app.use('/articles', articleRouter);
+app.use('/articles/public', articleRouter);
+app.use("/api/support", supportRoutes);
+
+scheduleCleanupTask();
+
 
 // --- Manejador de Errores Global ---
 app.use((error, req, res, next) => {

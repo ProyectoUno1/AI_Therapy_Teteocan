@@ -1,5 +1,5 @@
-// ai_chat_screen.dart (CON TRACKING DE LÍMITES EN TIEMPO REAL)
-import 'dart:async'; // Añadir para StreamSubscription
+// ai_chat_screen.dart 
+import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,7 +30,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   
-  // Variables para controlar el auto-scroll
   bool _isUserScrolling = false;
   int _previousMessageCount = 0;
   

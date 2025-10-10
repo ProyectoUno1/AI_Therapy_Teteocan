@@ -14,6 +14,7 @@ abstract class PsychologyPaymentRepository {
     required String psychologistName,
     required String psychologistId,
     String? sessionNotes,
+    required String appointmentType, 
   });
 
   Future<Map<String, dynamic>> verifyPsychologySession({
@@ -30,7 +31,6 @@ abstract class PsychologyPaymentRepository {
 class PsychologyPaymentRepositoryImpl implements PsychologyPaymentRepository {
   final http.Client _client;
   
-  // Usar tu configuración de API existente
   static const String _baseUrl = '${ApiConstants.baseUrl}/api/stripe';
 
   PsychologyPaymentRepositoryImpl({http.Client? client}) 
@@ -46,6 +46,7 @@ class PsychologyPaymentRepositoryImpl implements PsychologyPaymentRepository {
     required String psychologistName,
     required String psychologistId,
     String? sessionNotes,
+    required String appointmentType, 
   }) async {
     try {
       final response = await _client.post(
@@ -63,6 +64,7 @@ class PsychologyPaymentRepositoryImpl implements PsychologyPaymentRepository {
           'psychologistName': psychologistName,
           'psychologistId': psychologistId,
           'sessionNotes': sessionNotes,
+          'appointmentType': appointmentType, 
         }),
       );
 

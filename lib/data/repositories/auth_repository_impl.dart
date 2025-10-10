@@ -278,6 +278,12 @@ class AuthRepositoryImpl implements AuthRepository {
         return null;
       }
 
+      // Verificar si el email está verificado
+    if (!fbUser.emailVerified) {
+      log('Usuario ${fbUser.uid} no ha verificado su email');
+      // Aquí puedes decidir si permites continuar o no
+    }
+
       try {
         final userModel = await userRemoteDataSource.getUserData(fbUser.uid);
         if (userModel != null) {
@@ -338,4 +344,55 @@ class AuthRepositoryImpl implements AuthRepository {
       rethrow;
     }
   }
+   @override
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    log(
+      'Repo: Enviando correo de recuperación de contraseña a $email',
+      name: 'AuthRepositoryImpl',
+    );
+    try {
+      await authRemoteDataSource.sendPasswordResetEmail(email: email);
+      log(
+        'Repo: Correo de recuperación enviado exitosamente a $email',
+        name: 'AuthRepositoryImpl',
+      );
+    } on FirebaseAuthException catch (e) {
+      log(
+        'Repo: FirebaseAuthException al enviar correo: ${e.code} - ${e.message}',
+        name: 'AuthRepositoryImpl',
+      );
+      if (e.code == 'user-not-found') {
+        throw UserNotFoundException('No se encontró un usuario con ese email.');
+      } else if (e.code == 'invalid-email') {
+        throw InvalidEmailException('El formato del email es incorrecto.');
+      }
+      throw AuthException(
+        'Error al enviar correo de recuperación: ${e.message ?? e.code}',
+      );
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      log(
+        'Repo: Error genérico al enviar correo de recuperación: $e',
+        name: 'AuthRepositoryImpl',
+      );
+      throw FetchDataException(
+        'Error inesperado al enviar correo de recuperación: $e',
+      );
+    }
+  }
+
+  @override
+Future<void> updateEmail({required String newEmail}) async {
+  log('Repo: Actualizando email a $newEmail', name: 'AuthRepositoryImpl');
+  try {
+    await authRemoteDataSource.updateEmail(newEmail: newEmail);
+    log('Repo: Email actualizado exitosamente', name: 'AuthRepositoryImpl');
+  } on AppException {
+    rethrow;
+  } catch (e) {
+    log('Repo: Error al actualizar email: $e', name: 'AuthRepositoryImpl');
+    throw AuthException('Error inesperado al actualizar email: $e');
+  }
+}
 }

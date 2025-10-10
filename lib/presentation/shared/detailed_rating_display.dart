@@ -162,7 +162,7 @@ class DetailedRatingDisplay extends StatelessWidget {
   }
 }
 
-// Widget compacto para mostrar solo el rating general
+// Widget mostrar solo el rating general
 class CompactRatingDisplay extends StatelessWidget {
   final PsychologistRatingModel? rating;
 

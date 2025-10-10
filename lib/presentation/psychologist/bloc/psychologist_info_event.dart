@@ -8,6 +8,7 @@ abstract class PsychologistInfoEvent extends Equatable {
   @override
   List<Object?> get props => [];
 }
+
 class LoadPsychologistInfoEvent extends PsychologistInfoEvent {
   final String uid;
 
@@ -17,6 +18,11 @@ class LoadPsychologistInfoEvent extends PsychologistInfoEvent {
   List<Object?> get props => [uid];
 }
 
+class PsychologistProfilePictureUploadRequested extends PsychologistInfoEvent {
+  final String imagePath;
+  PsychologistProfilePictureUploadRequested(this.imagePath);
+}
+
 class SetupProfessionalInfoEvent extends PsychologistInfoEvent {
   final String uid;
   final String fullName;
@@ -24,14 +30,15 @@ class SetupProfessionalInfoEvent extends PsychologistInfoEvent {
   final String licenseNumber;
   final int yearsExperience;
   final String description;
-  final List<String> education; 
-  final List<String> certifications; 
+  final List<String> education;
+  final List<String> certifications;
   final String email;
   final String? profilePictureUrl;
   final String? selectedSpecialty;
   final List<String> selectedSubSpecialties;
   final Map<String, dynamic> schedule;
   final bool isAvailable;
+  final double? price;
 
   const SetupProfessionalInfoEvent({
     required this.uid,
@@ -48,6 +55,7 @@ class SetupProfessionalInfoEvent extends PsychologistInfoEvent {
     required this.selectedSubSpecialties,
     required this.schedule,
     required this.isAvailable,
+    this.price,
   });
 
   @override
@@ -66,5 +74,6 @@ class SetupProfessionalInfoEvent extends PsychologistInfoEvent {
         selectedSubSpecialties,
         schedule,
         isAvailable,
+        price,
       ];
 }

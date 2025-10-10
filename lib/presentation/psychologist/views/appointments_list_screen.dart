@@ -64,7 +64,6 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        // Aplicar bloqueo si el estado no es 'APPROVED'
         return ApprovalStatusBlocker(
           psychologist: authState.psychologist,
           featureName: 'citas',
@@ -341,7 +340,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: color,
             fontFamily: 'Poppins',
           ),
-          textAlign: TextAlign.center, // SOLUCIÓN OVERFLOW
+          textAlign: TextAlign.center, 
         ),
         Text(
           label,
@@ -350,9 +349,9 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: Colors.grey[600],
             fontFamily: 'Poppins',
           ),
-          textAlign: TextAlign.center, // SOLUCIÓN OVERFLOW
-          maxLines: 1, // SOLUCIÓN OVERFLOW
-          overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+          textAlign: TextAlign.center, 
+          maxLines: 1, 
+          overflow: TextOverflow.ellipsis, 
         ),
       ],
     );
@@ -588,8 +587,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                           color: Colors.grey[600],
                           fontFamily: 'Poppins',
                         ),
-                        overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
-                        maxLines: 1, // SOLUCIÓN OVERFLOW
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1, 
                       ),
                     ],
                   ),
@@ -675,8 +674,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                     fontStyle: FontStyle.italic,
                     fontFamily: 'Poppins',
                   ),
-                  maxLines: 2, // SOLUCIÓN OVERFLOW
-                  overflow: TextOverflow.ellipsis, // SOLUCIÓN OVERFLOW
+                  maxLines: 2, 
+                  overflow: TextOverflow.ellipsis, 
                 ),
               ),
             ],
@@ -702,6 +701,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         return Colors.amber;
       case AppointmentStatus.rescheduled:
         return Colors.blue;
+      case AppointmentStatus.refunded:
+      return Colors.purple;
     }
   }
 
@@ -718,9 +719,6 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         ),
       ),
     );
-
-    // Si la pantalla de confirmación regresa con un resultado 'true',
-    // significa que una acción fue completada y se debe refrescar la lista.
     if (result == true) {
       _loadAppointments();
     }

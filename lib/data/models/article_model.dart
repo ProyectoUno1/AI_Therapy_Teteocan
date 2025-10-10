@@ -1,40 +1,104 @@
 // lib/data/models/article_model.dart
-import 'package:equatable/equatable.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Article extends Equatable {
-  final String? id;
+DateTime? _parseFirebaseTimestamp(dynamic data) {
+  if (data == null) return null;
+  
+  try {
+    if (data is Timestamp) {
+      return data.toDate();
+    }
+    
+    if (data is DateTime) {
+      return data;
+    }
+    
+    if (data is Map<String, dynamic>) {
+      final seconds = data['_seconds'];
+      final nanoseconds = data['_nanoseconds'];
+      if (seconds is int && nanoseconds is int) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          seconds * 1000 + nanoseconds ~/ 1000000,
+        );
+      }
+    }
+ 
+    if (data is String) {
+      return DateTime.tryParse(data);
+    }
+    
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+class Article {
+  String? id;
   final String psychologistId;
   final String title;
   final String content;
-  final String summary;
-  final String imageUrl;
+  final String? summary;
+  final String? imageUrl;
   final List<String> tags;
-  final String category;
+  final String? category;
   final int readingTimeMinutes;
   final bool isPublished;
-  final DateTime createdAt;
+  final String? status;
+  final String? fullName;
+  final int views;
+  int likes;
+  final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? publishedAt;
 
-  const Article({
+  Article({
     this.id,
     required this.psychologistId,
     required this.title,
     required this.content,
-    required this.summary,
-    required this.imageUrl,
-    required this.tags,
-    required this.category,
+    this.summary,
+    this.imageUrl,
+    this.tags = const [],
+    this.category,
     required this.readingTimeMinutes,
-    required this.isPublished,
-    required this.createdAt,
+    this.isPublished = false,
+    this.status,
+    this.fullName,
+    this.views = 0,
+    this.likes = 0,
+    this.createdAt,
     this.updatedAt,
     this.publishedAt,
   });
 
-  Map<String, dynamic> toJson() {
+  factory Article.fromJson(Map<String, dynamic> json) {
+    
+    final article = Article(
+      id: json['id'],
+      psychologistId: json['psychologistId'] as String,
+      title: json['title'] as String,
+      content: json['content'] as String,
+      summary: json['summary'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      tags: List<String>.from(json['tags'] ?? []),
+      category: json['category'] as String?,
+      readingTimeMinutes: json['readingTimeMinutes'] as int? ?? 0,
+      isPublished: json['isPublished'] as bool? ?? false,
+      status: json['status'] as String?,
+      fullName: json['fullName'] as String?,
+      views: json['views'] as int? ?? 0,
+      likes: json['likes'] as int? ?? 0,
+      createdAt: _parseFirebaseTimestamp(json['createdAt']),
+      updatedAt: _parseFirebaseTimestamp(json['updatedAt']),
+      publishedAt: _parseFirebaseTimestamp(json['publishedAt']),
+    );
+  
+    return article;
+  }
+
+  Map<String, dynamic> toMap() {
     return {
-      if (id != null) 'id': id,
       'psychologistId': psychologistId,
       'title': title,
       'content': content,
@@ -44,40 +108,15 @@ class Article extends Equatable {
       'category': category,
       'readingTimeMinutes': readingTimeMinutes,
       'isPublished': isPublished,
-      'createdAt': createdAt.toIso8601String(),
-      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
-      if (publishedAt != null) 'publishedAt': publishedAt!.toIso8601String(),
+      'status': status,
+      'fullName': fullName,
+      'views': views,
+      'likes': likes,
+      'createdAt': createdAt?.millisecondsSinceEpoch,
+      'updatedAt': updatedAt?.millisecondsSinceEpoch,
+      'publishedAt': publishedAt?.millisecondsSinceEpoch,
     };
   }
-
-  factory Article.fromJson(Map<String, dynamic> json) {
-    return Article(
-      id: json['id'],
-      psychologistId: json['psychologistId'],
-      title: json['title'],
-      content: json['content'],
-      summary: json['summary'],
-      imageUrl: json['imageUrl'],
-      tags: List<String>.from(json['tags'] ?? []),
-      category: json['category'],
-      readingTimeMinutes: json['readingTimeMinutes'],
-      isPublished: json['isPublished'],
-      createdAt: json['createdAt'] is String 
-        ? DateTime.parse(json['createdAt'])
-        : DateTime.fromMillisecondsSinceEpoch(json['createdAt']),
-      updatedAt: json['updatedAt'] != null
-        ? (json['updatedAt'] is String 
-          ? DateTime.parse(json['updatedAt'])
-          : DateTime.fromMillisecondsSinceEpoch(json['updatedAt']))
-        : null,
-      publishedAt: json['publishedAt'] != null
-        ? (json['publishedAt'] is String 
-          ? DateTime.parse(json['publishedAt'])
-          : DateTime.fromMillisecondsSinceEpoch(json['publishedAt']))
-        : null,
-    );
-  }
-
   Article copyWith({
     String? id,
     String? psychologistId,
@@ -92,6 +131,9 @@ class Article extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? publishedAt,
+    String? fullName,
+    int? likes,
+    int? views,
   }) {
     return Article(
       id: id ?? this.id,
@@ -107,6 +149,9 @@ class Article extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       publishedAt: publishedAt ?? this.publishedAt,
+      fullName: fullName ?? this.fullName,
+      likes: likes ?? this.likes,
+      views: views ?? this.views,
     );
   }
 
@@ -125,5 +170,8 @@ class Article extends Equatable {
         createdAt,
         updatedAt,
         publishedAt,
+        fullName,
+        likes,
+        views,
       ];
 }

@@ -97,28 +97,38 @@ class EmotionRemoteDataSource implements EmotionDataSource {
   }
 
   @override
-  Future<Emotion?> getTodayEmotion(String patientId) async {
-    try {
-      final response = await _authenticatedGet(
-        '$baseUrl/api/patient-management/patients/$patientId/emotions/today',
-      );
+Future<Emotion?> getTodayEmotion(String patientId) async {
+  try {
+    final response = await _authenticatedGet(
+      '$baseUrl/api/patient-management/patients/$patientId/emotions/today',
+    );
 
-      if (response.statusCode == 200) {
-        if (response.body == 'null' || response.body.isEmpty || response.body.trim() == 'null') {
-          return null;
-        }
-        final Map<String, dynamic> data = json.decode(response.body);
-        return Emotion.fromMap(data);
-      } else if (response.statusCode == 404) {
-        return _getTodayEmotionAlternative(patientId);
-      } else {
-        throw Exception('Error al obtener emoción del día: ${response.statusCode}');
+    if (response.statusCode == 200) {
+      // Mejorar la validación de respuesta vacía
+      final responseBody = response.body.trim();
+      if (responseBody.isEmpty || responseBody == 'null' || responseBody == '{}') {
+        return null;
       }
-    } catch (e) {
-      // fallback alternativo
+      
+      try {
+        final Map<String, dynamic> data = json.decode(responseBody);
+        if (data.isEmpty) return null;
+        return Emotion.fromMap(data);
+      } catch (e) {
+        print('Error parsing emotion response: $e');
+        return null;
+      }
+    } else if (response.statusCode == 404) {
+      return _getTodayEmotionAlternative(patientId);
+    } else {
+      print('Server error: ${response.statusCode} - ${response.body}');
       return _getTodayEmotionAlternative(patientId);
     }
+  } catch (e) {
+    print('Error in getTodayEmotion: $e');
+    return _getTodayEmotionAlternative(patientId);
   }
+}
 
   // Método alternativo para obtener la emoción de hoy
   Future<Emotion?> _getTodayEmotionAlternative(String patientId) async {

@@ -5,7 +5,7 @@ abstract class ArticleState extends Equatable {
   const ArticleState();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class ArticleInitial extends ArticleState {}
@@ -14,11 +14,33 @@ class ArticlesLoading extends ArticleState {}
 
 class ArticlesLoaded extends ArticleState {
   final List<Article> articles;
+  final ArticleLimitInfo? limitInfo;
 
-  const ArticlesLoaded({required this.articles});
+  const ArticlesLoaded({
+    required this.articles,
+    this.limitInfo,
+  });
+  ArticlesLoaded copyWith({
+    List<Article>? articles,
+    ArticleLimitInfo? limitInfo,
+  }) {
+    return ArticlesLoaded(
+      articles: articles ?? this.articles,
+      limitInfo: limitInfo ?? this.limitInfo,
+    );
+  }
 
   @override
-  List<Object> get props => [articles];
+  List<Object?> get props => [articles, limitInfo];
+}
+
+class ArticleLimitLoaded extends ArticleState {
+  final ArticleLimitInfo limitInfo;
+
+  const ArticleLimitLoaded({required this.limitInfo});
+
+  @override
+  List<Object> get props => [limitInfo];
 }
 
 class ArticleOperationInProgress extends ArticleState {}
@@ -29,7 +51,7 @@ class ArticleOperationSuccess extends ArticleState {
   const ArticleOperationSuccess({this.article});
 
   @override
-  List<Object> get props => [article ?? Article];
+  List<Object?> get props => [article];
 }
 
 class ArticleOperationError extends ArticleState {

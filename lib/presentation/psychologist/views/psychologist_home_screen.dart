@@ -17,13 +17,17 @@ import 'package:ai_therapy_teteocan/presentation/shared/notification_panel_scree
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/views/terms_and_conditions_screen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   final int? initialTabIndex;
+  final bool showProfessionalSetupDialog;
 
   const PsychologistHomeScreen({
     super.key,
     this.initialTabIndex,
+    this.showProfessionalSetupDialog = false,
   });
 
   @override
@@ -34,6 +38,8 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   int _selectedIndex = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _notificationsLoaded = false;
+  bool _dialogShown = false;
+  bool _termsDialogShown = false;
 
   void _navigateToChatTab() {
     setState(() {
@@ -90,6 +96,176 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     }
   }
 
+  void _checkAndShowTermsDialog() {
+    if (_termsDialogShown) return;
+
+    final authState = context.read<AuthBloc>().state;
+    final psychologist = authState.psychologist;
+
+    if (psychologist != null && !(psychologist.termsAccepted ?? false)) {
+      _termsDialogShown = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => WillPopScope(
+            onWillPop: () async => false, 
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: EdgeInsets.zero,
+              child: TermsAndConditionsScreen(
+                userRole: 'psychologist',
+              ),
+            ),
+          ),
+        ).then((_) {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+      });
+    }
+  }
+
+  void _showProfessionalSetupDialog() {
+    if (_dialogShown) return;
+    _dialogShown = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF82c4c3).withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.workspace_premium,
+                color: Color(0xFF82c4c3),
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '¡Bienvenido!',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Para comenzar a atender pacientes, necesitas completar tu perfil profesional.',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDialogItem(Icons.school, 'Educación y certificaciones'),
+                  const SizedBox(height: 8),
+                  _buildDialogItem(Icons.category, 'Especialidades'),
+                  const SizedBox(height: 8),
+                  _buildDialogItem(Icons.access_time, 'Horarios de atención'),
+                  const SizedBox(height: 8),
+                  _buildDialogItem(Icons.attach_money, 'Tarifa de consulta'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'Más tarde',
+              style: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ProfessionalInfoSetupScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF82c4c3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+            ),
+            child: const Text(
+              'Completar ahora',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: const Color(0xFF82c4c3),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              fontFamily: 'Poppins',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,12 +274,18 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     if (widget.initialTabIndex != null) {
       _selectedIndex = widget.initialTabIndex!;
     }
+    if (widget.showProfessionalSetupDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showProfessionalSetupDialog();
+      });
+    }
   }
   
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _loadNotifications();
+    _checkAndShowTermsDialog();
   }
 
   @override
@@ -123,19 +305,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: Theme.of(context).appBarTheme.elevation ?? 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.settings,
-            color: Theme.of(context).appBarTheme.iconTheme?.color,
-          ),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ThemeSettingsScreen(),
-              ),
-            );
-          },
-        ),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,

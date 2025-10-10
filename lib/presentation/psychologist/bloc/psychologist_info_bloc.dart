@@ -6,6 +6,8 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_
 import 'package:ai_therapy_teteocan/domain/usecases/psychologist/psychologist_setup_usecase.dart';
 import 'package:ai_therapy_teteocan/domain/usecases/psychologist/psychologist_get_usecase.dart'; 
 import 'package:ai_therapy_teteocan/domain/repositories/psychologist_repository.dart'; 
+import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoState> {
   final PsychologistRepository psychologistRepository;
@@ -19,10 +21,11 @@ class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoS
         super(PsychologistInfoInitial()) {
     on<SetupProfessionalInfoEvent>(_onSetupProfessionalInfo);
     on<LoadPsychologistInfoEvent>(_onLoadProfessionalInfo); 
+    on<PsychologistProfilePictureUploadRequested>(_onPictureUploadRequested);
   }
 
   // Método para guardar/actualizar la información 
-  Future<void> _onSetupProfessionalInfo(
+   Future<void> _onSetupProfessionalInfo(
     SetupProfessionalInfoEvent event,
     Emitter<PsychologistInfoState> emit,
   ) async {
@@ -42,7 +45,8 @@ class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoS
         selectedSpecialty: event.selectedSpecialty,
         selectedSubSpecialties: event.selectedSubSpecialties,
         schedule: event.schedule,
-        isAvailable: event.isAvailable, 
+        isAvailable: event.isAvailable,
+        price: event.price, 
       );
       emit(PsychologistInfoSaved());
     } catch (e) {
@@ -67,4 +71,48 @@ class PsychologistInfoBloc extends Bloc<PsychologistInfoEvent, PsychologistInfoS
       emit(PsychologistInfoError(message: e.toString()));
     }
   }
+
+  Future<void> _onPictureUploadRequested(
+    PsychologistProfilePictureUploadRequested event,
+    Emitter<PsychologistInfoState> emit,
+  ) async {
+    final currentState = state;
+    
+    // Obtenemos el psicólogo actual y emitimos Loading para feedback
+    PsychologistModel? currentPsychologist;
+    if (currentState is PsychologistInfoLoaded) {
+      currentPsychologist = currentState.psychologist;
+    }
+    emit(PsychologistInfoLoading()); 
+
+    try {
+      final newUrl = await psychologistRepository.uploadProfilePicture(event.imagePath);
+      final currentUid = currentPsychologist?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+      
+      if (currentUid == null) {
+          throw Exception('No se pudo obtener el UID del psicólogo para actualizar el perfil.');
+      }
+      final psychologist = await _getUsecase(uid: currentUid); 
+      
+      if (psychologist != null) {
+        emit(PsychologistInfoLoaded(psychologist: psychologist));
+      } else {
+        if (currentPsychologist != null) {
+             final updatedPsychologist = currentPsychologist.copyWith(profilePictureUrl: newUrl);
+             emit(PsychologistInfoLoaded(psychologist: updatedPsychologist));
+        } else {
+             emit(PsychologistInfoError(message: 'Foto subida, pero fallo al recargar los datos.'));
+        }
+      }
+      
+    } catch (e) {
+      emit(PsychologistInfoError(message: 'Error al subir la foto: ${e.toString()}'));
+
+      if (currentPsychologist != null) {
+        emit(PsychologistInfoLoaded(psychologist: currentPsychologist)); 
+      }
+    }
+  }
 }
+
+  

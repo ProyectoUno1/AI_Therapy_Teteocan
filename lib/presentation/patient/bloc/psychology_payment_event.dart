@@ -11,6 +11,7 @@ class StartPsychologyPaymentEvent extends PsychologyPaymentEvent {
   final String psychologistName;
   final String psychologistId;
   final String? sessionNotes;
+  final String appointmentType; 
 
   StartPsychologyPaymentEvent({
     required this.userEmail,
@@ -21,6 +22,7 @@ class StartPsychologyPaymentEvent extends PsychologyPaymentEvent {
     required this.psychologistName,
     required this.psychologistId,
     this.sessionNotes,
+    required this.appointmentType, 
   });
 }
 

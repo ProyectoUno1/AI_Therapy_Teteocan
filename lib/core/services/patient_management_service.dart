@@ -52,7 +52,6 @@ class PatientManagementService {
           .map((json) => PatientManagementModel.fromJson(json))
           .toList();
     } catch (e) {
-      log('Error al obtener pacientes: $e', name: 'PatientManagementService');
       throw Exception('Error al cargar pacientes: ${e.toString()}');
     }
   }
@@ -71,10 +70,6 @@ class PatientManagementService {
           ? allPatients.firstWhere((p) => p.id == patientId)
           : null;
     } catch (e) {
-      log(
-        'Error al obtener detalles del paciente: $e',
-        name: 'PatientManagementService',
-      );
       throw Exception('Error al cargar detalles del paciente: ${e.toString()}');
     }
   }

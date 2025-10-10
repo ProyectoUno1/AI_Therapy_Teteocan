@@ -6,7 +6,6 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_management_model.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/add_patient_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_detail_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/appointments_list_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
@@ -15,6 +14,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_manag
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/schedule_appointment_form.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_metrics_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
 import 'dart:developer';
 
 class PatientManagementScreen extends StatefulWidget {
@@ -50,6 +50,26 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
     });
   }
 
+  List<PatientManagementModel> _getNewPatients(
+    List<PatientManagementModel> patients,
+  ) {
+    return patients
+        .where((patient) => (patient.totalSessions ?? 0) == 0)
+        .toList();
+  }
+
+  List<PatientManagementModel> _getRecurrentPatients(
+    List<PatientManagementModel> patients,
+  ) {
+    return patients
+        .where(
+          (patient) =>
+              (patient.totalSessions ?? 0) > 0 &&
+              patient.status == PatientStatus.inTreatment,
+        )
+        .toList();
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -59,305 +79,263 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: BlocListener<PatientManagementBloc, PatientManagementState>(
-        listener: (context, state) {
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-          }
-        },
-        child: BlocBuilder<PatientManagementBloc, PatientManagementState>(
-          builder: (context, state) {
-            if (state.status == PatientManagementStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state.status == PatientManagementStatus.error) {
-              return Center(
-                child: Text(state.errorMessage ?? 'Ocurrió un error'),
-              );
-            } else {
-              return Column(
-                children: [
-                  // Barra de búsqueda y botón agregar
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    color: Theme.of(context).cardColor,
-                    child: Column(
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        return ApprovalStatusBlocker(
+          psychologist: authState.psychologist,
+          featureName: 'pacientes',
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: BlocListener<PatientManagementBloc, PatientManagementState>(
+              listener: (context, state) {
+                if (state.errorMessage != null) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+                }
+              },
+              child: BlocBuilder<PatientManagementBloc, PatientManagementState>(
+                builder: (context, state) {
+                  if (state.status == PatientManagementStatus.loading) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state.status == PatientManagementStatus.error) {
+                    return Center(
+                      child: Text(state.errorMessage ?? 'Ocurrió un error'),
+                    );
+                  } else {
+                    return Column(
                       children: [
-                        // Título y botón agregar
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        // Barra de búsqueda y botón agregar
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          color: Theme.of(context).cardColor,
+                          child: Column(
+                            children: [
+                              // Título y botón agregar
+                              Row(
                                 children: [
-                                  Text(
-                                    'Mis Pacientes',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'Poppins',
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Mis Pacientes',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                fontFamily: 'Poppins',
+                                              ),
                                         ),
-                                  ),
-                                  Text(
-                                    '${state.allPatients.length} pacientes registrados',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(color: Colors.grey[600]),
+                                        Text(
+                                          '${state.allPatients.length} pacientes registrados',
+                                          style: Theme.of(context).textTheme.bodySmall
+                                              ?.copyWith(color: Colors.grey[600]),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const AddPatientScreen(),
-                                  ),
-                                ).then((_) {
-                                  final psychologistId =
-                                      context
-                                          .read<AuthBloc>()
-                                          .state
-                                          .psychologist
-                                          ?.uid ??
-                                      '';
-                                  if (psychologistId.isNotEmpty) {
-                                    BlocProvider.of<PatientManagementBloc>(
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Buscar pacientes...',
+                                  hintStyle: TextStyle(
+                                    color: Theme.of(
                                       context,
-                                    ).add(
-                                      LoadPatientsEvent(
-                                        psychologistId: psychologistId,
-                                      ),
-                                    );
-                                  }
-                                });
-                              },
-                              icon: const Icon(Icons.add, size: 20),
-                              label: const Text(
-                                'Agregar',
-                                style: TextStyle(fontFamily: 'Poppins'),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppConstants.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Barra de búsqueda
-                        TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Buscar pacientes...',
-                            hintStyle: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.color,
-                              fontFamily: 'Poppins',
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.color,
-                            ),
-                            filled: true,
-                            fillColor:
-                                Theme.of(context).brightness == Brightness.light
-                                ? Colors.grey[100]
-                                : Colors.grey[800],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 15,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // TabBar de estados
-                  Container(
-                    color: Theme.of(context).cardColor,
-                    child: Column(
-                      children: [
-                        // Header con métricas clickeables
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Vista por Estados',
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Poppins',
-                                      color: Colors.grey[600],
-                                    ),
-                              ),
-                              const Spacer(),
-                              GestureDetector(
-                                onTap: () => _navigateToMetrics(context, null, state),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    ).textTheme.bodySmall?.color,
+                                    fontFamily: 'Poppins',
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: AppConstants.primaryColor
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: AppConstants.primaryColor
-                                          .withOpacity(0.3),
-                                    ),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.analytics,
-                                        size: 16,
-                                        color: AppConstants.primaryColor,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Ver Métricas',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppConstants.primaryColor,
-                                          fontFamily: 'Poppins',
-                                        ),
-                                      ),
-                                    ],
+                                  filled: true,
+                                  fillColor:
+                                      Theme.of(context).brightness == Brightness.light
+                                      ? Colors.grey[100]
+                                      : Colors.grey[800],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 15,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        // TabBar mejorado con gestos
-                        TabBar(
-                          controller: _tabController,
-                          labelColor: AppConstants.primaryColor,
-                          unselectedLabelColor: Colors.grey,
-                          indicatorColor: AppConstants.primaryColor,
-                          isScrollable: true,
-                          labelStyle: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                          ),
-                          unselectedLabelStyle: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.normal,
-                          ),
-                          tabs: [
-                            _buildClickableTab(
-                              context,
-                              'Todos',
-                              state.filteredPatients.length,
-                              Icons.people,
-                              null,
-                              state,
-                            ),
-                            _buildClickableTab(
-                              context,
-                              'Pendientes',
-                              _getPatientsByStatus(
-                                state.filteredPatients,
-                                PatientStatus.pending,
-                              ).length,
-                              Icons.pending_actions,
-                              PatientStatus.pending,
-                              state,
-                            ),
-                            _buildClickableTab(
-                              context,
-                              'En Tratamiento',
-                              _getPatientsByStatus(
-                                state.filteredPatients,
-                                PatientStatus.inTreatment,
-                              ).length,
-                              Icons.medical_services,
-                              PatientStatus.inTreatment,
-                              state,
-                            ),
-                            _buildClickableTab(
-                              context,
-                              'Completados',
-                              _getPatientsByStatus(
-                                state.filteredPatients,
-                                PatientStatus.completed,
-                              ).length,
-                              Icons.check_circle,
-                              PatientStatus.completed,
-                              state,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  // Lista de pacientes
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildPatientsList(context, state.filteredPatients),
-                        _buildPatientsList(
-                          context,
-                          _getPatientsByStatus(
-                            state.filteredPatients,
-                            PatientStatus.pending,
+                        // TabBar de estados
+                        Container(
+                          color: Theme.of(context).cardColor,
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Vista por Estados',
+                                      style: Theme.of(context).textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            fontFamily: 'Poppins',
+                                            color: Colors.grey[600],
+                                          ),
+                                    ),
+                                    const Spacer(),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _navigateToMetrics(context, null, state),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppConstants.primaryColor
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: AppConstants.primaryColor
+                                                .withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.analytics,
+                                              size: 16,
+                                              color: AppConstants.primaryColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Ver Métricas',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppConstants.primaryColor,
+                                                fontFamily: 'Poppins',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TabBar(
+                                controller: _tabController,
+                                labelColor: AppConstants.primaryColor,
+                                unselectedLabelColor: Colors.grey,
+                                indicatorColor: AppConstants.primaryColor,
+                                isScrollable: true,
+                                labelStyle: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                unselectedLabelStyle: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.normal,
+                                ),
+                                tabs: [
+                                  _buildClickableTab(
+                                    context,
+                                    'Todos',
+                                    state.filteredPatients.length,
+                                    Icons.people,
+                                    null,
+                                    state,
+                                  ),
+                                  _buildClickableTab(
+                                    context,
+                                    'Nuevos',
+                                    _getNewPatients(state.filteredPatients).length,
+                                    Icons.person_add,
+                                    null,
+                                    state,
+                                  ),
+                                  _buildClickableTab(
+                                    context,
+                                    'En tratamiento',
+                                    _getRecurrentPatients(
+                                      state.filteredPatients,
+                                    ).length,
+                                    Icons.favorite,
+                                    PatientStatus.inTreatment,
+                                    state,
+                                  ),
+                                  _buildClickableTab(
+                                    context,
+                                    'Completados',
+                                    _getPatientsByStatus(
+                                      state.filteredPatients,
+                                      PatientStatus.completed,
+                                    ).length,
+                                    Icons.check_circle,
+                                    PatientStatus.completed,
+                                    state,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        _buildPatientsList(
-                          context,
-                          _getPatientsByStatus(
-                            state.filteredPatients,
-                            PatientStatus.inTreatment,
-                          ),
-                        ),
-                        _buildPatientsList(
-                          context,
-                          _getPatientsByStatus(
-                            state.filteredPatients,
-                            PatientStatus.completed,
+
+                        // Lista de pacientes
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Tab 1: Todos
+                              _buildPatientsList(context, state.filteredPatients),
+
+                              // Tab 2: Nuevos (sin sesiones)
+                              _buildPatientsList(
+                                context,
+                                _getNewPatients(state.filteredPatients),
+                              ),
+
+                              // Tab 3: Recurrentes (con sesiones y en tratamiento)
+                              _buildPatientsList(
+                                context,
+                                _getRecurrentPatients(state.filteredPatients),
+                              ),
+
+                              // Tab 4: Completados
+                              _buildPatientsList(
+                                context,
+                                _getPatientsByStatus(
+                                  state.filteredPatients,
+                                  PatientStatus.completed,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            }
-          },
-        ),
-      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -570,7 +548,6 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Botón para ver citas del paciente
           IconButton(
             icon: Icon(
               Icons.calendar_today,
@@ -585,12 +562,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                     create: (context) => AppointmentBloc(),
                     child: AppointmentsListScreen(
                       psychologistId:
-                          context
-                              .read<AuthBloc>()
-                              .state
-                              .psychologist
-                              ?.username ??
-                          '',
+                          context.read<AuthBloc>().state.psychologist?.username ?? '',
                     ),
                   ),
                 ),
@@ -598,52 +570,52 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
             },
             tooltip: 'Ver citas del paciente',
           ),
-          // Botón para ver detalles
           IconButton(
             icon: Icon(
               Icons.arrow_forward_ios,
               color: Colors.grey[600],
               size: 16,
             ),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => PatientDetailScreen(patient: patient),
                 ),
-              ).then((_) {
-                final psychologistId =
-                    context.read<AuthBloc>().state.psychologist?.uid ?? '';
+              );
+              
+              if (result == true && mounted) {
+                final psychologistId = context.read<AuthBloc>().state.psychologist?.uid ?? '';
                 if (psychologistId.isNotEmpty) {
-                  BlocProvider.of<PatientManagementBloc>(
-                    context,
-                  ).add(LoadPatientsEvent(psychologistId: psychologistId));
+                  context.read<PatientManagementBloc>().add(
+                    LoadPatientsEvent(psychologistId: psychologistId),
+                  );
                 }
-              });
+              }
             },
             tooltip: 'Ver detalles',
           ),
         ],
       ),
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PatientDetailScreen(patient: patient),
           ),
-        ).then((_) {
-          final psychologistId =
-              context.read<AuthBloc>().state.psychologist?.uid ?? '';
+        );
+        
+        if (result == true && mounted) {
+          final psychologistId = context.read<AuthBloc>().state.psychologist?.uid ?? '';
           if (psychologistId.isNotEmpty) {
-            BlocProvider.of<PatientManagementBloc>(
-              context,
-            ).add(LoadPatientsEvent(psychologistId: psychologistId));
+            context.read<PatientManagementBloc>().add(
+              LoadPatientsEvent(psychologistId: psychologistId),
+            );
           }
-        });
+        }
       },
     );
   }
-
 
   Widget _buildClickableTab(
     BuildContext context,
@@ -666,14 +638,14 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Text(title, style: const TextStyle(fontSize: 12)),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: status != null 
+                      color: status != null
                           ? _getStatusColor(status).withOpacity(0.2)
                           : AppConstants.primaryColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -683,7 +655,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: status != null 
+                        color: status != null
                             ? _getStatusColor(status)
                             : AppConstants.primaryColor,
                       ),
@@ -698,7 +670,11 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
     );
   }
 
-  void _navigateToMetrics(BuildContext context, PatientStatus? focusedStatus, PatientManagementState state) {
+  void _navigateToMetrics(
+    BuildContext context,
+    PatientStatus? focusedStatus,
+    PatientManagementState state,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(

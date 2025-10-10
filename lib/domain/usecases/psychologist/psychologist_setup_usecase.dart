@@ -23,6 +23,7 @@ class PsychologistSetupUseCase {
     required List<String>? selectedSubSpecialties,
     required Map<String, dynamic>? schedule,
     required bool? isAvailable,
+    required double? price,
   }) async {
     try {
       await _repository.updateProfessionalInfo(
@@ -39,6 +40,7 @@ class PsychologistSetupUseCase {
         schedule: schedule,
         profilePictureUrl: profilePictureUrl,
         isAvailable: isAvailable,
+        price: price,
       );
     } catch (e) {
       

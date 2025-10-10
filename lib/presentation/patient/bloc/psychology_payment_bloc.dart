@@ -30,10 +30,10 @@ class PsychologyPaymentBloc extends Bloc<PsychologyPaymentEvent, PsychologyPayme
         psychologistName: event.psychologistName,
         psychologistId: event.psychologistId,
         sessionNotes: event.sessionNotes,
+        appointmentType: event.appointmentType, 
       );
 
       if (result['checkoutUrl'] != null) {
-        // Lanzar URL de Stripe Checkout
         final uri = Uri.parse(result['checkoutUrl']);
         
         if (await canLaunchUrl(uri)) {

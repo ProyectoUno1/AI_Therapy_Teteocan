@@ -1,15 +1,12 @@
-// backend/routes/psychologists.js 
-
 import express from 'express';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { db } from '../firebase-admin.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { genericUploadHandler } from '../middlewares/upload_handler.js'; 
 
 const router = express.Router();
 
-// ============================================================================
-// REGISTRO INICIAL 
-// ============================================================================
+// Registro inicial
 router.post('/register', verifyFirebaseToken, async (req, res) => {
     try {
         const {
@@ -20,6 +17,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             professionalLicense,
             dateOfBirth,
             profilePictureUrl,
+            terms_accepted,
         } = req.body;
 
         const firebaseUser = req.firebaseUser;
@@ -35,32 +33,32 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
             return res.status(400).json({ error: 'Psicólogo ya registrado' });
         }
 
-        // Solo datos básicos en el registro inicial
         const psychologistData = {
             firebaseUid: uid,
-            username,
-            email,
-            phoneNumber,
-            professionalLicense,
-            dateOfBirth,
-            profilePictureUrl: profilePictureUrl || null,
-            // Campos profesionales inicializados como null/vacío
+            username: username,
+            email: email,
+            phoneNumber: phoneNumber,
+            professionalLicense: professionalLicense, 
+            dateOfBirth: dateOfBirth,
+            terms_accepted: false, 
+            createdAt: FieldValue.serverTimestamp(), 
+            updatedAt: FieldValue.serverTimestamp(),
+            fcmToken: null, 
             fullName: null,
             professionalTitle: null,
-            yearsExperience: 0,
+            yearsExperience: null,
             description: null,
-            education: [],
-            certifications: [],
+            education: [],         
+            certifications: [],    
             specialty: null,
-            subSpecialties: [],
-            schedule: {},
-            isAvailable: false,
-            status: 'PENDING',
-            // Campos de control
-            profileCompleted: false,
-            professionalInfoCompleted: false,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
+            subSpecialties: [],    
+            schedule: {},          
+            profilePictureUrl: profilePictureUrl || null,
+            isAvailable: true,
+            price: null,
+            isProfileComplete: false,
+            status: 'pending', 
+
         };
 
         await psychologistRef.set(psychologistData);
@@ -75,9 +73,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ============================================================================
-// OBTENER PERFIL COMPLETO
-// ============================================================================
+// Obtener perfil completo
 router.get('/:uid', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -105,9 +101,7 @@ router.get('/:uid', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ============================================================================
-// ACTUALIZAR INFORMACIÓN BÁSICA (perfil personal)
-// ============================================================================
+// Actualizar infromacion basica
 router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -120,17 +114,16 @@ router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
             username,
             email,
             phoneNumber,
-            profilePictureUrl,
+            profilePictureUrl, 
             dateOfBirth
         } = req.body;
 
         const updateData = { updatedAt: FieldValue.serverTimestamp() };
 
-        // Validación y asignación solo de campos básicos
         if (typeof username === 'string') updateData.username = username;
         if (typeof email === 'string') updateData.email = email;
         if (typeof phoneNumber === 'string') updateData.phoneNumber = phoneNumber;
-        if (typeof profilePictureUrl === 'string') updateData.profilePictureUrl = profilePictureUrl;
+        if (typeof profilePictureUrl === 'string') updateData.profilePictureUrl = profilePictureUrl; 
         if (dateOfBirth) updateData.dateOfBirth = dateOfBirth;
 
         await db.collection('psychologists').doc(uid).set(updateData, { merge: true });
@@ -141,10 +134,7 @@ router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
-
-// ============================================================================
-// ACTUALIZAR INFORMACIÓN PROFESIONAL
-// ============================================================================
+//Actualizar informacion profesional
 router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -165,11 +155,12 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
             subSpecialties,
             schedule,
             isAvailable,
+            price,
+            profilePictureUrl,
         } = req.body;
 
         const updateData = { updatedAt: FieldValue.serverTimestamp() };
 
-        // Validación y asignación de datos profesionales
         if (typeof fullName === 'string') updateData.fullName = fullName;
         if (typeof professionalTitle === 'string') updateData.professionalTitle = professionalTitle;
         if (typeof professionalLicense === 'string') updateData.professionalLicense = professionalLicense;
@@ -181,12 +172,17 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
         if (Array.isArray(subSpecialties)) updateData.subSpecialties = subSpecialties;
         if (typeof schedule === 'object' && schedule !== null) updateData.schedule = schedule;
         if (typeof isAvailable === 'boolean') updateData.isAvailable = isAvailable;
+        if (typeof price === 'number' && price > 0) {
+            updateData.price = price;
+        }
+        
+        if (typeof profilePictureUrl === 'string') {
+            updateData.profilePictureUrl = profilePictureUrl;
+        }
 
-        // Marcar como información profesional completada si se proporcionan datos clave
         if (fullName && professionalTitle && specialty) {
             updateData.professionalInfoCompleted = true;
         }
-
         await db.collection('psychologists').doc(uid).set(updateData, { merge: true });
 
         res.json({ message: 'Información profesional actualizada exitosamente' });
@@ -196,9 +192,7 @@ router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ============================================================================
-// ACTUALIZAR DISPONIBILIDAD (ruta específica para toggle rápido)
-// ============================================================================
+// Actualizar disponibilidad
 router.patch('/:uid/availability', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -230,9 +224,7 @@ router.patch('/:uid/availability', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ============================================================================
-// OBTENER SOLO INFORMACIÓN PROFESIONAL (para casos específicos)
-// ============================================================================
+// Obtener informacion profesional
 router.get('/:uid/professional', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -250,7 +242,6 @@ router.get('/:uid/professional', verifyFirebaseToken, async (req, res) => {
 
         const data = doc.data();
         
-        // Extraer solo los campos profesionales
         const professionalData = {
             fullName: data.fullName,
             professionalTitle: data.professionalTitle,
@@ -263,7 +254,8 @@ router.get('/:uid/professional', verifyFirebaseToken, async (req, res) => {
             subSpecialties: data.subSpecialties,
             schedule: data.schedule,
             isAvailable: data.isAvailable,
-            status: data.status || 'PENDING', // Incluir el estado
+            price: data.price, 
+            status: data.status || 'PENDING',
             professionalInfoCompleted: data.professionalInfoCompleted,
             updatedAt: data.updatedAt
         };
@@ -275,9 +267,7 @@ router.get('/:uid/professional', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ============================================================================
-// ELIMINAR PSICÓLOGO (marcar como inactivo)
-// ============================================================================
+// Eliminar psicologo.
 router.delete('/:uid', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -286,7 +276,6 @@ router.delete('/:uid', verifyFirebaseToken, async (req, res) => {
             return res.status(403).json({ error: 'Acceso no autorizado.' });
         }
 
-        // No eliminar realmente, solo marcar como inactivo
         const updateData = {
             isActive: false,
             isAvailable: false,
@@ -302,5 +291,101 @@ router.delete('/:uid', verifyFirebaseToken, async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+
+
+router.post('/upload-profile-picture', verifyFirebaseToken, async (req, res) => {
+    const uid = req.firebaseUser.uid;
+    const [uploadMiddleware, processMiddleware] = genericUploadHandler('psychologists_profile_pictures', uid);
+    
+    uploadMiddleware(req, res, (err) => {
+        if (err) {
+            console.error('Error en multer middleware:', err);
+            return res.status(400).json({ error: 'Error al procesar el archivo.' });
+        }
+        
+        // Ejecutar el middleware de Cloudinary
+        processMiddleware(req, res, async (err) => {
+            if (err) {
+                console.error('Error en Cloudinary middleware:', err);
+                return res.status(500).json({ error: 'Error al subir la imagen a Cloudinary.' });
+            }
+
+            try {
+                const profilePictureUrl = req.uploadedFile.url;
+                const psychRef = db.collection('psychologists').doc(uid);
+                
+                await psychRef.update({
+                    profilePictureUrl: profilePictureUrl, 
+                    updatedAt: FieldValue.serverTimestamp(), 
+                });
+
+                res.json({ 
+                    message: 'Foto de perfil subida y URL actualizada', 
+                    profilePictureUrl: profilePictureUrl 
+                });
+            } catch (dbError) {
+                console.error('Error al actualizar Firestore para psicólogo:', dbError);
+                res.status(500).json({ error: 'Error al actualizar la base de datos.' });
+            }
+        });
+    });
+});
+
+router.patch('/accept-terms', verifyFirebaseToken, async (req, res) => {
+    try {
+        const uid = req.firebaseUser.uid; 
+        const psychologistRef = db.collection('psychologists').doc(uid);
+        
+        const doc = await psychologistRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Psicólogo no encontrado' });
+        }
+
+        await psychologistRef.update({
+            termsAccepted: true,
+            termsAcceptedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        res.json({ 
+            message: 'Términos aceptados exitosamente',
+            termsAccepted: true 
+        });
+    } catch (error) {
+        console.error('Error al actualizar términos:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+router.get('/stream', verifyFirebaseToken, async (req, res) => {
+    try {
+  
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const unsubscribe = db.collection('psychologists')
+            .onSnapshot((snapshot) => {
+                const psychologists = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                res.write(`data: ${JSON.stringify(psychologists)}\n\n`);
+            }, (error) => {
+                console.error('Error en stream:', error);
+                res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+            });
+
+        req.on('close', () => {
+            unsubscribe();
+            res.end();
+        });
+    } catch (error) {
+        console.error('Error al iniciar stream:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 
 export default router;

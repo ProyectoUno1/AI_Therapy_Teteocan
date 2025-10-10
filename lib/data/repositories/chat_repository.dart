@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 class ChatRepository {
   static const String _baseUrl = 'http://10.0.2.2:3000/api';
-  final FirebaseAuth _auth = FirebaseAuth.instance; 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; 
 
   ChatRepository();
 
@@ -29,14 +31,12 @@ class ChatRepository {
 
     return headers;
   }
-  
-  
+
   Future<void> sendHumanMessage({
     required String chatId,
     required String senderId,
     required String receiverId,
     required String content,
-    required bool isUser,
   }) async {
     final url = Uri.parse('$_baseUrl/chats/messages');
     
@@ -49,17 +49,35 @@ class ChatRepository {
           'senderId': senderId,
           'receiverId': receiverId,
           'content': content,
-          'isUser': isUser,
         }),
       );
-
-      if (kDebugMode) {
-        print('sendHumanMessage response: ${response.statusCode} ${response.body}');
-      }
-
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body);
         throw Exception(body['error'] ?? 'Error al enviar el mensaje');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Margar mensajes como leidos
+  Future<void> markMessagesAsRead({
+    required String chatId,
+    required String currentUserId,
+  }) async {
+    final url = Uri.parse('$_baseUrl/chats/$chatId/mark-read');
+    
+    try {
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'userId': currentUserId,
+        }),
+      );
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body);
+        throw Exception(body['error'] ?? 'Error al marcar mensajes como leídos');
       }
     } catch (e) {
       rethrow;
@@ -72,7 +90,6 @@ class ChatRepository {
         Uri.parse('$_baseUrl/ai/chat-id'), 
         headers: await _getHeaders(),
       );
-      if (kDebugMode) print('getOrCreateChatId response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['chatId'];
@@ -80,11 +97,9 @@ class ChatRepository {
         throw Exception('Fallo al obtener/crear el ID del chat de IA: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      if (kDebugMode) print('Error en getOrCreateChatId: $e');
       throw Exception('Error de red o servidor al obtener el ID del chat de IA: $e');
     }
   }
-
 
   Future<String> sendAIMessage(String chatId, String message) async {
     try {
@@ -96,7 +111,6 @@ class ChatRepository {
           'message': message,
         }),
       );
-      if (kDebugMode) print('sendAIMessage response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['aiMessage'];
@@ -104,7 +118,6 @@ class ChatRepository {
         throw Exception('Fallo al enviar mensaje a la IA: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      if (kDebugMode) print('Error en sendAIMessage: $e');
       throw Exception('Error de red o servidor al enviar mensaje a la IA: $e');
     }
   }
@@ -115,7 +128,6 @@ class ChatRepository {
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
         headers: await _getHeaders(), 
       );
-      if (kDebugMode) print('loadMessages response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = json.decode(response.body);
         return jsonList.map((json) => MessageModel.fromJson(json)).toList();
@@ -123,8 +135,34 @@ class ChatRepository {
         throw Exception('Fallo al cargar mensajes: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      if (kDebugMode) print('Error en loadMessages: $e');
       throw Exception('Error de red o servidor al cargar mensajes: $e');
     }
   }
+
+Future<void> markMessagesAsReadFirestore({
+  required String chatId,
+  required String currentUserId,
+}) async {
+  try {
+    final messagesSnapshot = await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('receiverId', isEqualTo: currentUserId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    final batch = _firestore.batch();
+    
+    for (final doc in messagesSnapshot.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    
+    if (messagesSnapshot.docs.isNotEmpty) {
+      await batch.commit();
+    }
+  } catch (e) {
+    print('Error en markMessagesAsReadFirestore: $e');
+  }
+}
 }

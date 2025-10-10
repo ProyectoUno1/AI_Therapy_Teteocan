@@ -8,7 +8,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional
 class ApprovalStatusBlocker extends StatelessWidget {
   final PsychologistModel? psychologist;
   final Widget child;
-  final String featureName; // "chats", "pacientes", "citas"
+  final String featureName; // "chats", "pacientes", "citas", "artículos"
 
   const ApprovalStatusBlocker({
     super.key,
@@ -19,8 +19,8 @@ class ApprovalStatusBlocker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Si no hay información del psicólogo o está aprobado, mostrar contenido normal
-    if (psychologist == null || psychologist!.isApproved) {
+    // Si no hay información del psicólogo o está aprobado/activo, mostrar contenido normal
+    if (psychologist == null || _isApproved()) {
       return child;
     }
 
@@ -28,11 +28,37 @@ class ApprovalStatusBlocker extends StatelessWidget {
     return _buildBlockedContent(context);
   }
 
+  // Método para verificar si el psicólogo está aprobado
+  bool _isApproved() {
+    return psychologist!.status == 'ACTIVE' || 
+           (psychologist!.isApproved ?? false);
+  }
+
   Widget _buildBlockedContent(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        backgroundColor: Colors.grey[50],
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Acceso restringido',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -112,13 +138,15 @@ class ApprovalStatusBlocker extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      psychologist!.statusDisplayText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: _getStatusColor(),
-                        fontFamily: 'Poppins',
+                    Flexible(
+                      child: Text(
+                        psychologist!.statusDisplayText ?? _getDefaultStatusText(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _getStatusColor(),
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ),
                   ],
@@ -128,34 +156,39 @@ class ApprovalStatusBlocker extends StatelessWidget {
               const SizedBox(height: 32),
               
               // Botones de acción
-              if (psychologist!.isPending && !psychologist!.professionalInfoCompleted)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfessionalInfoSetupScreen(),
+              if (_isPending() && !psychologist!.professionalInfoCompleted)
+                Column(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfessionalInfoSetupScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppConstants.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      child: const Text(
+                        'Completar Perfil Profesional',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Completar Perfil Profesional',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
+                    const SizedBox(height: 12),
+                  ],
                 )
-              else if (psychologist!.isRejected)
+              else if (_isRejected())
                 Column(
                   children: [
                     // Mostrar motivo del rechazo si existe
@@ -219,36 +252,44 @@ class ApprovalStatusBlocker extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
                   ],
                 )
               else
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.hourglass_empty,
-                        color: Colors.blue.shade600,
-                        size: 20,
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Tu perfil está siendo revisado...',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.hourglass_empty,
+                            color: Colors.blue.shade600,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Tu perfil está siendo revisado...',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                 ),
             ],
           ),
@@ -257,12 +298,23 @@ class ApprovalStatusBlocker extends StatelessWidget {
     );
   }
 
+  // Métodos auxiliares para verificar estados
+  bool _isPending() {
+    return psychologist!.status == 'PENDING';
+  }
+
+  bool _isRejected() {
+    return psychologist!.status == 'REJECTED';
+  }
+
   Color _getStatusColor() {
     switch (psychologist!.status) {
       case 'PENDING':
         return Colors.orange;
       case 'REJECTED':
         return Colors.red;
+      case 'ACTIVE':
+        return Colors.green;
       default:
         return Colors.grey;
     }
@@ -276,6 +328,8 @@ class ApprovalStatusBlocker extends StatelessWidget {
             : Icons.edit_note;
       case 'REJECTED':
         return Icons.cancel;
+      case 'ACTIVE':
+        return Icons.check_circle;
       default:
         return Icons.lock;
     }
@@ -287,8 +341,25 @@ class ApprovalStatusBlocker extends StatelessWidget {
         return psychologist!.professionalInfoCompleted ? 'EN REVISIÓN' : 'PENDIENTE';
       case 'REJECTED':
         return 'RECHAZADO';
+      case 'ACTIVE':
+        return 'ACTIVO';
       default:
         return 'BLOQUEADO';
+    }
+  }
+
+  String _getDefaultStatusText() {
+    switch (psychologist!.status) {
+      case 'PENDING':
+        return psychologist!.professionalInfoCompleted 
+            ? 'Perfil en revisión' 
+            : 'Perfil incompleto';
+      case 'REJECTED':
+        return 'Perfil rechazado';
+      case 'ACTIVE':
+        return 'Perfil aprobado';
+      default:
+        return 'Estado desconocido';
     }
   }
 
@@ -328,6 +399,8 @@ class ApprovalStatusBlocker extends StatelessWidget {
         return 'la gestión de pacientes';
       case 'citas':
         return 'las citas y consultas';
+      case 'artículos':
+        return 'la creación de artículos';
       default:
         return 'esta función';
     }

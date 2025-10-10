@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content, isUser } = req.body;
+        const { chatId, senderId, receiverId, content } = req.body;
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ error: 'ID de remitente no coincide con el usuario autenticado.' });
         }
@@ -21,30 +21,22 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             senderId,
             receiverId,
             content,
-            isUser,
+            isRead: false, 
             timestamp: FieldValue.serverTimestamp(), 
         });
 
-        console.log('💾 Mensaje guardado en Firestore');
-
-        // --- CREAR NOTIFICACIÓN  ---
         if (receiverId !== 'aurora' && receiverId !== senderId) {
             try {
-                console.log(' Creando notificación para:', receiverId);
-                
-                // Obtener información del remitente
                 let senderName = 'Usuario';
                 
                 const patientDoc = await db.collection('patients').doc(senderId).get();
                 if (patientDoc.exists) {
                     senderName = patientDoc.data().username || 'Paciente';
-                    console.log('👤 Remitente (paciente):', senderName);
                 } else {
                     const psychologistDoc = await db.collection('psychologists').doc(senderId).get();
                     if (psychologistDoc.exists) {
                         const profDoc = await db.collection('psychologists').doc(senderId).get();
                         senderName = profDoc.exists ? profDoc.data().fullName : psychologistDoc.data().username || 'Psicólogo';
-                        console.log('👤 Remitente (psicólogo):', senderName);
                     }
                 }
 
@@ -65,14 +57,12 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                         timestamp: new Date().toISOString()
                     }
                 });
-                
 
             } catch (notificationError) {
-                console.error(' Error creando notificación:', notificationError);
-               
+                console.error('Error creando notificación:', notificationError);
             }
         } else {
-            console.log(' No se crea notificación (chat con IA o mensaje a sí mismo)');
+            console.log('ℹNo se crea notificación (chat con IA o mensaje)');
         }
 
         res.status(200).json({ 
@@ -81,11 +71,44 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error(' Error sending message:', error);
+        console.error('Error sending message:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
+
+router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const { userId } = req.body;
+        
+        if (req.firebaseUser.uid !== userId) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        // Actualizar todos los mensajes no leídos
+        const messagesRef = db.collection('chats').doc(chatId).collection('messages');
+        const unreadMessages = await messagesRef
+            .where('receiverId', '==', userId)
+            .where('isRead', '==', false)
+            .get();
+
+        const batch = db.batch();
+        unreadMessages.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+        });
+        
+        await batch.commit();
+        res.status(200).json({ 
+            message: 'Mensajes marcados como leídos',
+            count: unreadMessages.size 
+        });
+
+    } catch (error) {
+        console.error('Error marking messages as read:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
     try {
@@ -107,7 +130,7 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
                 content: data.content,
                 senderId: data.senderId,
                 receiverId: data.receiverId,
-                isUser: data.isUser,
+                isRead: data.isRead || false, 
                 timestamp: data.timestamp?.toDate(),
             };
         });

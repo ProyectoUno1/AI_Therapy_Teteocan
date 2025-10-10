@@ -2,14 +2,16 @@
 import express from 'express';
 import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const router = express.Router();
 
 // Obtener pacientes de un psicólogo
+
 router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res) => {
   try {
     const { psychologistId } = req.params;
-    
+
     // Verificar que el usuario autenticado es el psicólogo
     if (req.firebaseUser.uid !== psychologistId) {
       return res.status(403).json({ error: 'Acceso no autorizado' });
@@ -30,11 +32,11 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
     appointmentsSnapshot.forEach(doc => {
       const appointment = doc.data();
       const patientId = appointment.patientId;
-      
+
       if (!patientAppointments[patientId]) {
         patientAppointments[patientId] = [];
       }
-      
+
       patientAppointments[patientId].push({
         id: doc.id,
         ...appointment,
@@ -55,44 +57,49 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
       try {
         const patientDoc = await db.collection('patients').doc(patientId).get();
         let patientData = {};
-        
+
         if (patientDoc.exists) {
           patientData = patientDoc.data();
         }
-        
+
         const appointments = patientAppointments[patientId];
-        
+
         // Calcular estadísticas del paciente
-        const completedSessions = appointments.filter(apt => 
+        const completedSessions = appointments.filter(apt =>
           apt.status === 'completed' || apt.status === 'rated').length;
-        
-        const nextAppointment = appointments.find(apt => 
-          apt.status === 'confirmed' && 
+
+        const nextAppointment = appointments.find(apt =>
+          apt.status === 'confirmed' &&
           new Date(apt.scheduledDateTime) > new Date());
-        
-        const lastAppointment = appointments.find(apt => 
+
+        const lastAppointment = appointments.find(apt =>
           apt.status === 'completed' || apt.status === 'rated');
+
+        let status = 'pending'; 
         
-        // Determinar estado del paciente
-        let status = 'pending';
-        const hasPending = appointments.some(apt => apt.status === 'pending');
-        const hasConfirmed = appointments.some(apt => 
-          apt.status === 'confirmed' && new Date(apt.scheduledDateTime) > new Date());
-        const hasInProgress = appointments.some(apt => apt.status === 'in_progress');
-        
-        if (hasInProgress || hasConfirmed) {
-          status = 'in_treatment';
-        } else if (completedSessions > 0) {
-          const lastAptDate = lastAppointment ? new Date(lastAppointment.scheduledDateTime) : null;
-          if (lastAptDate && (new Date() - lastAptDate) / (1000 * 60 * 60 * 24) > 30) {
-            status = 'completed';
-          } else {
-            status = 'in_treatment';
+        if (patientData.status) {
+          status = patientData.status;
+        } else {
+          const hasPending = appointments.some(apt => apt.status === 'pending');
+          const hasConfirmed = appointments.some(apt =>
+            apt.status === 'confirmed' && new Date(apt.scheduledDateTime) > new Date());
+          const hasInProgress = appointments.some(apt => apt.status === 'in_progress');
+
+          if (completedSessions > 0) {
+            const lastAptDate = lastAppointment ? new Date(lastAppointment.scheduledDateTime) : null;
+            
+            if (lastAptDate && (new Date() - lastAptDate) / (1000 * 60 * 60 * 24) > 30) {
+              status = 'completed';
+            } else {
+              status = 'inTreatment';
+            }
+          } else if (hasConfirmed || hasInProgress) {
+            status = 'inTreatment';
+          } else if (hasPending) {
+            status = 'pending';
           }
-        } else if (hasPending) {
-          status = 'pending';
         }
-        
+
         patients.push({
           id: patientId,
           name: patientData.username || appointments[0].patientName,
@@ -102,12 +109,12 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
           profilePictureUrl: patientData.profile_picture_url || appointments[0].patientProfileUrl || null,
           createdAt: patientData.created_at ? patientData.created_at.toDate().toISOString() : appointments[0].createdAt,
           updatedAt: patientData.updated_at ? patientData.updated_at.toDate().toISOString() : appointments[0].updatedAt,
-          status,
+          status, 
           notes: `Historial: ${completedSessions} sesiones completadas`,
           lastAppointment: lastAppointment ? lastAppointment.scheduledDateTime : null,
           nextAppointment: nextAppointment ? nextAppointment.scheduledDateTime : null,
-          totalSessions: completedSessions,
-          isActive: hasPending || hasConfirmed || hasInProgress,
+          totalSessions: patientData.totalSessions || completedSessions, 
+          isActive: status !== 'completed' && status !== 'cancelled',
           contactMethod: 'appointment'
         });
       } catch (error) {
@@ -118,9 +125,9 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
     res.status(200).json({ patients });
   } catch (error) {
     console.error('Error al obtener pacientes:', error);
-    res.status(500).json({ 
-      error: 'Error interno del servidor', 
-      details: error.message 
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      details: error.message
     });
   }
 });
@@ -129,11 +136,11 @@ router.get('/psychologist/:psychologistId', verifyFirebaseToken, async (req, res
 router.post('/emotions', verifyFirebaseToken, async (req, res) => {
   try {
     const { uid, patientId, feeling, note, date, intensity, metadata } = req.body;
-    
+
     // Validar campos requeridos
     if (!patientId || !feeling || !date) {
-      return res.status(400).json({ 
-        error: 'Campos requeridos: patientId, feeling, date' 
+      return res.status(400).json({
+        error: 'Campos requeridos: patientId, feeling, date'
       });
     }
 
@@ -141,7 +148,7 @@ router.post('/emotions', verifyFirebaseToken, async (req, res) => {
     const emotionDate = new Date(date);
     const startOfDay = new Date(emotionDate);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(emotionDate);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -176,7 +183,7 @@ router.post('/emotions', verifyFirebaseToken, async (req, res) => {
       // Crear nueva emoción
       const emotionRef = db.collection('emotions').doc();
       emotionId = emotionRef.id;
-      
+
       const emotionData = {
         id: emotionId,
         patientId,
@@ -188,22 +195,22 @@ router.post('/emotions', verifyFirebaseToken, async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
+
       await emotionRef.set(emotionData);
       action = 'created';
     }
 
-    res.json({ 
-      success: true, 
-      emotionId, 
+    res.json({
+      success: true,
+      emotionId,
       action,
-      message: `Emoción ${action} correctamente` 
+      message: `Emoción ${action} correctamente`
     });
   } catch (error) {
     console.error('Error en saveEmotion:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al guardar la emoción',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -222,15 +229,14 @@ router.get('/patients/:patientId/emotions', verifyFirebaseToken, async (req, res
     if (start && end) {
       const startDate = new Date(start);
       const endDate = new Date(end);
-      
+
       query = query.where('date', '>=', startDate)
-                   .where('date', '<=', endDate);
+        .where('date', '<=', endDate);
     }
 
     const snapshot = await query.get();
     const emotions = snapshot.docs.map(doc => {
       const data = doc.data();
-      // Convertir Timestamp a ISO string
       const emotion = {
         id: data.id,
         patientId: data.patientId,
@@ -249,9 +255,9 @@ router.get('/patients/:patientId/emotions', verifyFirebaseToken, async (req, res
     res.json(emotions);
   } catch (error) {
     console.error('Error en getPatientEmotions:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al obtener las emociones',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -260,11 +266,11 @@ router.get('/patients/:patientId/emotions', verifyFirebaseToken, async (req, res
 router.get('/patients/:patientId/emotions/today', verifyFirebaseToken, async (req, res) => {
   try {
     const { patientId } = req.params;
- 
+
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -280,7 +286,7 @@ router.get('/patients/:patientId/emotions/today', verifyFirebaseToken, async (re
 
     const emotionDoc = snapshot.docs[0];
     const emotionData = emotionDoc.data();
-    
+
     const emotion = {
       id: emotionData.id,
       patientId: emotionData.patientId,
@@ -296,38 +302,36 @@ router.get('/patients/:patientId/emotions/today', verifyFirebaseToken, async (re
     res.json(emotion);
   } catch (error) {
     console.error('Error en getTodayEmotion:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al obtener la emoción del día',
-      details: error.message 
+      details: error.message
     });
   }
 });
 // Guardar sentimientos y notas de ejercicios
 router.post('/exercise-feelings', verifyFirebaseToken, async (req, res) => {
   try {
-    const { 
-      patientId, 
-      exerciseTitle, 
-      exerciseDuration, 
+    const {
+      patientId,
+      exerciseTitle,
+      exerciseDuration,
       exerciseDifficulty,
-      feeling, 
-      intensity, 
-      notes, 
+      feeling,
+      intensity,
+      notes,
       completedAt,
-      metadata 
+      metadata
     } = req.body;
-    
-    // Validar campos requeridos
+
     if (!patientId || !exerciseTitle || !feeling) {
-      return res.status(400).json({ 
-        error: 'Campos requeridos: patientId, exerciseTitle, feeling' 
+      return res.status(400).json({
+        error: 'Campos requeridos: patientId, exerciseTitle, feeling'
       });
     }
 
-    // Crear el documento de sentimiento de ejercicio
     const exerciseFeelingRef = db.collection('exercise_feelings').doc();
     const exerciseFeelingId = exerciseFeelingRef.id;
-    
+
     const exerciseFeelingData = {
       id: exerciseFeelingId,
       patientId,
@@ -342,10 +346,9 @@ router.post('/exercise-feelings', verifyFirebaseToken, async (req, res) => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     await exerciseFeelingRef.set(exerciseFeelingData);
 
-    // Opcional: También registrar como actividad del paciente
     const activityRef = db.collection('patient_activities').doc();
     const activityData = {
       id: activityRef.id,
@@ -363,19 +366,19 @@ router.post('/exercise-feelings', verifyFirebaseToken, async (req, res) => {
       timestamp: new Date(),
       createdAt: new Date()
     };
-    
+
     await activityRef.set(activityData);
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       exerciseFeelingId,
-      message: 'Sentimientos del ejercicio guardados correctamente' 
+      message: 'Sentimientos del ejercicio guardados correctamente'
     });
   } catch (error) {
     console.error('Error al guardar sentimientos del ejercicio:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al guardar los sentimientos del ejercicio',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -423,9 +426,9 @@ router.get('/patients/:patientId/exercise-history', verifyFirebaseToken, async (
     });
   } catch (error) {
     console.error('Error al obtener historial de ejercicios:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al obtener el historial de ejercicios',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -456,17 +459,17 @@ router.get('/patients/:patientId/exercise-stats', verifyFirebaseToken, async (re
     exercises.forEach(exercise => {
       // Contar tipos de ejercicios
       exerciseTypes[exercise.exerciseTitle] = (exerciseTypes[exercise.exerciseTitle] || 0) + 1;
-      
+
       // Contar sentimientos
       feelingsCount[exercise.feeling] = (feelingsCount[exercise.feeling] || 0) + 1;
-      
+
       // Sumar duración e intensidad
       totalDuration += exercise.exerciseDuration || 0;
       totalIntensity += exercise.intensity || 0;
     });
 
     const averageIntensity = totalExercises > 0 ? (totalIntensity / totalExercises).toFixed(1) : 0;
-    const mostCommonFeeling = Object.keys(feelingsCount).reduce((a, b) => 
+    const mostCommonFeeling = Object.keys(feelingsCount).reduce((a, b) =>
       feelingsCount[a] > feelingsCount[b] ? a : b, Object.keys(feelingsCount)[0] || 'No registrado'
     );
 
@@ -484,9 +487,9 @@ router.get('/patients/:patientId/exercise-stats', verifyFirebaseToken, async (re
     res.json(stats);
   } catch (error) {
     console.error('Error al obtener estadísticas de ejercicios:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al obtener estadísticas de ejercicios',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -495,11 +498,11 @@ router.get('/patients/:patientId/exercise-stats', verifyFirebaseToken, async (re
 router.get('/patients/:patientId/exercise-feelings/today', verifyFirebaseToken, async (req, res) => {
   try {
     const { patientId } = req.params;
- 
+
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -530,11 +533,255 @@ router.get('/patients/:patientId/exercise-feelings/today', verifyFirebaseToken, 
     res.json(todayExercises);
   } catch (error) {
     console.error('Error al obtener ejercicios de hoy:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al obtener los ejercicios de hoy',
-      details: error.message 
+      details: error.message
     });
   }
 });
+
+router.post('/notes', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId, title, content } = req.body;
+    const psychologistId = req.firebaseUser.uid;
+
+    // Validación
+    if (!patientId || !title || !content) {
+      return res.status(400).json({
+        error: 'patientId, title y content son requeridos'
+      });
+    }
+
+    const newNoteRef = db.collection('patient_notes').doc();
+    const newNoteData = {
+      id: newNoteRef.id,
+      patientId: patientId,
+      psychologistId: psychologistId,
+      title: title,
+      content: content,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    // Guardar en Firestore
+    await newNoteRef.set(newNoteData);
+
+    // Responder con éxito
+    res.status(201).json({
+      message: 'Nota guardada con éxito',
+      noteId: newNoteRef.id,
+      note: {
+        id: newNoteRef.id,
+        patientId: patientId,
+        psychologistId: psychologistId,
+        title: title,
+        content: content,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al guardar la nota:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor al guardar la nota',
+      details: error.message
+    });
+  }
+});
+
+//Obtener notas del paciente
+router.get('/patients/:patientId/notes', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const notesSnapshot = await db.collection('patient_notes')
+      .where('patientId', '==', patientId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const notes = notesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id,
+        patientId: data.patientId,
+        psychologistId: data.psychologistId,
+        title: data.title,
+        content: data.content,
+        createdAt: data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString(),
+        updatedAt: data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : new Date(data.updatedAt).toISOString(),
+      };
+    });
+
+    res.json(notes);
+  } catch (error) {
+    console.error('Error al obtener notas:', error);
+    res.status(500).json({
+      error: 'Error al obtener las notas',
+      details: error.message
+    });
+  }
+});
+
+// Actualizar una nota existente
+router.put('/notes/:noteId', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const { title, content } = req.body;
+    const psychologistId = req.firebaseUser.uid;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        error: 'title y content son requeridos'
+      });
+    }
+
+    const noteRef = db.collection('patient_notes').doc(noteId);
+    const noteDoc = await noteRef.get();
+
+    if (!noteDoc.exists) {
+      return res.status(404).json({ error: 'Nota no encontrada' });
+    }
+
+    const noteData = noteDoc.data();
+    if (noteData.psychologistId !== psychologistId) {
+      return res.status(403).json({ error: 'No autorizado para editar esta nota' });
+    }
+
+    // Actualizar la nota
+    await noteRef.update({
+      title: title,
+      content: content,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // Obtener la nota actualizada
+    const updatedDoc = await noteRef.get();
+    const updatedData = updatedDoc.data();
+
+    res.json({
+      message: 'Nota actualizada con éxito',
+      note: {
+        id: updatedData.id,
+        patientId: updatedData.patientId,
+        psychologistId: updatedData.psychologistId,
+        title: updatedData.title,
+        content: updatedData.content,
+        createdAt: updatedData.createdAt.toDate().toISOString(),
+        updatedAt: updatedData.updatedAt.toDate().toISOString(),
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar nota:', error);
+    res.status(500).json({
+      error: 'Error al actualizar la nota',
+      details: error.message
+    });
+  }
+});
+
+// Eliminar una nota
+router.delete('/notes/:noteId', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const psychologistId = req.firebaseUser.uid;
+
+    // Verificar que la nota existe y pertenece al psicólogo
+    const noteRef = db.collection('patient_notes').doc(noteId);
+    const noteDoc = await noteRef.get();
+
+    if (!noteDoc.exists) {
+      return res.status(404).json({ error: 'Nota no encontrada' });
+    }
+
+    const noteData = noteDoc.data();
+    if (noteData.psychologistId !== psychologistId) {
+      return res.status(403).json({ error: 'No autorizado para eliminar esta nota' });
+    }
+
+    // Eliminar la nota
+    await noteRef.delete();
+
+    res.json({
+      message: 'Nota eliminada con éxito',
+      noteId: noteId
+    });
+  } catch (error) {
+    console.error('Error al eliminar nota:', error);
+    res.status(500).json({
+      error: 'Error al eliminar la nota',
+      details: error.message
+    });
+  }
+});
+
+// Marcar paciente como completado
+router.patch('/patients/:patientId/complete', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { finalNotes } = req.body;
+    const psychologistId = req.firebaseUser.uid;
+    const patientRef = db.collection('patients').doc(patientId);
+    const patientDoc = await patientRef.get();
+
+    if (!patientDoc.exists) {
+      return res.status(404).json({ error: 'Paciente no encontrado' });
+    }
+
+    const appointmentsSnapshot = await db.collection('appointments')
+      .where('patientId', '==', patientId)
+      .where('psychologistId', '==', psychologistId)
+      .where('status', 'in', ['completed', 'rated'])
+      .get();
+
+    if (appointmentsSnapshot.empty) {
+      return res.status(403).json({ 
+        error: 'No tienes autorización para completar este paciente' 
+      });
+    }
+
+    // Actualizar el estado del paciente
+    const updateData = {
+      status: 'completed',
+      completedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (finalNotes && finalNotes.trim() !== '') {
+      updateData.finalNotes = finalNotes;
+    }
+
+    await patientRef.update(updateData);
+
+    // Crear notificación para el paciente
+    const notificationRef = db.collection('notifications').doc();
+    await notificationRef.set({
+      userId: patientId,
+      title: '¡Tratamiento Completado!',
+      body: 'Has completado exitosamente tu tratamiento. ¡Felicidades por tu progreso!',
+      type: 'treatment_completed',
+      isRead: false,
+      timestamp: FieldValue.serverTimestamp(),
+      data: {
+        psychologistId: psychologistId,
+        totalSessions: appointmentsSnapshot.size,
+      }
+    });
+
+    res.status(200).json({
+      message: 'Paciente marcado como completado exitosamente',
+      patientId: patientId,
+      totalSessions: appointmentsSnapshot.size,
+    });
+
+  } catch (error) {
+    console.error('Error al completar paciente:', error);
+    res.status(500).json({
+      error: 'Error al completar el paciente',
+      details: error.message
+    });
+  }
+});
+
 
 export default router;

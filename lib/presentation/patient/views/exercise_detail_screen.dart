@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // <-- Agregar esta importación
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ai_therapy_teteocan/core/services/exercise_feelings_service.dart';
 import '../widgets/daily_exercise_carousel.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
   final DailyExercise exercise;
 
   const ExerciseDetailScreen({Key? key, required this.exercise})
-    : super(key: key);
+      : super(key: key);
 
   @override
   _ExerciseDetailScreenState createState() => _ExerciseDetailScreenState();
@@ -15,10 +17,31 @@ class ExerciseDetailScreen extends StatefulWidget {
 class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   bool _isExerciseCompleted = false;
   bool _isExerciseRunning = false;
+  bool _isSaving = false;
   int _elapsedSeconds = 0;
   late int _totalSeconds;
   Timer? _timer;
   TextEditingController _noteController = TextEditingController();
+  String _selectedFeeling = 'neutral';
+  int _intensity = 5;
+  
+  final ExerciseFeelingsService _feelingsService = ExerciseFeelingsService();
+
+  final Map<String, IconData> _feelings = {
+    'muy_mal': Icons.sentiment_very_dissatisfied,
+    'mal': Icons.sentiment_dissatisfied,
+    'neutral': Icons.sentiment_neutral,
+    'bien': Icons.sentiment_satisfied,
+    'muy_bien': Icons.sentiment_very_satisfied,
+  };
+
+  final Map<String, String> _feelingLabels = {
+    'muy_mal': 'Muy Mal',
+    'mal': 'Mal',
+    'neutral': 'Neutral',
+    'bien': 'Bien',
+    'muy_bien': 'Muy Bien',
+  };
 
   @override
   void initState() {
@@ -65,20 +88,62 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     _startExercise();
   }
 
-  void _saveNote() {
-    // Aquí puedes guardar la nota en una base de datos o donde necesites
-    String note = _noteController.text;
-    print('Nota guardada: $note');
-    
-    // Mostrar mensaje de éxito y regresar
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Nota guardada exitosamente'))
-    );
-    
-    // Regresar a la pantalla anterior después de guardar
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pop(context);
-    });
+  Future<void> _saveNote() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await _feelingsService.saveExerciseFeeling(
+        patientId: user.uid,
+        exerciseTitle: widget.exercise.title,
+        exerciseDuration: widget.exercise.duration.inMinutes,
+        exerciseDifficulty: widget.exercise.difficulty,
+        feeling: _selectedFeeling,
+        intensity: _intensity,
+        notes: _noteController.text.trim(),
+        completedAt: DateTime.now(),
+        metadata: {
+          'totalSeconds': _totalSeconds,
+          'elapsedSeconds': _elapsedSeconds,
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reflexión guardada exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Regresar a la pantalla anterior después de guardar
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   String _formatTime(int seconds) {
@@ -147,9 +212,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
-              Text(widget.exercise.description, style: const TextStyle(fontSize: 16)),
+              Text(widget.exercise.description,
+                  style: const TextStyle(fontSize: 16)),
               const SizedBox(height: 30),
-              
+
               // Sección del cronómetro
               if (_isExerciseRunning || _isExerciseCompleted) ...[
                 const Text(
@@ -166,7 +232,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   child: Column(
                     children: [
                       Text(
-                        _formatTime(_isExerciseRunning ? _elapsedSeconds : _totalSeconds),
+                        _formatTime(_isExerciseRunning
+                            ? _elapsedSeconds
+                            : _totalSeconds),
                         style: const TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
@@ -215,7 +283,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                             ),
                           ],
                         ),
-                      if (!_isExerciseRunning && _elapsedSeconds > 0 && !_isExerciseCompleted)
+                      if (!_isExerciseRunning &&
+                          _elapsedSeconds > 0 &&
+                          !_isExerciseCompleted)
                         ElevatedButton.icon(
                           onPressed: _resumeExercise,
                           icon: const Icon(Icons.play_arrow),
@@ -226,8 +296,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
                 const SizedBox(height: 30),
               ],
-              
-              // Sección de instrucciones (solo mostrar si no se ha completado el ejercicio)
+
               if (!_isExerciseCompleted) ...[
                 const Text(
                   'Instrucciones',
@@ -252,8 +321,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
                 const SizedBox(height: 30),
               ],
-              
-              // Sección para agregar nota (solo mostrar cuando se complete el ejercicio)
+
               if (_isExerciseCompleted) ...[
                 const Text(
                   '¡Ejercicio Completado!',
@@ -264,16 +332,101 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                
+                // Selector de sentimiento
                 const Text(
                   '¿Cómo te sentiste durante el ejercicio?',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _feelings.entries.map((entry) {
+                    final isSelected = _selectedFeeling == entry.key;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedFeeling = entry.key;
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              entry.value,
+                              size: 32,
+                              color: isSelected ? Colors.white : Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _feelingLabels[entry.key]!,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isSelected
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey[600],
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Intensidad del sentimiento:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
                 const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Text('1'),
+                    Expanded(
+                      child: Slider(
+                        value: _intensity.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: _intensity.toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            _intensity = value.toInt();
+                          });
+                        },
+                      ),
+                    ),
+                    const Text('10'),
+                  ],
+                ),
+                Center(
+                  child: Text(
+                    'Intensidad: $_intensity',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Campo de notas
                 const Text(
                   'Comparte tus reflexiones y experiencias:',
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _noteController,
                   maxLines: 5,
@@ -287,10 +440,12 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                
+                // Botón guardar
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _saveNote,
+                    onPressed: _isSaving ? null : _saveNote,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
@@ -298,19 +453,31 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       ),
                       backgroundColor: Colors.green,
                     ),
-                    child: const Text(
-                      'Guardar Nota',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Guardar Reflexión',
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: _isSaving
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                          },
                     child: const Text(
                       'Omitir y volver',
                       style: TextStyle(fontSize: 16),
@@ -318,8 +485,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   ),
                 ),
               ],
-              
-              // Botón para comenzar ejercicio (solo mostrar si no se ha iniciado)
+
+              // Botón para comenzar ejercicio 
               if (!_isExerciseRunning && !_isExerciseCompleted)
                 SizedBox(
                   width: double.infinity,

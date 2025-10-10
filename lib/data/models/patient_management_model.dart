@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum PatientStatus {
   pending('⏳', 'Pendiente'),
   accepted('✅', 'Aceptado'),
-  inTreatment('🔄', 'En Tratamiento'),
+  inTreatment('🔄', 'Tratamiento'),
   completed('🎓', 'Completado'),
   cancelled('❌', 'Cancelado');
 

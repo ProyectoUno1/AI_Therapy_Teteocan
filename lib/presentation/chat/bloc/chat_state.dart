@@ -1,8 +1,7 @@
-// chat_state.dart
+// chat_state.dart (OPTIMIZADO)
 import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart'; 
 
-// Define los posibles estados del chat
 enum ChatStatus {
   initial,
   loading,
@@ -17,7 +16,9 @@ class ChatState extends Equatable {
   final String? errorMessage;
   final bool isTyping;
   final bool isMessageLimitReached; 
-  final bool isLoading;
+  final int usedMessages;
+  final int messageLimit;
+  final bool isPremium;
 
   const ChatState({
     this.status = ChatStatus.initial,
@@ -25,8 +26,14 @@ class ChatState extends Equatable {
     this.errorMessage,
     this.isTyping = false, 
     this.isMessageLimitReached = false, 
-    this.isLoading = false,
+    this.usedMessages = 0,
+    this.messageLimit = 5,
+    this.isPremium = false,
   });
+  
+  bool get isLoading => status == ChatStatus.sending || status == ChatStatus.loading;
+  bool get canSendMessage => !isLoading && !isMessageLimitReached;
+  bool get shouldShowWarning => !isPremium && usedMessages >= messageLimit - 1 && usedMessages < messageLimit;
   
   ChatState copyWith({
     ChatStatus? status,
@@ -34,6 +41,9 @@ class ChatState extends Equatable {
     String? errorMessage,
     bool? isTyping,
     bool? isMessageLimitReached, 
+    int? usedMessages,
+    int? messageLimit,
+    bool? isPremium,
   }) {
     return ChatState(
       status: status ?? this.status,
@@ -41,10 +51,21 @@ class ChatState extends Equatable {
       errorMessage: errorMessage ?? this.errorMessage,
       isTyping: isTyping ?? this.isTyping,
       isMessageLimitReached: isMessageLimitReached ?? this.isMessageLimitReached,
-      isLoading: isLoading,
+      usedMessages: usedMessages ?? this.usedMessages,
+      messageLimit: messageLimit ?? this.messageLimit,
+      isPremium: isPremium ?? this.isPremium,
     );
   }
 
   @override
-  List<Object?> get props => [status, messages, errorMessage, isTyping, isMessageLimitReached, isLoading];
+  List<Object?> get props => [
+    status, 
+    messages, 
+    errorMessage, 
+    isTyping, 
+    isMessageLimitReached, 
+    usedMessages,
+    messageLimit,
+    isPremium,
+  ];
 }

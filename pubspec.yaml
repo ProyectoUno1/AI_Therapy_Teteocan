@@ -29,6 +29,9 @@ dependencies:
   app_links: ^6.4.1
   calendar_date_picker2: ^2.0.0
   firebase_messaging: ^15.2.10
+  firebase_storage: ^12.4.10
+  fl_chart: ^0.66.0
+  firebase_app_check: ^0.3.2+10
   
 
 
@@ -42,6 +45,7 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.3.3
   lottie: ^3.3.1
+  timeago: ^3.6.1
 
   # Temas personalizados con Material 3
 

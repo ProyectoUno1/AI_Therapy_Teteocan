@@ -24,14 +24,14 @@ class PsychologistModel extends Equatable {
   final List<String>? subSpecialties;
   final Map<String, dynamic>? schedule;
 
-  // NUEVOS CAMPOS para el sistema de aprobación
-  final String status; // 'PENDING', 'APPROVED', 'REJECTED'
+  final String status; // 'PENDING', 'ACTIVE', 'REJECTED'
   final bool professionalInfoCompleted;
   final String? rejectionReason;
 
   final double? rating;
   final bool? isAvailable;
-  final double? hourlyRate;
+  final double? price;
+  final bool? termsAccepted;
 
   const PsychologistModel({
     required this.uid,
@@ -53,24 +53,24 @@ class PsychologistModel extends Equatable {
     this.specialty,
     this.subSpecialties,
     this.schedule,
-    this.status = 'PENDING', // NUEVO - Por defecto PENDING
-    this.professionalInfoCompleted = false, // NUEVO
-    this.rejectionReason, // NUEVO
+    this.status = 'PENDING', 
+    this.professionalInfoCompleted = false, 
+    this.rejectionReason,
     this.rating,
     this.isAvailable,
-    this.hourlyRate,
+    this.price,
+    this.termsAccepted,
   });
 
-  // NUEVOS MÉTODOS - Getters de conveniencia
-  bool get isPending => status == 'PENDING';
-  bool get isApproved => status == 'APPROVED';
-  bool get isRejected => status == 'REJECTED';
 
+  bool get isPending => status == 'PENDING';
+  bool get isApproved => status == 'ACTIVE'; 
+  bool get isRejected => status == 'REJECTED';
   String get statusDisplayText {
     switch (status) {
       case 'PENDING':
         return 'Pendiente de aprobación';
-      case 'APPROVED':
+      case 'ACTIVE':
         return 'Aprobado';
       case 'REJECTED':
         return 'Rechazado';
@@ -106,82 +106,169 @@ class PsychologistModel extends Equatable {
       specialty: json['specialty'] as String?,
       subSpecialties: (json['subSpecialties'] as List?)?.cast<String>(),
       schedule: json['schedule'] as Map<String, dynamic>?,
-      // NUEVOS CAMPOS
       status: json['status'] as String? ?? 'PENDING',
       professionalInfoCompleted: json['professionalInfoCompleted'] as bool? ?? false,
       rejectionReason: json['rejectionReason'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       isAvailable: json['isAvailable'] as bool?,
-      hourlyRate: (json['hourlyRate'] as num?)?.toDouble(),
+      price: (json['price'] as num?)?.toDouble(),
+      termsAccepted: json['termsAccepted'] as bool?,
     );
   }
 
   factory PsychologistModel.fromFirestore(Map<String, dynamic> data) {
-    return PsychologistModel(
-      uid: data['firebase_uid'] as String? ?? data['uid'] as String? ?? '',
-      email: data['email'] as String? ?? '',
-      username: data['username'] as String? ?? '',
-      phoneNumber: data['phone_number'] as String?,
-      professionalLicense: data['professional_license'] as String?,
-      dateOfBirth: (data['date_of_birth'] is Timestamp)
-          ? (data['date_of_birth'] as Timestamp?)?.toDate()
-          : null,
-      createdAt: (data['created_at'] is Timestamp)
-          ? (data['created_at'] as Timestamp?)?.toDate()
-          : null,
-      updatedAt: (data['updatedAt'] is Timestamp)
-          ? (data['updatedAt'] as Timestamp?)?.toDate()
-          : null,
-      profilePictureUrl: data['profilePictureUrl'] as String?,
-      role: data['role'] as String? ?? 'psicologo',
-      fullName: data['fullName'] as String?,
-      professionalTitle: data['professionalTitle'] as String?,
-      yearsExperience: (data['yearsExperience'] as num?)?.toInt(),
-      description: data['description'] as String?,
-      education: (data['education'] as List?)?.cast<String>(),
-      certifications: (data['certifications'] as List?)?.cast<String>(),
-      specialty: data['specialty'] as String?,
-      subSpecialties: (data['subSpecialties'] as List?)?.cast<String>(),
-      schedule: data['schedule'] as Map<String, dynamic>?,
-      // NUEVOS CAMPOS
-      status: data['status'] as String? ?? 'PENDING',
-      professionalInfoCompleted: data['professionalInfoCompleted'] as bool? ?? false,
-      rejectionReason: data['rejectionReason'] as String?,
-      rating: (data['rating'] as num?)?.toDouble(),
-      isAvailable: data['isAvailable'] as bool? ?? false,
-      hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
-    );
-  }
+  return PsychologistModel(
+    uid: data['firebaseUid'] as String? ?? data['uid'] as String? ?? '',
+    email: data['email'] as String? ?? '',
+    username: data['username'] as String? ?? '',
+    phoneNumber: data['phoneNumber'] as String?,
+    professionalLicense: data['professionalLicense'] as String?,
+    dateOfBirth: data['dateOfBirth'] != null
+        ? (data['dateOfBirth'] is Timestamp
+            ? (data['dateOfBirth'] as Timestamp).toDate()
+            : data['dateOfBirth'] is String
+                ? DateTime.tryParse(data['dateOfBirth'])
+                : null)
+        : null,
+    
+    createdAt: data['createdAt'] != null
+        ? (data['createdAt'] is Timestamp
+            ? (data['createdAt'] as Timestamp).toDate()
+            : null)
+        : null,
+    
+    updatedAt: data['updatedAt'] != null
+        ? (data['updatedAt'] is Timestamp
+            ? (data['updatedAt'] as Timestamp).toDate()
+            : null)
+        : null,
+    
+    profilePictureUrl: data['profilePictureUrl'] as String?,
+    role: data['role'] as String? ?? 'psychologist',
+    fullName: data['fullName'] as String?,
+    professionalTitle: data['professionalTitle'] as String?,
+    yearsExperience: (data['yearsExperience'] as num?)?.toInt(),
+    description: data['description'] as String?,
+    
+    education: data['education'] != null
+        ? List<String>.from(data['education'] as List)
+        : [],
+    
+    certifications: data['certifications'] != null
+        ? List<String>.from(data['certifications'] as List)
+        : [],
+    
+    specialty: data['specialty'] as String?,
+    
+    subSpecialties: data['subSpecialties'] != null
+        ? List<String>.from(data['subSpecialties'] as List)
+        : [],
+    
+    schedule: data['schedule'] as Map<String, dynamic>?,
+    status: data['status'] as String? ?? 'pending',
+    professionalInfoCompleted: data['professionalInfoCompleted'] as bool? ?? false,
+    rejectionReason: data['rejectionReason'] as String?,
+    rating: (data['rating'] as num?)?.toDouble(),
+    isAvailable: data['isAvailable'] as bool? ?? true,
+    price: (data['price'] as num?)?.toDouble(),
+    termsAccepted: data['termsAccepted'] as bool?,
+  );
+}
+
 
   Map<String, dynamic> toFirestore() {
-    return {
-      'uid': uid,
-      'email': email,
-      'username': username,
-      'phoneNumber': phoneNumber,
-      'professionalLicense': professionalLicense,
-      'profilePictureUrl': profilePictureUrl,
-      'role': role,
-      'dateOfBirth': dateOfBirth != null ? Timestamp.fromDate(dateOfBirth!) : null,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'fullName': fullName,
-      'professionalTitle': professionalTitle,
-      'yearsExperience': yearsExperience,
-      'description': description,
-      'education': education,
-      'certifications': certifications,
-      'specialty': specialty,
-      'subSpecialties': subSpecialties,
-      'schedule': schedule,
-      // NUEVOS CAMPOS
-      'status': status,
-      'professionalInfoCompleted': professionalInfoCompleted,
-      'rejectionReason': rejectionReason,
-      'rating': rating,
-      'isAvailable': isAvailable,
-      'hourlyRate': hourlyRate,
-    };
+  return {
+    'firebaseUid': uid,
+    'email': email,
+    'username': username,
+    'phoneNumber': phoneNumber,
+    'professionalLicense': professionalLicense,
+    'profilePictureUrl': profilePictureUrl,
+    'role': role,
+    'dateOfBirth': dateOfBirth != null 
+        ? Timestamp.fromDate(dateOfBirth!) 
+        : null,
+    'createdAt': createdAt != null 
+        ? Timestamp.fromDate(createdAt!) 
+        : FieldValue.serverTimestamp(),
+    'updatedAt': updatedAt != null 
+        ? Timestamp.fromDate(updatedAt!) 
+        : FieldValue.serverTimestamp(),
+    'fullName': fullName,
+    'professionalTitle': professionalTitle,
+    'yearsExperience': yearsExperience,
+    'description': description,
+    'education': education,
+    'certifications': certifications,
+    'specialty': specialty,
+    'subSpecialties': subSpecialties,
+    'schedule': schedule,
+    'status': status,
+    'professionalInfoCompleted': professionalInfoCompleted,
+    'rejectionReason': rejectionReason,
+    'rating': rating,
+    'isAvailable': isAvailable,
+    'price': price,
+    'termsAccepted': termsAccepted,
+  };
+}
+
+  PsychologistModel copyWith({
+    String? uid,
+    String? username,
+    String? email,
+    String? phoneNumber,
+    String? role,
+    DateTime? dateOfBirth,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? profilePictureUrl,
+    String? fullName,
+    String? professionalTitle,
+    String? professionalLicense,
+    int? yearsExperience,
+    String? description,
+    List<String>? education,
+    List<String>? certifications,
+    String? specialty,
+    List<String>? subSpecialties,
+    Map<String, dynamic>? schedule,
+    String? status,
+    bool? professionalInfoCompleted,
+    String? rejectionReason,
+    double? rating,
+    bool? isAvailable,
+    double? price,
+    bool? termsAccepted,
+  }) {
+    return PsychologistModel(
+      uid: uid ?? this.uid,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      role: role ?? this.role,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl, 
+      fullName: fullName ?? this.fullName,
+      professionalTitle: professionalTitle ?? this.professionalTitle,
+      professionalLicense: professionalLicense ?? this.professionalLicense,
+      yearsExperience: yearsExperience ?? this.yearsExperience,
+      description: description ?? this.description,
+      education: education ?? this.education,
+      certifications: certifications ?? this.certifications,
+      specialty: specialty ?? this.specialty,
+      subSpecialties: subSpecialties ?? this.subSpecialties,
+      schedule: schedule ?? this.schedule,
+      status: status ?? this.status,
+      professionalInfoCompleted: professionalInfoCompleted ?? this.professionalInfoCompleted,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      rating: rating ?? this.rating,
+      isAvailable: isAvailable ?? this.isAvailable,
+      price: price ?? this.price,
+      termsAccepted: termsAccepted ?? this.termsAccepted,
+    );
   }
 
   @override
@@ -205,12 +292,12 @@ class PsychologistModel extends Equatable {
     education,
     certifications,
     schedule,
-    // NUEVOS CAMPOS
     status,
     professionalInfoCompleted,
     rejectionReason,
     rating,
     isAvailable,
-    hourlyRate,
+    price,
+    termsAccepted,
   ];
 }

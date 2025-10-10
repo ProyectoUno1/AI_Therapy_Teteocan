@@ -30,7 +30,6 @@ void initState() {
   super.initState();
   _tabController = TabController(length: 3, vsync: this);
 
-  // CARGAR CITAS REALES DESDE EL BACKEND
   final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
     context.read<AppointmentBloc>().add(
@@ -138,10 +137,7 @@ void initState() {
 
           return Column(
             children: [
-              // Estadísticas resumidas
               _buildStatisticsCard(state),
-
-              // TabBar
               Container(
                 color: Theme.of(context).cardColor,
                 child: TabBar(
@@ -424,7 +420,6 @@ void initState() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header con estado y fecha
             Row(
               children: [
                 Container(
@@ -603,8 +598,6 @@ void initState() {
                 ),
               ],
             ),
-
-            // Botón para calificar en citas completadas
             if (type == 'past' &&
                 appointment.status == AppointmentStatus.completed) ...[
               const SizedBox(height: 12),
@@ -640,17 +633,13 @@ void initState() {
   void _handleAppointmentTap(AppointmentModel appointment, String type) {
     if (type == 'past') {
       if (appointment.status == AppointmentStatus.completed) {
-        // Cita completada - permitir calificar
         _navigateToRatingScreen(appointment);
       } else if (appointment.status == AppointmentStatus.rated) {
-        // Cita ya calificada - mostrar detalles con rating
         _showRatedAppointmentDetails(appointment);
       } else {
-        // Otras citas pasadas
         _showAppointmentDetails(appointment);
       }
     } else {
-      // Para citas futuras o pendientes, mostrar información
       _showAppointmentDetails(appointment);
     }
   }
@@ -841,7 +830,7 @@ void initState() {
         return Colors.orange;
       case AppointmentStatus.confirmed:
         return Colors.green;
-        case AppointmentStatus.in_progress:
+      case AppointmentStatus.in_progress:
         return Colors.green;
       case AppointmentStatus.completed:
         return AppConstants.primaryColor;
@@ -851,8 +840,8 @@ void initState() {
         return Colors.red;
       case AppointmentStatus.rescheduled:
         return Colors.blue;
+      case AppointmentStatus.refunded:
+        return Colors.purple;
     }
   }
-
-  
 }

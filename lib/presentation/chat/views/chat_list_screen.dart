@@ -358,7 +358,7 @@ class _PsychologistsChatTabContent extends StatelessWidget {
             builder: (context) => PsychologistChatScreen(
               psychologistUid: chatItem.psychologistId,
               psychologistName: chatItem.psychologistName,
-              psychologistImageUrl: chatItem.psychologistImageUrl ?? 'https://via.placeholder.com/150',
+              profilePictureUrl: chatItem.profilePictureUrl ?? 'https://via.placeholder.com/150',
             ),
           ),
         );
@@ -367,11 +367,33 @@ class _PsychologistsChatTabContent extends StatelessWidget {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: CircleAvatar(
-        backgroundImage: NetworkImage(
-          chatItem.psychologistImageUrl ?? 'https://via.placeholder.com/150',
-        ),
-        radius: 24,
+      leading: Stack(
+        children: [
+          CircleAvatar(
+            backgroundImage: NetworkImage(
+              chatItem.profilePictureUrl ?? 'https://via.placeholder.com/150',
+            ),
+            radius: 24,
+          ),
+          // Indicador de estado "En Línea" (isOnline)
+          if (chatItem.isOnline) 
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green, // Color para "En línea"
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).scaffoldBackgroundColor, 
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       title: Text(
         chatItem.psychologistName,
@@ -381,18 +403,47 @@ class _PsychologistsChatTabContent extends StatelessWidget {
         ),
       ),
       subtitle: Text(
-        chatItem.lastMessage,
-        style: TextStyle(fontFamily: 'Poppins', color: Colors.grey[600]),
+        chatItem.isTyping ? 'Escribiendo...' : chatItem.lastMessage,
+        style: TextStyle(
+          fontFamily: 'Poppins', 
+          color: chatItem.isTyping ? AppConstants.lightAccentColor : Colors.grey[600],
+          fontStyle: chatItem.isTyping ? FontStyle.italic : FontStyle.normal,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        DateFormat('hh:mm a').format(chatItem.lastMessageTime),
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 12,
-          color: Colors.grey[400],
-        ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            DateFormat('hh:mm a').format(chatItem.lastMessageTime),
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 12,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Insignia de mensajes no leídos (unreadCount)
+          if (chatItem.unreadCount > 0)
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: AppConstants.lightAccentColor,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '${chatItem.unreadCount}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+        ],
       ),
       onTap: () {
         Navigator.push(
@@ -401,7 +452,7 @@ class _PsychologistsChatTabContent extends StatelessWidget {
             builder: (context) => PsychologistChatScreen(
               psychologistUid: chatItem.psychologistId,
               psychologistName: chatItem.psychologistName,
-              psychologistImageUrl: chatItem.psychologistImageUrl ?? 'https://via.placeholder.com/150',
+              profilePictureUrl: chatItem.profilePictureUrl ?? 'https://via.placeholder.com/150',
             ),
           ),
         );

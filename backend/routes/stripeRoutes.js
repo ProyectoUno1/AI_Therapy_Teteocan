@@ -44,7 +44,7 @@ stripeRouter.post("/create-checkout-session", async (req, res) => {
       customer = existingCustomers.data[0];
       console.log(`Cliente existente encontrado: ${customer.id}`);
 
-      // Actualizar datos del cliente si es necesario
+      // Actualizar datos del cliente
       if (userName && (!customer.name || customer.name !== userName)) {
         customer = await stripeClient.customers.update(customer.id, {
           name: userName,
@@ -89,7 +89,6 @@ stripeRouter.post("/create-checkout-session", async (req, res) => {
       },
       success_url: 'auroraapp://success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'auroraapp://cancel',
-      // Configuraciones adicionales para mejor UX
       billing_address_collection: 'auto',
       customer_update: {
         address: 'auto',
@@ -193,7 +192,6 @@ stripeRouter.post("/verify-session", async (req, res) => {
       }
     }
 
-    // Respuesta más completa
     res.json({
       paymentStatus: session.payment_status,
       sessionStatus: session.status,
@@ -315,34 +313,44 @@ stripeRouter.post("/cancel-subscription", async (req, res) => {
   }
 });
 
-// Endpoint para crear pago único de sesión con psicólogo
 stripeRouter.post("/create-psychology-session", async (req, res) => {
   const {
     userEmail,
     userId,
     userName,
-    sessionDate,
-    sessionTime,
+    sessionDate, 
+    sessionTime, 
     psychologistName,
-    sessionNotes
+    psychologistId,
+    sessionNotes,
+    appointmentType
   } = req.body;
 
-  if (!userEmail || !userId) {
+  // 1. Validación de parámetros requeridos (incluyendo fecha y hora)
+  if (!userEmail || !userId || !psychologistId || !sessionDate || !sessionTime) {
     return res.status(400).json({
-      error: "userEmail y userId son requeridos."
+      error: "userEmail, userId, psychologistId, sessionDate y sessionTime son requeridos."
     });
   }
 
   try {
-    // Verificar si el usuario existe en Firebase
-    const userDoc = await db.collection('patients').doc(userId).get();
+    const [userDoc, psychologistDoc] = await Promise.all([
+      db.collection('patients').doc(userId).get(),
+      db.collection('psychologists').doc(psychologistId).get()
+    ]);
+
     if (!userDoc.exists) {
-      return res.status(404).json({
-        error: "Usuario no encontrado"
-      });
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    // Buscar o crear cliente de Stripe
+    if (!psychologistDoc.exists) {
+      return res.status(404).json({ error: "Psicólogo no encontrado" });
+    }
+
+    const patientData = userDoc.data();
+    const psychologistData = psychologistDoc.data();
+
+    // 2. buscar o crear cliente de Stripe
     let customer;
     const existingCustomers = await stripeClient.customers.list({
       email: userEmail,
@@ -351,9 +359,6 @@ stripeRouter.post("/create-psychology-session", async (req, res) => {
 
     if (existingCustomers.data.length > 0) {
       customer = existingCustomers.data[0];
-      console.log(`Cliente existente encontrado: ${customer.id}`);
-
-      // Actualizar datos del cliente si es necesario
       if (userName && (!customer.name || customer.name !== userName)) {
         customer = await stripeClient.customers.update(customer.id, {
           name: userName,
@@ -362,10 +367,8 @@ stripeRouter.post("/create-psychology-session", async (req, res) => {
             updated_at: new Date().toISOString()
           }
         });
-        console.log(`Cliente actualizado con nombre: ${userName}`);
       }
     } else {
-      // Crear nuevo cliente
       customer = await stripeClient.customers.create({
         email: userEmail,
         name: userName || 'Usuario',
@@ -375,87 +378,95 @@ stripeRouter.post("/create-psychology-session", async (req, res) => {
           created_at: new Date().toISOString()
         }
       });
-      console.log(`Nuevo cliente creado: ${customer.id}`);
+    }
+    const [day, month, year] = sessionDate.split('/').map(Number); 
+    const [hour, minute] = sessionTime.split(':').map(Number);
+    
+    // Validar que todos los componentes sean números válidos (no NaN)
+    const areDateComponentsValid = [year, month, day, hour, minute].every(val => !isNaN(val) && val !== undefined);
+
+    if (!areDateComponentsValid) {
+        console.error("Error de formato: Uno o más componentes de fecha/hora son NaN", { sessionDate, sessionTime });
+        return res.status(400).json({ 
+          error: "El formato de sessionDate (DD/MM/YYYY) o sessionTime (HH:MM) es inválido.",
+          details: { sessionDate, sessionTime }
+        });
+    }
+    const jsDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
+
+    if (isNaN(jsDate.getTime())) {
+         console.error("Error de fecha: La fecha construida no es válida.", { year, month, day, hour, minute });
+         return res.status(400).json({ error: "La fecha y hora de la sesión proporcionadas son imposibles (ej. 30 de febrero o año fuera de rango)." });
     }
 
-    // Crear sesión de checkout para pago único
+    const scheduledDateTimeForMetadata = jsDate.toISOString();
+
+    // 3. Crear el documento de la cita en Firestore
+    const appointmentData = {
+      patientId: userId,
+      patientName: patientData.username || userName || 'Usuario desconocido',
+      patientEmail: patientData.email || userEmail,
+      patientProfileUrl: patientData.profilePictureUrl || null,
+      psychologistId: psychologistId,
+      psychologistName: psychologistData.fullName || psychologistName || 'Psicólogo desconocido',
+      psychologistSpecialty: psychologistData.specialty || 'Psicología General',
+      psychologistProfileUrl: psychologistData.profilePictureUrl || null,
+      scheduledDateTime: jsDate, 
+      durationMinutes: 60,
+      type: appointmentType || 'online',
+      status: 'pending_payment',
+      price: psychologistData.price || 100.0, 
+      patientNotes: sessionNotes || null,
+      
+      isPaid: false,
+      paymentType: 'one_time',
+      stripeSessionId: null,
+      
+      scheduledBy: userId,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    };
+
+    const appointmentRef = await db.collection('appointments').add(appointmentData);
+
+    // 4. Crear la sesión de checkout de Stripe
     const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ['card'],
-      mode: 'payment', // Pago único, no suscripción
+      mode: 'payment',
       line_items: [{
-        price: 'price_1S3nsW2Szsvtfc49V6wCPoSp',  
+        price: 'price_1S3nsW2Szsvtfc49V6wCPoSp', 
         quantity: 1,
       }],
       customer: customer.id,
       client_reference_id: userId,
       metadata: {
         firebase_uid: userId,
-        user_email: userEmail,
-        user_name: userName || 'Usuario',
+        appointment_id: appointmentRef.id,
+        psychologist_id: psychologistId,
         session_type: 'psychology_session',
-        session_date: sessionDate || '',
-        session_time: sessionTime || '',
-        psychologist_name: psychologistName || '',
-        session_notes: sessionNotes || '',
-        source: 'mobile_app',
-        created_at: new Date().toISOString()
+        payment_type: 'one_time',
+        scheduled_date_time: scheduledDateTimeForMetadata 
       },
       success_url: 'auroraapp://psychology-session-success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'auroraapp://psychology-session-cancel',
       billing_address_collection: 'auto',
-      customer_update: {
-        address: 'auto',
-        name: 'auto'
-      },
-      custom_text: {
-        submit: {
-          message: 'Tu sesión con psicólogo será confirmada después del pago exitoso.'
-        }
-      },
-      // Configuración específica para sesiones de psicología
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
-          description: `Sesión con psicólogo${psychologistName ? ' - ' + psychologistName : ''}${sessionDate ? ' para ' + sessionDate : ''}`,
-          metadata: {
-            session_type: 'psychology_session',
-            user_id: userId,
-            session_date: sessionDate || '',
-            psychologist: psychologistName || ''
-          }
-        }
-      }
     });
 
-    // Crear registro preliminar en Firebase
-    const sessionRef = await db.collection('psychology_sessions').add({
-      userId: userId,
-      userEmail: userEmail,
-      userName: userName || 'Usuario',
-      checkoutSessionId: session.id,
-      stripeCustomerId: customer.id,
-      sessionDate: sessionDate || null,
-      sessionTime: sessionTime || null,
-      psychologistName: psychologistName || '',
-      sessionNotes: sessionNotes || '',
-      paymentStatus: 'pending',
-      sessionStatus: 'scheduled',
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
+    await appointmentRef.update({
+      stripeSessionId: session.id
     });
 
     res.json({
       checkoutUrl: session.url,
       sessionId: session.id,
-      psychologySessionId: sessionRef.id,
-      message: "Sesión de psicólogo creada exitosamente"
+      appointmentId: appointmentRef.id,
+      message: "Cita creada, esperando pago"
     });
 
   } catch (error) {
-    console.error("Error al crear sesión con psicólogo:", error);
+    console.error("Error al crear sesión:", error);
     res.status(500).json({
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
 });
@@ -469,14 +480,10 @@ stripeRouter.post("/verify-psychology-session", async (req, res) => {
   }
 
   try {
-    console.log(`Verificando sesión de psicólogo: ${sessionId}`);
-
     // Obtener sesión con datos expandidos
     const session = await stripeClient.checkout.sessions.retrieve(sessionId, {
       expand: ['customer', 'payment_intent']
     });
-
-    console.log(`Estado de sesión ${sessionId}: ${session.payment_status}`);
 
     if (session.payment_status === 'paid' && session.status === 'complete') {
       const metadata = session.metadata;
@@ -522,8 +529,6 @@ stripeRouter.post("/verify-psychology-session", async (req, res) => {
               paymentMethod: session.payment_method_types?.[0] || 'card',
               createdAt: FieldValue.serverTimestamp()
             });
-
-            console.log(`Sesión de psicólogo confirmada para usuario ${userId}`);
           }
         } catch (firebaseError) {
           console.error(`Error al actualizar Firebase desde /verify-psychology-session:`, firebaseError);
@@ -531,7 +536,6 @@ stripeRouter.post("/verify-psychology-session", async (req, res) => {
       }
     }
 
-    // Respuesta completa
     res.json({
       paymentStatus: session.payment_status,
       sessionStatus: session.status,
@@ -570,7 +574,7 @@ stripeRouter.get("/psychology-sessions/:userId", async (req, res) => {
       .orderBy('createdAt', 'desc')
       .limit(parseInt(limit));
 
-    // Filtrar por estado si se especifica
+    // Filtrar por estado 
     if (status) {
       query = query.where('sessionStatus', '==', status);
     }
@@ -601,59 +605,64 @@ stripeRouter.get("/psychology-sessions/:userId", async (req, res) => {
 
 // Función auxiliar para manejar sesiones de psicólogo completadas
 async function handlePsychologySessionCompleted(session) {
-  console.log(`Procesando sesión de psicólogo completada: ${session.id}`);
-
-  const userId = session.client_reference_id || session.metadata?.firebase_uid;
   const metadata = session.metadata;
+  const appointmentId = metadata?.appointment_id;
 
-  if (!userId) {
-    console.error('No se encontró userId en la sesión de psicólogo');
+  if (!appointmentId) {
+    console.error('No se encontró appointment_id en metadata');
     return;
   }
 
   try {
-    // Buscar y actualizar el registro de la sesión
-    const psychologySessionsQuery = await db.collection('psychology_sessions')
-      .where('checkoutSessionId', '==', session.id)
-      .limit(1)
-      .get();
+    const appointmentRef = db.collection('appointments').doc(appointmentId);
+    const appointmentDoc = await appointmentRef.get();
 
-    if (!psychologySessionsQuery.empty) {
-      const psychologySessionDoc = psychologySessionsQuery.docs[0];
-
-      await psychologySessionDoc.ref.update({
-        paymentStatus: 'paid',
-        sessionStatus: 'confirmed',
-        paymentIntentId: session.payment_intent,
-        amountPaid: session.amount_total,
-        currency: session.currency,
-        paidAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      });
-
-      // Crear registro de pago
-      await db.collection('psychology_payments').add({
-        userId: userId,
-        userEmail: metadata?.user_email,
-        userName: metadata?.user_name,
-        psychologySessionId: psychologySessionDoc.id,
-        checkoutSessionId: session.id,
-        paymentIntentId: session.payment_intent,
-        customerId: session.customer,
-        amountPaid: session.amount_total,
-        currency: session.currency,
-        sessionDate: metadata?.session_date,
-        sessionTime: metadata?.session_time,
-        psychologistName: metadata?.psychologist_name,
-        paymentStatus: 'succeeded',
-        paymentMethod: session.payment_method_types?.[0] || 'card',
-        createdAt: FieldValue.serverTimestamp()
-      });
-
-      console.log(`Sesión de psicólogo registrada exitosamente para usuario: ${userId}`);
+    if (!appointmentDoc.exists) {
+      console.error(`Cita ${appointmentId} no encontrada`);
+      return;
     }
+
+    const appointmentData = appointmentDoc.data();
+
+    // ACTUALIZAR LA CITA: MARCARLA COMO PAGADA
+    await appointmentRef.update({
+      isPaid: true,
+      status: 'pending', 
+      paymentIntentId: session.payment_intent,
+      amountPaid: session.amount_total,
+      currency: session.currency,
+      paidAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    // Notificaciones
+    await Promise.all([
+      createNotification({
+        userId: appointmentData.patientId,
+        title: '¡Pago Exitoso!',
+        body: `Tu pago ha sido procesado. La cita con ${appointmentData.psychologistName} está pendiente de confirmación.`,
+        type: 'payment_completed',
+        data: {
+          appointmentId: appointmentId,
+          psychologistId: appointmentData.psychologistId,
+          status: 'pending'
+        }
+      }),
+      createNotification({
+        userId: appointmentData.psychologistId,
+        title: 'Nueva Cita Pagada',
+        body: `${appointmentData.patientName} ha pagado una sesión. Por favor confirma la cita.`,
+        type: 'appointment_paid',
+        data: {
+          appointmentId: appointmentId,
+          patientId: appointmentData.patientId,
+          status: 'pending'
+        }
+      })
+    ]);
+
   } catch (error) {
-    console.error(`Error al procesar sesión de psicólogo completada:`, error);
+    console.error('Error procesando pago completado:', error);
     throw error;
   }
 }
@@ -714,8 +723,6 @@ stripeRouter.post("/stripe-webhook", async (req, res) => {
 // FUNCIONES AUXILIARES PARA MANEJAR EVENTOS
 
 async function handleCheckoutSessionCompleted(session) {
-  console.log(`Procesando checkout completado: ${session.id}`);
-
   const userId = session.client_reference_id || session.metadata?.firebase_uid;
   const userEmail = session.customer_details?.email || session.metadata?.user_email;
   const userName = session.metadata?.user_name || 'Usuario';
@@ -774,7 +781,6 @@ async function handleCheckoutSessionCompleted(session) {
       }
     });
 
-    console.log(`Suscripción registrada exitosamente para usuario: ${userId}`);
   } catch (error) {
     console.error(`Error al procesar checkout completado:`, error);
     throw error;
@@ -783,12 +789,6 @@ async function handleCheckoutSessionCompleted(session) {
 
 async function handleSubscriptionUpdated(subscription) {
   try {
-    console.log('🔍 Debug - subscription updated completa:', {
-      current_period_end: subscription.current_period_end,
-      current_period_start: subscription.current_period_start,
-      status: subscription.status
-    });
-
     const updateData = {
       status: subscription.status,
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
@@ -866,7 +866,6 @@ async function handleSubscriptionUpdated(subscription) {
 
 // Handler para eliminación de suscripción 
 async function handleSubscriptionDeleted(subscription) {
-  console.log(`Suscripción eliminada: ${subscription.id}`);
 
   try {
     // BUSCAR EL DOCUMENTO DE LA SUSCRIPCIÓN
@@ -904,8 +903,6 @@ async function handleSubscriptionDeleted(subscription) {
           deletedAt: new Date().toISOString()
         }
       });
-
-      console.log(`Suscripción ${subscription.id} marcada como eliminada`);
     }
   } catch (error) {
     console.error(`Error al eliminar suscripción:`, error);
@@ -956,8 +953,6 @@ async function handlePaymentSucceeded(invoice) {
           periodEnd: new Date(invoice.period_end * 1000).toISOString()
         }
       });
-
-      console.log(`Pago registrado para usuario: ${userIdFromDoc}`);
     }
   } catch (error) {
     console.error(`Error al procesar pago exitoso:`, error);
@@ -992,8 +987,6 @@ async function handlePaymentFailed(invoice) {
         lastPaymentFailure: FieldValue.serverTimestamp(),
         paymentStatus: 'failed'
       });
-
-      // CREAR NOTIFICACIÓN DE PAGO FALLIDO
       await createNotification({
         userId: userIdFromDoc,
         title: 'Error en el Pago',
@@ -1008,7 +1001,6 @@ async function handlePaymentFailed(invoice) {
         }
       });
 
-      console.log(`Pago fallido registrado para usuario: ${userIdFromDoc}`);
     }
   } catch (error) {
     console.error(`Error al procesar pago fallido:`, error);
@@ -1018,15 +1010,11 @@ async function handlePaymentFailed(invoice) {
 // Endpoint para obtener estado de suscripción del usuario
 stripeRouter.get("/subscription-status/:userId", async (req, res) => {
   const { userId } = req.params;
-
   if (!userId) {
     return res.status(400).json({ error: "userId is required" });
   }
-
   try {
-
     const userDoc = await db.collection('patients').doc(userId).get();
-
     if (!userDoc.exists) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
@@ -1048,7 +1036,7 @@ stripeRouter.get("/subscription-status/:userId", async (req, res) => {
           console.log(`No se pudo obtener suscripción de Stripe: ${stripeError.message}`);
         }
 
-        return res.json({
+      return res.json({
           hasSubscription: true,
           subscription: {
             id: userData.subscriptionId,
@@ -1056,12 +1044,15 @@ stripeRouter.get("/subscription-status/:userId", async (req, res) => {
             planName: subscriptionData.planName || userData.planName || 'Premium',
             planId: subscriptionData.planId || userData.planId,
             currentPeriodEnd: stripeSubscription?.current_period_end ?
-              new Date(stripeSubscription.current_period_end * 1000) :
-              subscriptionData.currentPeriodEnd,
+              new Date(stripeSubscription.current_period_end * 1000).toISOString() : 
+              subscriptionData.currentPeriodEnd?.toDate().toISOString() || null,
             cancelAtPeriodEnd: stripeSubscription?.cancel_at_period_end || false,
+            createdAt: subscriptionData.createdAt?.toDate().toISOString() || null, 
+            amountTotal: subscriptionData.amountTotal || null, 
+            currency: subscriptionData.currency || 'mxn',
             userName: subscriptionData.userName || userData.name,
             userEmail: subscriptionData.userEmail || userData.email,
-            ...subscriptionData
+
           }
         });
       }

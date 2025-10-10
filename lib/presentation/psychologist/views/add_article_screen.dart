@@ -4,6 +4,11 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/article_model.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/article_bloc.dart';
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AddArticleScreen extends StatefulWidget {
   final String psychologistId;
@@ -23,6 +28,10 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
   final _tagsController = TextEditingController();
   final _categoryController = TextEditingController();
   final _readingTimeController = TextEditingController();
+  
+  File? _selectedImage;
+  String? _uploadedImageUrl;
+  bool _isUploadingImage = false;
 
   bool _isPublished = false;
   List<String> _tags = [];
@@ -32,8 +41,6 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
   @override
   void initState() {
     super.initState();
-    
-    
     _titleController.addListener(() => setState(() {}));
     _summaryController.addListener(() => setState(() {}));
     _imageUrlController.addListener(() => setState(() {}));
@@ -54,6 +61,92 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
     super.dispose();
   }
 
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+          _isUploadingImage = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Subiendo imagen...'),
+                ],
+              ),
+              duration: Duration(minutes: 2),
+            ),
+          );
+        }
+
+        final articleRepository = context.read<ArticleRepository>();
+        final uploadedUrl = await articleRepository.uploadArticleImage(
+          image.path,
+          widget.psychologistId,
+        );
+
+        setState(() {
+          _uploadedImageUrl = uploadedUrl;
+          _imageUrlController.text = uploadedUrl;
+          _isUploadingImage = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Imagen subida exitosamente'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingImage = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al subir imagen: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      print('Error al subir imagen: $e');
+    }
+  }
+
   void _processTags() {
     final tagsText = _tagsController.text.trim();
     if (tagsText.isNotEmpty) {
@@ -62,7 +155,6 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
   }
 
   void _submitForm(ArticleBloc articleBloc) {
-    
     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
       _processTags();
 
@@ -112,7 +204,7 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
       case 0:
         return _titleController.text.isNotEmpty &&
             _summaryController.text.isNotEmpty &&
-            _imageUrlController.text.isNotEmpty;
+            _uploadedImageUrl != null;
       case 1:
         return _contentController.text.isNotEmpty &&
             _contentController.text.length >= 100;
@@ -125,63 +217,64 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => ArticleBloc(
-        articleRepository: context.read<ArticleRepository>(),
-        psychologistId: widget.psychologistId,
-      ),
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        return ApprovalStatusBlocker(
+          psychologist: authState.psychologist,
+          featureName: 'artículos',
+          child: BlocProvider(
+            create: (context) => ArticleBloc(
+              articleRepository: context.read<ArticleRepository>(),
+              psychologistId: widget.psychologistId,
             ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'Nuevo Artículo',
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          centerTitle: true,
-        ),
-        body: Form(
-          key: _formKey, // Move the Form widget here
-          child: Column(
-            children: [
-              // Indicador de pasos
-              _buildStepsIndicator(),
-              
-              // Contenido del formulario
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+            child: Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              appBar: AppBar(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Text(
+                  'Nuevo Artículo',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                centerTitle: true,
+              ),
+              body: Form(
+                key: _formKey,
+                child: Column(
                   children: [
-                    _buildBasicInfoStep(),
-                    _buildContentStep(),
-                    _buildDetailsStep(),
+                    _buildStepsIndicator(),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _buildBasicInfoStep(),
+                          _buildContentStep(),
+                          _buildDetailsStep(),
+                        ],
+                      ),
+                    ),
+                    _buildNavigationButtons(),
                   ],
                 ),
               ),
-
-              // Botones de navegación
-              _buildNavigationButtons(),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-
-  // The rest of your widget build methods remain the same...
 
   Widget _buildStepsIndicator() {
     final steps = ['Información', 'Contenido', 'Detalles'];
@@ -371,9 +464,9 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
           ),
           const SizedBox(height: 16),
 
-          // URL de imagen
+          // Imagen del artículo
           Text(
-            'URL de la imagen *',
+            'Imagen del artículo *',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -382,37 +475,149 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: _imageUrlController,
-            decoration: InputDecoration(
-              hintText: 'https://ejemplo.com/imagen.jpg',
-              hintStyle: TextStyle(
-                color: Colors.grey[500],
-                fontFamily: 'Poppins',
-              ),
-              border: OutlineInputBorder(
+
+          // Selector de imagen
+          InkWell(
+            onTap: _isUploadingImage ? null : _pickAndUploadImage,
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                border: Border.all(color: Colors.grey[300]!),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppConstants.secondaryColor),
-              ),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              contentPadding: const EdgeInsets.all(16),
+              child: _isUploadingImage
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            color: AppConstants.secondaryColor,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Subiendo imagen...',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _selectedImage != null || _uploadedImageUrl != null
+                      ? Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: _selectedImage != null
+                                  ? Image.file(
+                                      _selectedImage!,
+                                      width: double.infinity,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      _uploadedImageUrl!,
+                                      width: double.infinity,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            size: 50,
+                                            color: Colors.grey[400],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  onPressed: _pickAndUploadImage,
+                                  color: AppConstants.secondaryColor,
+                                ),
+                              ),
+                            ),
+                            if (_uploadedImageUrl != null)
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Subida',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate,
+                              size: 50,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Toca para seleccionar una imagen',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
             ),
-            style: const TextStyle(fontFamily: 'Poppins'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor ingresa una URL de imagen';
-              }
-              return null;
-            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'La imagen se subirá automáticamente',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+              fontFamily: 'Poppins',
+            ),
           ),
         ],
       ),
@@ -496,7 +701,7 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppConstants.secondaryColor),
-                ),
+              ),
               filled: true,
               fillColor: Theme.of(context).cardColor,
               contentPadding: const EdgeInsets.all(16),
@@ -708,60 +913,6 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
             ),
             style: const TextStyle(fontFamily: 'Poppins'),
           ),
-          const SizedBox(height: 24),
-
-          // Publicación inmediata
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.public,
-                  color: AppConstants.secondaryColor,
-                  size: 24,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Publicar inmediatamente',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      Text(
-                        'El artículo estará disponible para todos los usuarios',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _isPublished,
-                  onChanged: (value) {
-                    setState(() {
-                      _isPublished = value;
-                    });
-                  },
-                  activeColor: AppConstants.secondaryColor,
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -850,7 +1001,7 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
                           ),
                         )
                       : Text(
-                          _currentStep == 2 ? 'Publicar Artículo' : 'Siguiente',
+                          _currentStep == 2 ? 'Enviar Artículo' : 'Siguiente',
                           style: const TextStyle(
                             color: Colors.white,
                             fontFamily: 'Poppins',

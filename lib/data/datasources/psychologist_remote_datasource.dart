@@ -1,11 +1,13 @@
+// lib/data/datasources/psychologist_remote_datasource.dart
+
 import 'dart:convert';
-import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 
 class PsychologistRemoteDataSource {
-  static const String _baseUrl = 'http://10.0.2.2:3000/api';
+  static final String _baseUrl = '${ApiConstants.baseUrl}/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<Map<String, String>> _getHeaders() async {
@@ -15,14 +17,17 @@ class PsychologistRemoteDataSource {
 
     final user = _auth.currentUser;
     if (user != null) {
-      final idToken = await user.getIdToken(true);
-      if (idToken != null) {
-        headers['Authorization'] = 'Bearer $idToken';
-      }
+      final idToken = await user.getIdToken(false); 
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $idToken',
+    };
     }
     return headers;
   }
 
+  // INFORMACIÓN BÁSICA
+  
   Future<void> updateBasicInfo({
     required String uid,
     String? username,
@@ -30,33 +35,26 @@ class PsychologistRemoteDataSource {
     String? phoneNumber,
     String? profilePictureUrl,
   }) async {
-    print('Backend: Iniciando updateBasicInfo para $uid');
-
     final Map<String, dynamic> data = {};
     if (username != null) data['username'] = username;
     if (email != null) data['email'] = email;
     if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
     if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
 
-    if (data.isEmpty) {
-      print('Backend: No hay datos para actualizar.');
-      return;
-    }
+    if (data.isEmpty) return;
 
-    try {
-      final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/basic'), 
-        headers: await _getHeaders(),
-        body: jsonEncode(data),
-      );
+    final response = await http.patch(
+      Uri.parse('$_baseUrl/psychologists/$uid/basic'),
+      headers: await _getHeaders(),
+      body: jsonEncode(data),
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Error ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error al actualizar la información básica: $e');
+    if (response.statusCode != 200) {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
     }
   }
+
+  // INFORMACIÓN PROFESIONAL
 
   Future<void> updateProfessionalInfo({
     required String uid,
@@ -72,8 +70,8 @@ class PsychologistRemoteDataSource {
     Map<String, dynamic>? schedule,
     String? profilePictureUrl,
     bool? isAvailable,
+    double? price,
   }) async {
-    print('Backend: Iniciando updateProfessionalInfo para $uid');
 
     final Map<String, dynamic> data = {};
     if (fullName != null) data['fullName'] = fullName;
@@ -88,47 +86,74 @@ class PsychologistRemoteDataSource {
     if (schedule != null) data['schedule'] = schedule;
     if (profilePictureUrl != null) data['profilePictureUrl'] = profilePictureUrl;
     if (isAvailable != null) data['isAvailable'] = isAvailable;
+    if (price != null) data['price'] = price;
 
     if (data.isEmpty) {
-      print('Backend: No hay datos para actualizar.');
       return;
     }
 
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/professional'), 
+        Uri.parse('$_baseUrl/psychologists/$uid/professional'),
         headers: await _getHeaders(),
         body: jsonEncode(data),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Timeout: El servidor no respondió en 30 segundos');
+        },
       );
 
       if (response.statusCode != 200) {
         throw Exception('Error ${response.statusCode}: ${response.body}');
       }
+
     } catch (e) {
-      throw Exception('Error al actualizar la información profesional: $e');
+      rethrow;
     }
   }
 
+  // OBTENER INFORMACIÓN
+  
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/psychologists/$uid'), 
-        headers: await _getHeaders(),
-      );
+    final response = await http.get(
+      Uri.parse('$_baseUrl/psychologists/$uid'),
+      headers: await _getHeaders(),
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        // El backend devuelve { psychologist: { id: ..., ...data } }
-        final psychologistData = responseData['psychologist'];
-        return PsychologistModel.fromJson(psychologistData);
-      } else if (response.statusCode == 404) {
-        return null;
-      } else {
-        throw Exception(
-            'Error al obtener la información del psicólogo: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error al obtener la información del psicólogo: $e');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      final psychologistData = responseData['psychologist'];
+      return PsychologistModel.fromJson(psychologistData);
+    } else if (response.statusCode == 404) {
+      return null;
+    } else {
+      throw Exception('Error ${response.statusCode}: ${response.body}');
+    }
+  }
+
+  // SUBIDA DE IMAGEN 
+  Future<String> uploadProfilePicture(String imagePath) async {
+    final String apiUrl = '$_baseUrl/psychologists/upload-profile-picture';
+
+    final token = await _auth.currentUser?.getIdToken();
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('imageFile', imagePath));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      return jsonResponse['profilePictureUrl'];
+    } else {
+      final errorBody = json.decode(response.body);
+      throw Exception('Error al subir imagen: ${errorBody['error']} (${response.statusCode})');
     }
   }
 }

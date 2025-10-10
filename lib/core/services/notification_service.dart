@@ -29,8 +29,6 @@ class NotificationService {
       provisional: false,
       criticalAlert: false,
     );
-    
-    print('Permisos de notificación: ${settings.authorizationStatus}');
   }
 
   static Future<void> _setupFCM() async {
@@ -59,12 +57,6 @@ class NotificationService {
         },
         body: json.encode({'fcmToken': token}),
       );
-
-      if (response.statusCode == 200) {
-        print('Token FCM actualizado en backend');
-      } else {
-        print('Error actualizando token FCM: ${response.statusCode}');
-      }
     } catch (e) {
       print('Error guardando token FCM: $e');
     }
@@ -73,13 +65,11 @@ class NotificationService {
   static void _setupMessageHandlers() {
     // App en primer plano - mostrar notificación in-app personalizada
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Mensaje recibido en primer plano: ${message.messageId}');
       _showInAppNotification(message);
     });
 
     // App en background/terminated - usuario hace tap
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('App abierta desde notificación: ${message.messageId}');
       _handleNotificationClick(message.data);
     });
 
@@ -90,7 +80,6 @@ class NotificationService {
   static Future<void> _checkInitialMessage() async {
     RemoteMessage? initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      print('App abierta desde notificación (cerrada): ${initialMessage.messageId}');
       _handleNotificationClick(initialMessage.data);
     }
   }
@@ -99,11 +88,6 @@ class NotificationService {
   static void _showInAppNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification == null) return;
-
-    // Aquí puedes crear un widget personalizado de notificación
-    // o usar un SnackBar, Dialog, etc.
-    
-    // Por ejemplo, usando un callback para mostrar en la UI:
     if (onInAppNotification != null) {
       onInAppNotification!({
         'title': notification.title ?? '',
@@ -131,7 +115,6 @@ class NotificationService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('fcm_token');
     } catch (e) {
-      print('Error obteniendo token guardado: $e');
       return null;
     }
   }
@@ -144,13 +127,11 @@ class NotificationService {
   // Suscribirse a un topic
   static Future<void> subscribeToTopic(String topic) async {
     await _messaging.subscribeToTopic(topic);
-    print('Suscrito al topic: $topic');
   }
 
   // Desuscribirse de un topic
   static Future<void> unsubscribeFromTopic(String topic) async {
     await _messaging.unsubscribeFromTopic(topic);
-    print('Desuscrito del topic: $topic');
   }
 }
 

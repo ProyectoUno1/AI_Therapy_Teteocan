@@ -9,6 +9,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/views/email_verification_screen.dart';
 
 class RegisterPsychologistScreen extends StatefulWidget {
   @override
@@ -478,90 +479,86 @@ class _RegisterPsychologistScreenState
 
           // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
           BlocConsumer<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if (state.status == AuthStatus.error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.errorMessage ?? 'Error desconocido'),
-                    backgroundColor: AppConstants.errorColor,
-                  ),
-                );
-              }
-              if (state.status == AuthStatus.success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Registro exitoso! Ahora completa tu perfil profesional',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                if (!context.mounted) return;
+  listener: (context, state) {
+    if (state.status == AuthStatus.error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.errorMessage ?? 'Error desconocido'),
+          backgroundColor: AppConstants.errorColor,
+        ),
+      );
+    }
+    if (state.status == AuthStatus.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registro exitoso! Por favor verifica tu correo.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      if (!context.mounted) return;
 
-                // Redirige a la configuración profesional
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => ProfessionalInfoSetupScreen(),
-                  ),
-                );
-              }
-            },
-            builder: (context, state) {
-              return SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: state.status == AuthStatus.loading
-                      ? null
-                      : () {
-                          // Dispara evento Bloc para registrar psicólogo
-                          if (_formKeyStep3.currentState?.validate() ?? false) {
-                            context.read<AuthBloc>().add(
-                              AuthRegisterPsychologistRequested(
-                                username: _usernameController.text.trim(),
-                                email: _emailController.text.trim(),
-                                phoneNumber: _phoneController.text.trim(),
-                                professionalLicense: _professionalIdController
-                                    .text
-                                    .trim(),
-                                password: _passwordController.text.trim(),
-                                dateOfBirth: _birthDate!,
-                              ),
-                            );
-                          }
-                        },
-                  // Estilo del botón Crear cuenta
-                  style: ElevatedButton.styleFrom(
-                    elevation: 4,
-                    backgroundColor: null,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+      // 🔥 REDIRIGIR A EMAIL VERIFICATION SCREEN
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => EmailVerificationScreen(
+            userEmail: _emailController.text,
+            userRole: 'psychologist',
+          ),
+        ),
+      );
+    }
+  },
+  builder: (context, state) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: state.status == AuthStatus.loading
+            ? null
+            : () {
+                if (_formKeyStep3.currentState?.validate() ?? false) {
+                  context.read<AuthBloc>().add(
+                    AuthRegisterPsychologistRequested(
+                      username: _usernameController.text.trim(),
+                      email: _emailController.text.trim(),
+                      phoneNumber: _phoneController.text.trim(),
+                      professionalLicense: _professionalIdController.text.trim(),
+                      password: _passwordController.text.trim(),
+                      dateOfBirth: _birthDate!,
                     ),
-                    padding: EdgeInsets.all(0),
-                  ),
-                  // Contenedor para el botón
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF82c4c3), Color(0xFF5ca0ac)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
+                  );
+                }
+              },
+        style: ElevatedButton.styleFrom(
+          elevation: 4,
+          backgroundColor: null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          padding: EdgeInsets.zero,
+        ),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF82c4c3), Color(0xFF5ca0ac)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Center(
+            child: state.status == AuthStatus.loading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'Crear cuenta',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
                     ),
-                    child: Center(
-                      // Si está cargando muestra spinner, si no el texto "Crear cuenta"
-                      child: state.status == AuthStatus.loading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Crear cuenta',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
+                  ),
                     ),
                   ),
                 ),

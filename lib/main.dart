@@ -1,11 +1,12 @@
-//lib/main.dart
+// lib/main.dart
 
 import 'dart:async';
-
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/core/services/theme_service.dart';
 import 'package:ai_therapy_teteocan/data/datasources/auth_remote_datasource.dart';
@@ -19,25 +20,25 @@ import 'package:ai_therapy_teteocan/domain/usecases/auth/register_user_usecase.d
 import 'package:ai_therapy_teteocan/domain/usecases/auth/sign_in_usecase.dart';
 import 'package:ai_therapy_teteocan/core/services/ai_chat_api_service.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-
-// Importaciones de las vistas y Blocs/Cubits
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/article_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/profile_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/patient_profile_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_notes_bloc.dart';
+import 'package:ai_therapy_teteocan/core/services/patient_notes_service.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/admin/views/psychologists_list_page.dart';
-import 'package:ai_therapy_teteocan/presentation/admin/bloc/psychologist_bloc.dart';
-import 'package:ai_therapy_teteocan/data/repositories/psychologist_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/payment_history/bloc/payment_history_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/payment_history_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.dart';
 import 'package:ai_therapy_teteocan/data/repositories/notification_repository.dart';
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
-import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/home_content_cubit.dart';
 import 'package:ai_therapy_teteocan/core/services/notification_service.dart';
@@ -45,19 +46,18 @@ import 'package:ai_therapy_teteocan/data/models/emotion_model.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/bloc/emotion/emotion_bloc.dart';
 import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
 import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
-
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/dashboard_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
+import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
-
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -73,21 +73,23 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await initializeDateFormatting('es_ES', null);
 
-  // --- Inicialización de la base de datos de zonas horarias ---
+  await FirebaseAppCheck.instance.activate(
+    
+    androidProvider: AndroidProvider.debug, 
+  );
+
   tzdata.initializeTimeZones();
   Stripe.publishableKey =
       'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
 
-  // --- NUEVA CONFIGURACIÓN: Inicializar NotificationService ---
   await NotificationService.initialize();
 
-  // Configurar manejador de navegación desde notificaciones
   NotificationService.onNotificationTap = (data) {
     _handleNotificationNavigation(data);
   };
 
-  // --- Inicialización de Data Sources y Repositorios de Autenticación ---
   final AuthRemoteDataSourceImpl authRemoteDataSource =
       AuthRemoteDataSourceImpl(firebaseAuth: FirebaseAuth.instance);
   final UserRemoteDataSourceImpl userRemoteDataSource =
@@ -106,13 +108,21 @@ void main() async {
   final ThemeService themeService = ThemeService();
   final psychologistRemoteDataSource = PsychologistRemoteDataSource();
 
+  final emotionRepository = EmotionRepositoryImpl(
+    dataSource: EmotionRemoteDataSource(baseUrl: ApiConstants.baseUrl),
+  );
+  final articleRepository = ArticleRepository(baseUrl: ApiConstants.baseUrl);
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(
     MultiBlocProvider(
       providers: [
         RepositoryProvider<ArticleRepository>(
-          create: (context) => ArticleRepository(baseUrl: ApiConstants.baseUrl),
+          create: (context) => articleRepository,
+        ),
+        RepositoryProvider<EmotionRepository>(
+          create: (context) => emotionRepository,
         ),
 
         BlocProvider<AuthBloc>(
@@ -140,15 +150,40 @@ void main() async {
 
         BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
 
-        BlocProvider<PsychologistBloc>(
-          create: (context) =>
-              PsychologistBloc(repository: PsychologistRepository()),
-        ),
+        BlocProvider<DashboardBloc>(
+        create: (context) => DashboardBloc(),
+      ),
 
         BlocProvider<NotificationBloc>(
           create: (context) => NotificationBloc(
             notificationRepository: NotificationRepository(),
           ),
+        ),
+
+        BlocProvider<EmotionBloc>(
+          create: (context) =>
+              EmotionBloc(emotionRepository: context.read<EmotionRepository>()),
+        ),
+
+        BlocProvider<ArticleBloc>(
+          create: (context) => ArticleBloc(
+            articleRepository: articleRepository,
+            psychologistId: FirebaseAuth.instance.currentUser!.uid,
+          )..add(const LoadArticles()),
+        ),
+
+    BlocProvider<PaymentHistoryBloc>(
+      create: (context) => PaymentHistoryBloc(
+        PaymentHistoryRepositoryImpl(),
+      ),
+    ),
+        BlocProvider<ProfileBloc>(
+          create: (context) => ProfileBloc(PatientProfileRepository()),
+        ),
+
+        BlocProvider<PatientNotesBloc>(
+          create: (context) =>
+              PatientNotesBloc(notesService: PatientNotesService()),
         ),
       ],
       child: const MyApp(),
@@ -160,7 +195,6 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
   final context = navigatorKey.currentContext;
   if (context == null) return;
 
-  // Elimina el Future.delayed.
   final type = data['type'] as String?;
 
   switch (type) {
@@ -192,36 +226,25 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
 }
 
 void _navigateToAppointments(BuildContext context, Map<String, dynamic> data) {
-  // Implementar navegación específica a citas
-  // Por ejemplo, si tienes una ruta nombrada:
-  // Navigator.of(context).pushNamed('/appointments', arguments: data);
-
-  // Por ahora, imprime para debug
   print('Navegar a citas con data: $data');
 
-  // También puedes mostrar la lista de notificaciones como fallback
   _navigateToNotifications(context);
 }
 
 void _navigateToProfile(BuildContext context, Map<String, dynamic> data) {
-  // Implementar navegación a perfil/premium
   print('Navegar a perfil con data: $data');
   _navigateToNotifications(context);
 }
 
 void _navigateToActiveSession(BuildContext context, Map<String, dynamic> data) {
-  // Implementar navegación a sesión activa
   print('Navegar a sesión activa con data: $data');
   _navigateToNotifications(context);
 }
 
 void _navigateToNotifications(BuildContext context) {
-  // Implementar navegación a lista de notificaciones
-  // Navigator.of(context).pushNamed('/notifications');
   print('Navegar a lista de notificaciones');
 }
 
-/// La clase principal de la aplicación, donde se define el tema y la navegación global.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -457,7 +480,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           themeMode: themeState.selectedTheme.themeMode,
           navigatorKey: navigatorKey,
           home: const AuthWrapper(),
-          //const AdminPanel(),
         );
       },
     );

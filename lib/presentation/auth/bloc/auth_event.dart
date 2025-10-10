@@ -116,3 +116,35 @@ class AuthPatientDataUpdated extends AuthEvent {
   final PatientModel patient;
   const AuthPatientDataUpdated(this.patient);
 }
+class AuthPasswordResetRequested extends AuthEvent {
+  final String email;
+
+  const AuthPasswordResetRequested({required this.email});
+
+  @override
+  List<Object> get props => [email];
+}
+
+class AuthCheckEmailVerification extends AuthEvent {}
+
+class AuthUpdateEmailRequested extends AuthEvent {
+  final String newEmail;
+
+  const AuthUpdateEmailRequested({required this.newEmail});
+
+  @override
+  List<Object?> get props => [newEmail];
+}
+class CheckAuthStatus extends AuthEvent {}
+
+
+class AuthAcceptTermsAndConditions extends AuthEvent {
+  final String userRole;
+
+  const AuthAcceptTermsAndConditions({
+    required this.userRole,
+  });
+
+  @override
+  List<Object> get props => [userRole];
+}

@@ -15,6 +15,7 @@ class PatientModel {
   final int messageCount; 
   final int aiMessageLimit; 
   final bool isPremium; 
+  final bool termsAccepted;
 
   const PatientModel({
     required this.uid,
@@ -29,7 +30,40 @@ class PatientModel {
     this.messageCount = 0,
     this.aiMessageLimit = 5,
     this.isPremium = false,
+    this.termsAccepted = false,
   });
+
+  PatientModel copyWith({
+    String? uid,
+    String? username,
+    String? email,
+    String? phoneNumber,
+    String? profilePictureUrl,
+    DateTime? dateOfBirth,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? role,
+    int? messageCount,
+    int? aiMessageLimit,
+    bool? isPremium,
+    bool? termsAccepted,
+  }) {
+    return PatientModel(
+      uid: uid ?? this.uid,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      role: role ?? this.role,
+      messageCount: messageCount ?? this.messageCount,
+      aiMessageLimit: aiMessageLimit ?? this.aiMessageLimit,
+      isPremium: isPremium ?? this.isPremium,
+      termsAccepted: termsAccepted ?? this.termsAccepted,
+    );
+  }
 
   factory PatientModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -58,7 +92,8 @@ class PatientModel {
 
     final int messageCount = data['messageCount'] as int? ?? 0; 
     final int aiMessageLimit = data['ai_message_limit'] as int? ?? 5;   
-    final bool isPremium = data['is_premium'] as bool? ?? false; 
+    final bool isPremium = data['is_premium'] as bool? ?? false;
+    final bool termsAccepted = data['terms_accepted'] as bool? ?? false;
 
     return PatientModel(
       uid: snapshot.id, 
@@ -73,6 +108,7 @@ class PatientModel {
       messageCount: messageCount,
       aiMessageLimit: aiMessageLimit,
       isPremium: isPremium,
+      termsAccepted: termsAccepted,
     );
   }
 
@@ -89,6 +125,7 @@ class PatientModel {
       "used_ai_messages": messageCount, 
       "ai_message_limit": aiMessageLimit, 
       "is_premium": isPremium, 
+      "terms_accepted": termsAccepted,
     };
   }
 
@@ -106,6 +143,7 @@ class PatientModel {
       'messageCount': messageCount,
       'aiMessageLimit': aiMessageLimit,
       'isPremium': isPremium,
+      'termsAccepted': termsAccepted,
     };
   }
 
@@ -125,6 +163,7 @@ class PatientModel {
       messageCount: (entity as dynamic).messageCount ?? 0,
       aiMessageLimit: (entity as dynamic).aiMessageLimit ?? 5,
       isPremium: (entity as dynamic).isPremium ?? false,
+      termsAccepted: (entity as dynamic).termsAccepted ?? false,
     );
   }
 }

@@ -68,11 +68,8 @@ class PatientManagementBloc extends Bloc<PatientManagementEvent, PatientManageme
         psychologistId: event.psychologistId,
       ));
 
-      log('Pacientes cargados: ${patients.length}', name: 'PatientManagementBloc');
-
     } catch (e) {
       if (!isClosed) {
-        log('Error cargando pacientes: $e', name: 'PatientManagementBloc');
         emit(state.copyWith(
           status: PatientManagementStatus.error,
           errorMessage: 'Error al cargar pacientes: ${e.toString()}',
@@ -161,11 +158,8 @@ class PatientManagementBloc extends Bloc<PatientManagementEvent, PatientManageme
         psychologistId: state.psychologistId,
       ));
 
-      log('Pacientes actualizados: ${patients.length}', name: 'PatientManagementBloc');
-
     } catch (e) {
       if (!isClosed) {
-        log('Error actualizando pacientes: $e', name: 'PatientManagementBloc');
         emit(state.copyWith(
           status: PatientManagementStatus.loaded,
           psychologistId: state.psychologistId,
