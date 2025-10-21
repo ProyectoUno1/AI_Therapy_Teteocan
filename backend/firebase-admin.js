@@ -22,14 +22,10 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "aurora-2b8f4";
 
 if (!admin.apps.length) {
     if (SHOULD_USE_EMULATORS) {
-        console.log("🔗 [Firebase Admin] Configurando para usar EMULADORES...");
 
         admin.initializeApp({
             projectId: FIREBASE_PROJECT_ID,
         });
-        console.log(
-            `✅ Firebase Admin SDK inicializado para EMULADORES (Project ID: ${FIREBASE_PROJECT_ID}).`
-        );
     } else {
         console.log("☁️ [Firebase Admin] Configurando para usar CLOUD (Producción)...");
 
@@ -43,11 +39,9 @@ if (!admin.apps.length) {
                     credential: admin.credential.cert(serviceAccount),
                     projectId: FIREBASE_PROJECT_ID,
                 });
-                console.log("✅ Firebase Admin SDK inicializado con credenciales de variable de entorno.");
             } 
             // PRIORIDAD 2: Fallback a archivo local (DESARROLLO)
             else {
-                console.log("📄 Cargando credenciales desde archivo local...");
                 const serviceAccountPath = join(__dirname, 'serviceAccountKey.json');
                 const serviceAccount = require(serviceAccountPath);
                 
@@ -55,7 +49,6 @@ if (!admin.apps.length) {
                     credential: admin.credential.cert(serviceAccount),
                     projectId: FIREBASE_PROJECT_ID,
                 });
-                console.log("✅ Firebase Admin SDK inicializado con serviceAccountKey.json.");
             }
         } catch (error) {
             console.error("❌ ERROR FATAL: No se pudieron cargar las credenciales de Firebase.");
@@ -63,14 +56,12 @@ if (!admin.apps.length) {
             
             // En producción, intentar usar Application Default Credentials como último recurso
             if (process.env.NODE_ENV === 'production') {
-                console.log("🔄 Intentando usar Application Default Credentials...");
                 try {
                     admin.initializeApp({
                         projectId: FIREBASE_PROJECT_ID,
                     });
-                    console.log("✅ Firebase Admin SDK inicializado con ADC.");
                 } catch (adcError) {
-                    console.error("❌ No se pudo inicializar con ADC:", adcError.message);
+                    console.error("No se pudo inicializar con ADC:", adcError.message);
                     throw new Error("No se pudo inicializar Firebase Admin SDK.");
                 }
             } else {
@@ -79,7 +70,7 @@ if (!admin.apps.length) {
         }
     }
 } else {
-    console.log("ℹ️ [Firebase Admin] SDK ya estaba inicializado.");
+    console.log("ℹ[Firebase Admin] SDK ya estaba inicializado.");
 }
 
 export const db = getFirestore();
