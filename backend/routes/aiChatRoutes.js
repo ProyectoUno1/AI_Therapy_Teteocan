@@ -5,6 +5,7 @@ const router = express.Router();
 import { processUserMessage, loadChatMessages, validateMessageLimit } from '../routes/services/chatService.js';
 import { getOrCreateAIChatId } from '../routes/services/chatService.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { decrypt } from '../utils/encryptionUtils.js';
 import { db } from '../firebase-admin.js';
 
 // --- Ruta para ENVIAR un mensaje al chat de IA y obtener la respuesta ---
@@ -50,7 +51,7 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
 
         const formattedMessages = messages.map(msg => ({
             id: msg.id,
-            text: msg.content,
+            text: decrypt(msg.content),
             isUser: !msg.isAI,
             timestamp: msg.timestamp?.toISOString(),
         }));

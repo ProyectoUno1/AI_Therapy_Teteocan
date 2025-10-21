@@ -5,8 +5,11 @@ import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createNotification } from './notifications.js';
+import { encrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
+
+const encryptedContent = encrypt(content);
 
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
@@ -20,7 +23,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         await messageRef.add({
             senderId,
             receiverId,
-            content,
+            content: encryptedContent,
             isRead: false, 
             timestamp: FieldValue.serverTimestamp(), 
         });
@@ -40,12 +43,15 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                     }
                 }
 
+
                 // CREAR NOTIFICACIÓN DIRECTAMENTE EN FIRESTORE 
+                const encryptedMessagePreview = encrypt(content); // Encriptar el cuerpo de la notificación
+                const notificationBody = `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`;
                 const notificationRef = db.collection('notifications').doc();
                 await notificationRef.set({
                     userId: receiverId,
                     title: 'Nuevo mensaje',
-                    body: `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`,
+                    body: notificationBody,
                     type: 'chat_message',
                     isRead: false,
                     timestamp: FieldValue.serverTimestamp(),
@@ -53,7 +59,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                         chatId: chatId,
                         senderId: senderId,
                         senderName: senderName,
-                        messagePreview: content,
+                        messagePreview: encryptedMessagePreview,
                         timestamp: new Date().toISOString()
                     }
                 });
@@ -127,7 +133,7 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
             const data = doc.data();
             return {
                 id: doc.id,
-                content: data.content,
+                content: decrypt(data.content),
                 senderId: data.senderId,
                 receiverId: data.receiverId,
                 isRead: data.isRead || false, 

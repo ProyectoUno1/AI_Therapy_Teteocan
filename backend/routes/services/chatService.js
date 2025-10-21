@@ -3,9 +3,15 @@
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
+import { encrypt } from './encryptionUtils.js';
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
+
+// ENCRIPTAR el contenido del mensaje
+const encryptedContent = encrypt(messageContent);
+// ENCRIPTAR la respuesta de la IA
+const encryptedAIResponse = encrypt(aiResponseContent);
 
 
 const validateMessageLimit = async (userId) => {
@@ -102,7 +108,7 @@ async function processUserMessage(userId, messageContent) {
 
         const userMessageData = {
             senderId: userId,
-            content: messageContent,
+            content: encryptedContent,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
@@ -145,7 +151,7 @@ async function processUserMessage(userId, messageContent) {
 
         const aiMessageData = {
             senderId: 'aurora',
-            content: aiResponseContent,
+            content: encryptedAIResponse,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
