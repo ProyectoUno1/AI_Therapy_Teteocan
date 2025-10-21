@@ -5,7 +5,7 @@ enum PatientStatus {
   pending('⏳', 'Pendiente'),
   accepted('✅', 'Aceptado'),
   inTreatment('🔄', 'Tratamiento'),
-  completed('🎓', 'Completado'),
+  completed('🎓', 'Completo'),
   cancelled('❌', 'Cancelado');
 
   final String icon;

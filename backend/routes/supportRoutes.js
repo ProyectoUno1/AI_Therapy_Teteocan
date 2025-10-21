@@ -5,10 +5,8 @@ import { db } from "../firebase-admin.js";
 
 const router = express.Router();
 
-/**
- * POST /api/support/tickets
- * Crear un nuevo ticket de soporte
- */
+//Crear un nuevo ticket de soporte
+ 
 router.post("/tickets", async (req, res) => {
   try {
     const {
@@ -66,10 +64,7 @@ router.post("/tickets", async (req, res) => {
   }
 });
 
-/**
- * GET /api/support/tickets/user/:userId
- * Obtener todos los tickets de un usuario
- */
+//Obtener todos los tickets de un usuario
 router.get("/tickets/user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -102,10 +97,7 @@ router.get("/tickets/user/:userId", async (req, res) => {
   }
 });
 
-/**
- * GET /api/support/tickets/:ticketId
- * Obtener un ticket específico por ID
- */
+//Obtener un ticket específico por ID
 router.get("/tickets/:ticketId", async (req, res) => {
   try {
     const { ticketId } = req.params;
@@ -134,10 +126,7 @@ router.get("/tickets/:ticketId", async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/support/tickets/:ticketId
- * Actualizar un ticket (responder, cambiar estado, etc.)
- */
+//Actualizar un ticket (responder, cambiar estado, etc.)
 router.patch("/tickets/:ticketId", async (req, res) => {
   try {
     const { ticketId } = req.params;
@@ -188,84 +177,4 @@ router.patch("/tickets/:ticketId", async (req, res) => {
     });
   }
 });
-
-/**
- * DELETE /api/support/tickets/:ticketId
- * Eliminar un ticket (solo para administradores)
- */
-router.delete("/tickets/:ticketId", async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-
-    const ticketRef = db.collection("support_tickets").doc(ticketId);
-    const ticketDoc = await ticketRef.get();
-
-    if (!ticketDoc.exists) {
-      return res.status(404).json({
-        error: "Ticket no encontrado",
-      });
-    }
-
-    await ticketRef.delete();
-
-    res.status(200).json({
-      success: true,
-      message: "Ticket eliminado exitosamente",
-    });
-  } catch (error) {
-    console.error("Error al eliminar ticket:", error);
-    res.status(500).json({
-      error: "Error al eliminar el ticket",
-      details: error.message,
-    });
-  }
-});
-
-/**
- * GET /api/support/tickets
- * Obtener todos los tickets (para administradores)
- * Opcional: filtrar por status, priority, category
- */
-router.get("/tickets", async (req, res) => {
-  try {
-    const { status, priority, category } = req.query;
-
-    let query = db.collection("support_tickets");
-
-    if (status) {
-      query = query.where("status", "==", status);
-    }
-
-    if (priority) {
-      query = query.where("priority", "==", priority);
-    }
-
-    if (category) {
-      query = query.where("category", "==", category);
-    }
-
-    const ticketsSnapshot = await query.orderBy("createdAt", "desc").get();
-
-    if (ticketsSnapshot.empty) {
-      return res.status(200).json([]);
-    }
-
-    const tickets = [];
-    ticketsSnapshot.forEach((doc) => {
-      tickets.push({
-        id: doc.id,
-        ...doc.data(),
-      });
-    });
-
-    res.status(200).json(tickets);
-  } catch (error) {
-    console.error("Error al obtener tickets:", error);
-    res.status(500).json({
-      error: "Error al obtener los tickets",
-      details: error.message,
-    });
-  }
-});
-
 export default router;

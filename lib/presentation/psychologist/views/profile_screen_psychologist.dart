@@ -13,6 +13,7 @@ import 'package:ai_therapy_teteocan/presentation/shared/privacy_policy_screen.da
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_reviews_screen_psychologist.dart ';
 import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/bank_info_screen.dart';
 
 class ProfileScreenPsychologist extends StatefulWidget {
   const ProfileScreenPsychologist({super.key});
@@ -252,10 +253,10 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
                   text: 'Información de pagos',
                   secondaryText: 'Gestionar cobros',
                   onTap: () {
-                    // TODO: Implementar gestión de pagos
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad próximamente'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BankInfoScreen(),
                       ),
                     );
                   },

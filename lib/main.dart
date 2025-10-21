@@ -51,6 +51,8 @@ import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
 import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
+import 'package:ai_therapy_teteocan/data/repositories/bank_info_repository.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/bank_info_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
@@ -177,6 +179,15 @@ void main() async {
         PaymentHistoryRepositoryImpl(),
       ),
     ),
+
+    BlocProvider(
+          create: (context) => BankInfoBloc(
+            repository: BankInfoRepository(
+              
+            ),
+          ),
+        ),
+
         BlocProvider<ProfileBloc>(
           create: (context) => ProfileBloc(PatientProfileRepository()),
         ),

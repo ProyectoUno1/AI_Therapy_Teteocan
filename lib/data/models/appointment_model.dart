@@ -329,18 +329,21 @@ class AppointmentModel extends Equatable {
   }
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
+  try {
     return AppointmentModel(
-      id: json['id'] as String,
-      patientId: json['patientId'] as String,
-      patientName: json['patientName'] as String,
-      patientEmail: json['patientEmail'] as String,
-      patientProfileUrl: json['patientProfileUrl'] as String?,
-      psychologistId: json['psychologistId'] as String,
-      psychologistName: json['psychologistName'] as String,
-      psychologistSpecialty: json['psychologistSpecialty'] as String,
+      id: json['id'] as String? ?? '',
+      patientId: json['patientId'] as String? ?? '',
+      patientName: json['patientName'] as String? ?? 'Usuario desconocido',
+      patientEmail: json['patientEmail'] as String? ?? '',
+      patientProfileUrl: json['patientProfileUrl'] as String? ?? 
+                         json['profile_picture_url'] as String?,
+      // ✅ FIX: psychologistId puede no venir en la respuesta
+      psychologistId: json['psychologistId'] as String? ?? '',
+      psychologistName: json['psychologistName'] as String? ?? 'Psicólogo desconocido',
+      psychologistSpecialty: json['psychologistSpecialty'] as String? ?? 'Psicología General',
       psychologistProfileUrl: json['psychologistProfileUrl'] as String?,
       scheduledDateTime: DateTime.parse(json['scheduledDateTime'] as String),
-      durationMinutes: json['durationMinutes'] as int? ?? 60,
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 60,
       type: AppointmentType.values.firstWhere(
         (e) => e.name == json['type'],
         orElse: () => AppointmentType.online,
@@ -349,14 +352,14 @@ class AppointmentModel extends Equatable {
         (e) => e.name == json['status'],
         orElse: () => AppointmentStatus.pending,
       ),
-      price: (json['price'] as num).toDouble(),
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] as String?,
       patientNotes: json['patientNotes'] as String?,
       psychologistNotes: json['psychologistNotes'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
-          : DateTime.parse(json['createdAt'] as String), 
+          : DateTime.parse(json['createdAt'] as String),
       confirmedAt: json['confirmedAt'] != null
           ? DateTime.parse(json['confirmedAt'] as String)
           : null,
@@ -376,7 +379,13 @@ class AppointmentModel extends Equatable {
           : null,
       scheduledBy: json['scheduledBy'] as String?,
     );
+  } catch (e, stackTrace) {
+    print('❌ Error parseando AppointmentModel: $e');
+    print('📦 JSON recibido: $json');
+    print('Stack trace: $stackTrace');
+    rethrow;
   }
+}
 
   @override
   List<Object?> get props => [

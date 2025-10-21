@@ -1,4 +1,4 @@
-/// backend/routes/services/chatService.js (VERSIÓN COMPLETA OPTIMIZADA)
+/// backend/routes/services/chatService.js (VERSIÓN OPTIMIZADA CON FIX)
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
@@ -14,7 +14,6 @@ const validateMessageLimit = async (userId) => {
         const userDoc = await userRef.get();
 
         if (!userDoc.exists || !userDoc.data()) {
-            
             await userRef.set({
                 messageCount: 0,
                 isPremium: false,
@@ -72,6 +71,7 @@ async function getOrCreateAIChatId(userId) {
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
+                isWelcomeMessage: true, // 🔥 MARCADOR PARA IDENTIFICARLO
             };
             await messagesCollection.add(welcomeMessage);
 
@@ -121,9 +121,11 @@ async function processUserMessage(userId, messageContent) {
                     isAI: data.isAI || false,
                     content: data.content,
                     timestamp: data.timestamp,
+                    isWelcomeMessage: data.isWelcomeMessage || false, 
                 };
             })
             .reverse();
+
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),

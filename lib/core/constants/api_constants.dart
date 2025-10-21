@@ -1,7 +1,10 @@
 // lib/core/constants/api_constants.dart
 
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
-  // Configuración para backend local
-  // 10.0.2.2 es para emulador Android que mapea a localhost de la máquina host
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  // Cambia según el ambiente
+  static const String baseUrl = kDebugMode 
+    ? 'http://10.0.2.2:3000'  // Desarrollo local (emulador Android)
+    : 'https://ai-therapy-teteocan.onrender.com'; // Producción en Render
 }

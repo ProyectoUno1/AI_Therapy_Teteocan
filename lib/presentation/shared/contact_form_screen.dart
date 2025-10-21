@@ -89,7 +89,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       return;
     }
 
-    // Obtener datos del usuario según el tipo
+    // Obtener datos del usuario
     if (authState.patient != null) {
       userId = authState.patient!.uid;
       userEmail = authState.patient!.email;

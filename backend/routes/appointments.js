@@ -3,10 +3,10 @@ import { db } from '../firebase-admin.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { createNotification } from './notifications.js';
-import { 
-  cleanupOldAppointments, 
-  getCleanupStats, 
-  cleanupAppointmentsOlderThan 
+import {
+    cleanupOldAppointments,
+    getCleanupStats,
+    cleanupAppointmentsOlderThan
 } from './services/appointmentsCleanup.js';
 
 const router = express.Router();
@@ -18,7 +18,6 @@ router.use(verifyFirebaseToken);
 
 router.post('/', verifyFirebaseToken, async (req, res) => {
     try {
-        // Obtener el ID del usuario autenticado
         const authenticatedUserId = req.firebaseUser.uid;
 
         const {
@@ -39,7 +38,6 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
         let isSchedulingForOtherPatient = false;
 
         if (patientId !== authenticatedUserId) {
-
             if (psychologistId !== authenticatedUserId) {
                 return res.status(403).json({
                     error: 'Solo el psicólogo puede agendar citas para sus pacientes'
@@ -48,7 +46,6 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             finalPatientId = patientId;
             isSchedulingForOtherPatient = true;
         } else {
-
             finalPatientId = authenticatedUserId;
         }
 
@@ -56,8 +53,17 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 
         await db.runTransaction(async (transaction) => {
             const appointmentDate = new Date(scheduledDateTime);
-            appointmentDate.setMinutes(appointmentDate.getMinutes() - appointmentDate.getTimezoneOffset());
 
+            // Verificar que la fecha es válida
+            if (isNaN(appointmentDate.getTime())) {
+                throw new Error('Fecha y hora inválidas');
+            }
+
+            console.log('Fecha recibida del cliente:', scheduledDateTime);
+            console.log('Fecha parseada:', appointmentDate.toISOString());
+            console.log('Fecha local:', appointmentDate.toLocaleString());
+
+            // Crear rango de hora para verificar disponibilidad
             const startOfHour = new Date(appointmentDate);
             startOfHour.setMinutes(0, 0, 0);
 
@@ -80,12 +86,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             // Obtener datos del paciente y psicólogo
             const patientRef = db.collection('patients').doc(finalPatientId);
             const psychologistRef = db.collection('psychologists').doc(psychologistId);
-            const psychologistProfRef = db.collection('psychologists').doc(psychologistId);
 
-            const [patientDoc, psychologistDoc, psychologistProfDoc] = await Promise.all([
+            const [patientDoc, psychologistDoc] = await Promise.all([
                 transaction.get(patientRef),
                 transaction.get(psychologistRef),
-                transaction.get(psychologistProfRef),
             ]);
 
             if (!patientDoc.exists) throw new Error('Paciente no encontrado');
@@ -93,28 +97,32 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 
             const patientData = patientDoc.data();
             const psychologistData = psychologistDoc.data();
-            const psychologistProfData = psychologistProfDoc.exists ? psychologistProfDoc.data() : {};
 
             const isPremiumUser = patientData.isPremium === true;
 
-            const appointmentData = {
+                  const appointmentData = {
                 patientId: finalPatientId,
                 patientName: patientData.username || 'Usuario desconocido',
                 patientEmail: patientData.email,
                 profile_picture_url: patientData.profile_picture_url,
-                psychologistName: psychologistProfData.fullName || 'Psicólogo desconocido',
-                psychologistSpecialty: psychologistProfData.specialty || 'Psicología General',
+                psychologistId: psychologistId,
+                psychologistName: psychologistData.fullName || 'Psicólogo desconocido',
+                psychologistSpecialty: psychologistData.specialty || 'Psicología General',
                 psychologistProfileUrl: psychologistData.profilePictureUrl || null,
                 scheduledDateTime: appointmentDate,
                 durationMinutes: 60,
                 type,
                 status: isSchedulingForOtherPatient ? 'confirmed' : 'pending',
-                price: psychologistProfData.price || 100.0,
+                price: psychologistData.price || 100.0,
+                amount: psychologistData.price || 100.0, 
                 patientNotes: notes || null,
                 isPaid: isPremiumUser,
                 paymentType: isPremiumUser ? 'subscription' : 'pending',
                 stripeSessionId: null,
                 scheduledBy: authenticatedUserId,
+                paidToPsychologist: false,
+                psychologistPaymentId: null,
+                psychologistPaidAt: null,
                 createdAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp()
             };
@@ -123,25 +131,24 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             appointmentId = appointmentRef.id;
             transaction.set(appointmentRef, appointmentData);
 
-            // crear notificaciones para paciente y psicólogo
+            // Crear notificaciones
             const patientNotificationRef = db.collection('notifications').doc();
             transaction.set(patientNotificationRef, {
                 userId: finalPatientId,
                 title: '¡Cita Agendada!',
-                body: `Tienes una nueva cita con el psicólogo ${psychologistProfData.fullName}.`,
+                body: `Tienes una nueva cita con el psicólogo ${psychologistData.fullName}.`,
                 type: 'appointment_created',
                 isRead: false,
                 timestamp: FieldValue.serverTimestamp(),
                 data: {
                     appointmentId: appointmentId,
                     psychologistId: psychologistId,
-                    psychologistName: psychologistProfData.fullName,
+                    psychologistName: psychologistData.fullName,
                     status: appointmentData.status
                 }
             });
 
             const psychologistNotificationRef = db.collection('notifications').doc();
-
             let psychologistNotificationBody;
             if (isSchedulingForOtherPatient) {
                 psychologistNotificationBody = `Has agendado una cita con el paciente ${patientData.username}.`;
@@ -163,7 +170,6 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
                     status: appointmentData.status
                 }
             });
-
         });
 
         if (!appointmentId) {
@@ -188,15 +194,13 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
             completedAt: appointmentData.completedAt ? appointmentData.completedAt.toDate().toISOString() : null,
         };
 
-        console.log('Cita creada exitosamente:', responseData);
-
         res.status(201).json({
             message: 'Cita creada exitosamente',
             appointment: responseData
         });
 
     } catch (error) {
-        console.error('Error al crear cita:', error);
+        console.error(' Error al crear cita:', error);
         const statusCode = error.message.includes('disponible') ||
             error.message.includes('encontrado') ||
             error.message.includes('No se pudo obtener') ? 409 : 500;
@@ -284,11 +288,11 @@ router.get('/', verifyFirebaseToken, async (req, res) => {
 });
 
 
-// Obtener horarios disponibles
 router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, res) => {
     try {
         const { psychologistId } = req.params;
         const { startDate, endDate } = req.query;
+
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'startDate y endDate son requeridos (YYYY-MM-DD)' });
         }
@@ -306,6 +310,7 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
             return res.status(200).json({ availableSlots: [] });
         }
 
+        // Obtener datos del psicólogo
         const psychologistDoc = await db.collection('psychologists').doc(psychologistId).get();
         if (!psychologistDoc.exists) {
             return res.status(404).json({ error: 'Psicólogo no encontrado' });
@@ -315,22 +320,31 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
         const schedule = psychologistData.schedule || {};
         const appointmentsSnapshot = await db.collection('appointments')
             .where('psychologistId', '==', psychologistId)
-            .where('scheduledDateTime', '>=', adjustedStart)
-            .where('scheduledDateTime', '<=', end)
-            .where('status', 'in', ['pending', 'confirmed'])
+            .where('status', 'in', ['pending', 'confirmed', 'in_progress'])
             .get();
-
         const occupiedSlots = new Set();
+        const startTimestamp = adjustedStart.getTime();
+        const endTimestamp = end.getTime();
+
         appointmentsSnapshot.forEach(doc => {
             const data = doc.data();
             const appointmentTime = data.scheduledDateTime.toDate();
-            const hour = appointmentTime.getUTCHours();
-            const date = appointmentTime.toISOString().split('T')[0];
-            occupiedSlots.add(`${date}-${hour}`);
+
+            // Filtrar solo las citas dentro del rango solicitado
+            const appointmentTimestamp = appointmentTime.getTime();
+            if (appointmentTimestamp < startTimestamp || appointmentTimestamp > endTimestamp) {
+                return; // Skip esta cita
+            }
+            const year = appointmentTime.getFullYear();
+            const month = String(appointmentTime.getMonth() + 1).padStart(2, '0');
+            const day = String(appointmentTime.getDate()).padStart(2, '0');
+            const hour = String(appointmentTime.getHours()).padStart(2, '0');
+
+            const slotKey = `${year}-${month}-${day}-${hour}`;
+            occupiedSlots.add(slotKey);
         });
 
         const availableSlots = [];
-        const nowUTC = new Date(now.toISOString());
 
         const dayMap = {
             'Sunday': 'Domingo',
@@ -345,31 +359,33 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
 
         for (let d = new Date(adjustedStart); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
             const currentDate = new Date(d);
-            const dateStr = currentDate.toISOString().split('T')[0];
-
             const dayName = daysOfWeek[currentDate.getUTCDay()];
             const dayNameInSpanish = dayMap[dayName];
             const daySchedule = schedule[dayNameInSpanish];
 
-            if (!daySchedule) {
-                continue;
+            if (!daySchedule || !daySchedule.startTime || !daySchedule.endTime) {
+                console.log(`No hay horario definido o está incompleto para ${dayNameInSpanish}. Saltando.`);
+                continue; 
             }
-
+ 
             const [startH, startM] = daySchedule.startTime.split(':').map(Number);
             const [endH, endM] = daySchedule.endTime.split(':').map(Number);
             const scheduleStartInMins = startH * 60 + startM;
             const scheduleEndInMins = endH * 60 + endM;
 
+            // Iterar por cada hora del día
             for (let hour = 0; hour < 24; hour++) {
-                const slotDateTime = new Date(Date.UTC(
+                const slotDateTime = new Date(
                     currentDate.getUTCFullYear(),
                     currentDate.getUTCMonth(),
                     currentDate.getUTCDate(),
                     hour, 0, 0
-                ));
+                );
 
                 const slotStartInMins = hour * 60;
                 const slotEndInMins = (hour + 1) * 60;
+                
+                // Verificar si está dentro del horario del psicólogo
                 const isRegisteredAvailable =
                     slotStartInMins >= scheduleStartInMins &&
                     slotEndInMins <= scheduleEndInMins;
@@ -378,17 +394,37 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
                     continue;
                 }
 
-                const isOccupied = occupiedSlots.has(`${dateStr}-${hour}`);
-                const isPast = slotDateTime <= nowUTC;
+                const year = slotDateTime.getFullYear();
+                const month = String(slotDateTime.getMonth() + 1).padStart(2, '0');
+                const day = String(slotDateTime.getDate()).padStart(2, '0');
+                const slotHour = String(slotDateTime.getHours()).padStart(2, '0');
+                const slotKey = `${year}-${month}-${day}-${slotHour}`;
+                
+                const isOccupied = occupiedSlots.has(slotKey);
+                
+                // Verificar si es hora pasada
+                const isPast = slotDateTime <= now;
+                
+                // El slot está disponible si no está ocupado Y no es pasado
                 const isAvailable = !isOccupied && !isPast;
 
                 if (isAvailable) {
+                    const slotDateTimeUTC = new Date(Date.UTC(
+                        currentDate.getUTCFullYear(),
+                        currentDate.getUTCMonth(),
+                        currentDate.getUTCDate(),
+                        hour, 0, 0
+                    ));
+                    
                     availableSlots.push({
                         time: `${hour.toString().padStart(2, '0')}:00`,
-                        dateTime: slotDateTime.toISOString(),
+                        dateTime: slotDateTimeUTC.toISOString(),
                         isAvailable: true,
                         reason: null
                     });
+                } else {
+                    const reason = isPast ? 'Hora pasada' : 'Ocupado';
+                    console.log(`Slot NO disponible: ${slotKey} - Razón: ${reason}`);
                 }
             }
         }
@@ -403,7 +439,6 @@ router.get('/available-slots/:psychologistId', verifyFirebaseToken, async (req, 
         });
     }
 });
-
 
 //Confirmar una cita
 router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
@@ -435,7 +470,7 @@ router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
             updatedAt: FieldValue.serverTimestamp(),
         });
 
-        // --- Notificación para el paciente  ---
+        // Notificación para el paciente 
         await createNotification({
             userId: appointmentData.patientId,
             title: '¡Cita Confirmada!',
@@ -457,68 +492,138 @@ router.patch('/:id/confirm', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-//  Cancelar una cita
+// Cancelar una cita
 router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
         const authenticatedUserId = req.firebaseUser.uid;
-
         const appointmentRef = db.collection('appointments').doc(id);
         const appointmentDoc = await appointmentRef.get();
+
         if (!appointmentDoc.exists) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
 
         const appointmentData = appointmentDoc.data();
-        if (appointmentData.patientId !== authenticatedUserId && appointmentData.psychologistId !== authenticatedUserId) {
+
+        if (!appointmentData.patientId || !appointmentData.psychologistId) {
+            console.error(' ERROR: La cita no tiene patientId o psychologistId');
+            return res.status(500).json({
+                error: 'Datos de la cita incompletos. No se puede determinar el destinatario.'
+            });
+        }
+
+        // Verificar permisos
+        if (appointmentData.patientId !== authenticatedUserId &&
+            appointmentData.psychologistId !== authenticatedUserId) {
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
-        if (['cancelled', 'completed'].includes(appointmentData.status)) {
-            return res.status(400).json({ error: 'La cita ya ha sido cancelada o completada' });
+        // Verificar estado
+        if (['cancelled', 'completed', 'rated'].includes(appointmentData.status)) {
+            console.error('Estado inválido para cancelación:', appointmentData.status);
+            return res.status(400).json({
+                error: 'La cita ya ha sido cancelada, completada o calificada'
+            });
         }
 
+        // Actualizar cita
         await appointmentRef.update({
             status: 'cancelled',
-            cancellationReason: reason || null,
+            cancellationReason: reason || 'Sin motivo especificado',
+            cancelledBy: authenticatedUserId, 
             cancelledAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         });
 
+
+        let recipientId;
+        let recipientName;
         let notificationTitle = 'Cita Cancelada';
         let notificationBody = '';
-        let recipientId = '';
 
         if (authenticatedUserId === appointmentData.patientId) {
             // El paciente canceló, notificar al psicólogo
-            notificationBody = `El paciente ${appointmentData.patientName} ha cancelado la cita.`;
             recipientId = appointmentData.psychologistId;
+            recipientName = appointmentData.psychologistName || 'el psicólogo';
+
+            const formattedDate = appointmentData.scheduledDateTime?.toDate
+                ? new Date(appointmentData.scheduledDateTime.toDate()).toLocaleDateString('es-MX', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })
+                : 'fecha desconocida';
+
+            notificationBody = `El paciente ${appointmentData.patientName || 'un paciente'} ha cancelado la cita del ${formattedDate}.`;
+
+
         } else {
             // El psicólogo canceló, notificar al paciente
-            notificationBody = `El psicólogo ${appointmentData.psychologistName} ha cancelado tu cita.`;
             recipientId = appointmentData.patientId;
+            recipientName = appointmentData.patientName || 'el paciente';
+
+            const formattedDate = appointmentData.scheduledDateTime?.toDate
+                ? new Date(appointmentData.scheduledDateTime.toDate()).toLocaleDateString('es-MX', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })
+                : 'fecha desconocida';
+
+            notificationBody = `El psicólogo ${appointmentData.psychologistName || 'el psicólogo'} ha cancelado tu cita del ${formattedDate}.`;
         }
 
-        await createNotification({
-            userId: recipientId,
-            title: notificationTitle,
-            body: notificationBody,
-            type: 'appointment_cancelled',
-            data: {
+        if (!recipientId || recipientId === 'undefined' || recipientId === '') {
+            console.error(' ERROR CRÍTICO: recipientId es inválido:', recipientId);
+            console.error('Datos completos de la cita:', JSON.stringify(appointmentData, null, 2));
+
+            // Aún así, marcamos la cita como cancelada, pero sin notificación
+            return res.status(200).json({
+                message: 'Cita cancelada exitosamente (sin notificación por datos faltantes)',
                 appointmentId: id,
-                psychologistId: appointmentData.psychologistId,
-                patientId: appointmentData.patientId,
-                status: 'cancelled'
-            }
+                status: 'cancelled',
+                warning: 'No se pudo enviar la notificación por datos incompletos'
+            });
+        }
+
+        // Crear notificación
+        try {
+
+            await createNotification({
+                userId: recipientId,
+                title: notificationTitle,
+                body: notificationBody,
+                type: 'appointment_cancelled',
+                data: {
+                    appointmentId: id,
+                    psychologistId: appointmentData.psychologistId || '',
+                    patientId: appointmentData.patientId || '',
+                    status: 'cancelled',
+                    reason: reason || 'Sin motivo especificado',
+                    cancelledBy: authenticatedUserId
+                }
+            });
+
+
+        } catch (notifError) {
+            console.error(' Error al crear notificación (no crítico):', notifError.message);
+            // No retornamos error aquí, la cita ya fue cancelada exitosamente
+        }
+
+        res.status(200).json({
+            message: 'Cita cancelada exitosamente',
+            appointmentId: id,
+            status: 'cancelled'
         });
-
-
-        res.status(200).json({ message: 'Cita cancelada exitosamente' });
 
     } catch (error) {
         console.error('Error al cancelar cita:', error);
-        res.status(500).json({ error: 'Error al cancelar la cita', details: error.message });
+        res.status(500).json({
+            error: 'Error al cancelar la cita',
+            details: error.message
+        });
     }
 });
 
@@ -726,7 +831,7 @@ router.get('/psychologist-rating/:psychologistId', async (req, res) => {
 
         res.status(200).json({
             psychologistId,
-            averageRating: Math.round(averageRating * 10) / 10, 
+            averageRating: Math.round(averageRating * 10) / 10,
             totalRatings,
             ratingDistribution
         });
@@ -842,9 +947,9 @@ router.patch('/:appointmentId/complete-session', async (req, res) => {
         if (patientDoc.exists) {
             const patientData = patientDoc.data();
             const updates = {
-   
+
                 totalSessions: FieldValue.increment(1),
- 
+
                 lastAppointment: appointmentData.scheduledDateTime.toDate ? appointmentData.scheduledDateTime.toDate() : new Date(appointmentData.scheduledDateTime),
                 updatedAt: FieldValue.serverTimestamp(),
             };
@@ -852,7 +957,7 @@ router.patch('/:appointmentId/complete-session', async (req, res) => {
             const currentStatus = patientData.status;
             const preTreatmentStatuses = ['pending', 'accepted'];
             if (!currentStatus || preTreatmentStatuses.includes(currentStatus)) {
-                updates.status = 'inTreatment'; 
+                updates.status = 'inTreatment';
             }
 
             await patientRef.update(updates);
@@ -878,105 +983,105 @@ router.patch('/:appointmentId/complete-session', async (req, res) => {
  * Middleware para verificar admin (puedes adaptarlo según tu sistema de roles)
  */
 async function verifyAdmin(req, res, next) {
-  try {
-    const userId = req.firebaseUser.uid;
-    
-    // Opción 1: Verificar custom claims
-    const userRecord = await auth.getUser(userId);
-    if (userRecord.customClaims?.admin === true) {
-      return next();
+    try {
+        const userId = req.firebaseUser.uid;
+
+        // Opción 1: Verificar custom claims
+        const userRecord = await auth.getUser(userId);
+        if (userRecord.customClaims?.admin === true) {
+            return next();
+        }
+
+        // Opción 2: Verificar en colección de usuarios
+        const psychologistDoc = await db.collection('psychologists').doc(userId).get();
+        if (psychologistDoc.exists && psychologistDoc.data().role === 'admin') {
+            return next();
+        }
+
+        return res.status(403).json({
+            error: 'Acceso denegado. Solo administradores pueden ejecutar esta acción.'
+        });
+
+    } catch (error) {
+        console.error('Error verificando admin:', error);
+        res.status(500).json({ error: 'Error de autenticación' });
     }
-
-    // Opción 2: Verificar en colección de usuarios
-    const psychologistDoc = await db.collection('psychologists').doc(userId).get();
-    if (psychologistDoc.exists && psychologistDoc.data().role === 'admin') {
-      return next();
-    }
-
-    return res.status(403).json({ 
-      error: 'Acceso denegado. Solo administradores pueden ejecutar esta acción.' 
-    });
-
-  } catch (error) {
-    console.error('Error verificando admin:', error);
-    res.status(500).json({ error: 'Error de autenticación' });
-  }
 }
 
 //Obtener estadísticas de citas que serían eliminadas
 
 router.get('/cleanup/stats', verifyFirebaseToken, verifyAdmin, async (req, res) => {
-  try {
-    const stats = await getCleanupStats();
-    
-    res.status(200).json({
-      message: 'Estadísticas de limpieza obtenidas exitosamente',
-      ...stats
-    });
+    try {
+        const stats = await getCleanupStats();
 
-  } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
-    res.status(500).json({ 
-      error: 'Error al obtener estadísticas',
-      details: error.message 
-    });
-  }
+        res.status(200).json({
+            message: 'Estadísticas de limpieza obtenidas exitosamente',
+            ...stats
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo estadísticas:', error);
+        res.status(500).json({
+            error: 'Error al obtener estadísticas',
+            details: error.message
+        });
+    }
 });
 
 // Ejecutar limpieza manual (solo admin)
- 
-router.post('/cleanup/execute', verifyFirebaseToken, verifyAdmin, async (req, res) => {
-  try {
-    const result = await cleanupOldAppointments();
-    
-    if (result.success) {
-      res.status(200).json({
-        message: 'Limpieza ejecutada exitosamente',
-        deletedCount: result.deletedCount,
-        timestamp: result.timestamp
-      });
-    } else {
-      res.status(500).json({
-        error: 'Error durante la limpieza',
-        details: result.error
-      });
-    }
 
-  } catch (error) {
-    console.error('Error ejecutando limpieza manual:', error);
-    res.status(500).json({ 
-      error: 'Error al ejecutar limpieza',
-      details: error.message 
-    });
-  }
+router.post('/cleanup/execute', verifyFirebaseToken, verifyAdmin, async (req, res) => {
+    try {
+        const result = await cleanupOldAppointments();
+
+        if (result.success) {
+            res.status(200).json({
+                message: 'Limpieza ejecutada exitosamente',
+                deletedCount: result.deletedCount,
+                timestamp: result.timestamp
+            });
+        } else {
+            res.status(500).json({
+                error: 'Error durante la limpieza',
+                details: result.error
+            });
+        }
+
+    } catch (error) {
+        console.error('Error ejecutando limpieza manual:', error);
+        res.status(500).json({
+            error: 'Error al ejecutar limpieza',
+            details: error.message
+        });
+    }
 });
 
 
 router.post('/cleanup/custom', verifyFirebaseToken, verifyAdmin, async (req, res) => {
-  try {
-    const { days } = req.body;
+    try {
+        const { days } = req.body;
 
-    if (!days || days < 1) {
-      return res.status(400).json({ 
-        error: 'Se requiere el parámetro "days" con un valor mayor a 0' 
-      });
+        if (!days || days < 1) {
+            return res.status(400).json({
+                error: 'Se requiere el parámetro "days" con un valor mayor a 0'
+            });
+        }
+
+        const result = await cleanupAppointmentsOlderThan(days);
+
+        res.status(200).json({
+            message: `Limpieza ejecutada exitosamente para citas mayores a ${days} días`,
+            deletedCount: result.deletedCount,
+            days: result.days
+        });
+
+    } catch (error) {
+        console.error('Error ejecutando limpieza personalizada:', error);
+        res.status(500).json({
+            error: 'Error al ejecutar limpieza personalizada',
+            details: error.message
+        });
     }
-    
-    const result = await cleanupAppointmentsOlderThan(days);
-    
-    res.status(200).json({
-      message: `Limpieza ejecutada exitosamente para citas mayores a ${days} días`,
-      deletedCount: result.deletedCount,
-      days: result.days
-    });
-
-  } catch (error) {
-    console.error('Error ejecutando limpieza personalizada:', error);
-    res.status(500).json({ 
-      error: 'Error al ejecutar limpieza personalizada',
-      details: error.message 
-    });
-  }
 });
 
 
@@ -1002,22 +1107,22 @@ router.get('/psychologist-reviews/:psychologistId', async (req, res) => {
 
         const reviewsPromises = ratedAppointmentsSnapshot.docs.map(async (doc) => {
             const appointmentData = doc.data();
-            const patientId = appointmentData.patientId; 
-            let profile_picture_url = appointmentData.profile_picture_urll || null;
+            const patientId = appointmentData.patientId;
+            let profile_picture_url = appointmentData.profile_picture_url || null;
             let patientName = appointmentData.patientName || 'Usuario';
-            
+
             try {
                 const patientDoc = await db.collection('patients')
-                    .doc(patientId) 
+                    .doc(patientId)
                     .get();
-                
+
                 if (patientDoc.exists) {
                     const patientData = patientDoc.data();
-   
-                    profile_picture_url = patientData.profile_picture_url || 
-                                       patientData.profileImageUrl || 
-                                       patientData.photoURL || 
-                                       null;
+
+                    profile_picture_url = patientData.profile_picture_url ||
+                        patientData.profileImageUrl ||
+                        patientData.photoURL ||
+                        null;
 
                     if (patientData.username) {
                         patientName = patientData.username;
@@ -1031,9 +1136,9 @@ router.get('/psychologist-reviews/:psychologistId', async (req, res) => {
 
             return {
                 id: doc.id,
-                patientId: patientId,  
+                patientId: patientId,
                 patientName: patientName,
-               profile_picture_url: profile_picture_url,
+                profile_picture_url: profile_picture_url,
                 rating: appointmentData.rating,
                 ratingComment: appointmentData.ratingComment || null,
                 ratedAt: appointmentData.ratedAt?.toDate()?.toISOString() || null,

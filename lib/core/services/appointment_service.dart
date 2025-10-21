@@ -63,14 +63,21 @@ Future<AppointmentModel> createAppointment({
     if (user == null) {
       throw Exception('Usuario no autenticado');
     }
+    
     final url = Uri.parse('$baseUrl/appointments/');
+    
+    // ✅ IMPORTANTE: Enviar la fecha en formato ISO 8601 sin conversión
     final body = {
       'psychologistId': psychologistId,
       'patientId': patientId, 
-      'scheduledDateTime': scheduledDateTime.toUtc().toIso8601String(),
+      'scheduledDateTime': scheduledDateTime.toIso8601String(), // ✅ Sin .toUtc()
       'type': type.name,
       if (notes != null) 'notes': notes,
     };
+
+    log('📤 Enviando cita:', name: 'AppointmentService');
+    log('Fecha seleccionada: ${scheduledDateTime.toString()}', name: 'AppointmentService');
+    log('Fecha ISO: ${scheduledDateTime.toIso8601String()}', name: 'AppointmentService');
 
     final headers = await _getHeaders();
     final response = await http.post(
@@ -78,6 +85,8 @@ Future<AppointmentModel> createAppointment({
       headers: headers,
       body: jsonEncode(body),
     );
+
+    log('📥 Respuesta del servidor: ${response.statusCode}', name: 'AppointmentService');
 
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
@@ -96,7 +105,7 @@ Future<AppointmentModel> createAppointment({
       throw Exception(errorMessage);
     }
   } catch (e) {
-    log('Error en createAppointment: $e', name: 'AppointmentService');
+    log('❌ Error en createAppointment: $e', name: 'AppointmentService');
     
     if (e is FormatException) {
       throw Exception('Error de formato en la respuesta del servidor');

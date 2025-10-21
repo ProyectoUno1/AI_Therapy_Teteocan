@@ -6,7 +6,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Inicializar cliente de Gemini
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const GEMINI_MODEL = "gemini-2.0-flash-exp"; 
 
@@ -27,17 +26,31 @@ async function getGeminiChatResponse(messages) {
             systemInstruction: systemInstruction.content, 
         });
 
-        const geminiHistory = conversationHistory.map(msg => ({
-            role: msg.isAI ? 'model' : 'user',
-            parts: [{ text: msg.content }],
-        }));
+        // Convertir historial a formato Gemini y limpiar
+        let geminiHistory = conversationHistory
+            .filter(msg => !msg.isWelcomeMessage) // 🔥 Excluir mensaje de bienvenida
+            .map(msg => ({
+                role: msg.isAI ? 'model' : 'user',
+                parts: [{ text: msg.content }],
+            }));
 
-        // Iniciar chat con historial
+        // ⚠️ CORRECCIÓN: Asegurar que el historial comience con 'user'
+        while (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+            geminiHistory.shift();
+        }
+
+        // ⚠️ CORRECCIÓN: Eliminar mensajes consecutivos del mismo rol
+        geminiHistory = geminiHistory.filter((msg, index) => {
+            if (index === 0) return true;
+            return msg.role !== geminiHistory[index - 1].role;
+        });
+
+        // Iniciar chat con historial limpio
         const chat = model.startChat({
             history: geminiHistory,
             generationConfig: {
-                maxOutputTokens: 800, // Aumentado para respuestas más completas
-                temperature: 0.8,     // Más creativo
+                maxOutputTokens: 800,
+                temperature: 0.8,
                 topP: 0.95,
                 topK: 40,
             },
@@ -50,7 +63,6 @@ async function getGeminiChatResponse(messages) {
         if (typeof response.text === 'function') {
             aiText = response.text();
         } 
-  
         else if (response.candidates && response.candidates[0]) {
             const firstCandidate = response.candidates[0];
             if (firstCandidate.content && firstCandidate.content.parts) {
@@ -59,14 +71,12 @@ async function getGeminiChatResponse(messages) {
                     .join('');
             }
         }
-   
         else if (response.text) {
             aiText = response.text;
         }
 
         // Validar que la respuesta no esté vacía
         if (!aiText || aiText.trim() === '') {
-
             if (response.promptFeedback) {
                 console.error('Feedback del prompt:', response.promptFeedback);
                 
@@ -78,14 +88,10 @@ async function getGeminiChatResponse(messages) {
             return 'Disculpa, tuve un problema al procesar tu mensaje. ¿Podrías intentar de nuevo?';
         }
 
-        const preview = aiText.length > 150 
-            ? aiText.substring(0, 150) + '...' 
-            : aiText;
-
         return aiText.trim();
 
     } catch (error) {
-        console.error("\ERROR CRÍTICO:", error.message);
+        console.error("\n❌ ERROR CRÍTICO:", error.message);
         console.error("Stack trace:", error.stack);
         
         // Errores específicos de la API
@@ -111,7 +117,7 @@ async function getGeminiChatResponse(messages) {
  */
 function validateGeminiConfig() {
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'gemini_api_key') {
-        console.error('\nCONFIGURACIÓN INCOMPLETA ');
+        console.error('\n⚠️ CONFIGURACIÓN INCOMPLETA ⚠️');
         console.error('La API key de Gemini no está configurada correctamente.');
         console.error('Por favor, agrega tu API key en el archivo .env:');
         console.error('GEMINI_API_KEY=tu_clave_real_aqui\n');
@@ -119,10 +125,9 @@ function validateGeminiConfig() {
         return false;
     }
     
-    console.log('Configuración validada correctamente');
+    console.log('✅ Configuración validada correctamente');
     return true;
 }
-
 
 validateGeminiConfig();
 
