@@ -1,5 +1,6 @@
 import 'package:ai_therapy_teteocan/domain/entities/user_entity.dart';
 
+
 class PatientEntity extends UserEntity {
   final String? dateOfBirth;
   
@@ -19,6 +20,7 @@ class PatientEntity extends UserEntity {
           role: 'paciente',
           profilePictureUrl: profilePictureUrl,
         );
+        
 
   @override
   List<Object?> get props => [...super.props, dateOfBirth];

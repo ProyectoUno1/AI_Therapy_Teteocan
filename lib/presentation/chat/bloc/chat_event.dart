@@ -11,9 +11,12 @@ abstract class ChatEvent extends Equatable {
 // Evento para enviar un nuevo mensaje
 class SendMessageEvent extends ChatEvent {
   final String message;
-  const SendMessageEvent(this.message);
+  final String userId;
+  
+  const SendMessageEvent(this.message, this.userId);
+  
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, userId];
 }
 
 // Evento para cargar mensajes del historial
@@ -40,4 +43,12 @@ class SetTypingStatusEvent extends ChatEvent {
   const SetTypingStatusEvent({required this.isTyping}); 
   @override
   List<Object?> get props => [isTyping];
+}
+class InitAIChat extends ChatEvent {
+  final String userId;
+
+  const InitAIChat(this.userId);
+
+  @override
+  List<Object> get props => [userId];
 }

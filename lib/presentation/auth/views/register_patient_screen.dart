@@ -8,8 +8,8 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // B
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart'; // O la ruta correcta a tu LoginScreen // O la ruta correcta a tu LoginScreen
-
+import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/views/email_verification_screen.dart';
 
 class RegisterPatientScreen extends StatefulWidget {
   const RegisterPatientScreen({super.key});
@@ -17,9 +17,6 @@ class RegisterPatientScreen extends StatefulWidget {
   @override
   State<RegisterPatientScreen> createState() => _RegisterPatientScreenState();
 }
-
-
-
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   int currentStep = 1;
@@ -37,7 +34,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-
 
   // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;
@@ -75,7 +71,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     }
     return null; // válido
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +173,12 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.85),
+                          color: const Color.fromARGB(
+                            255,
+                            255,
+                            255,
+                            255,
+                          ).withOpacity(0.85),
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: currentStep == 1 ? _buildStep1() : _buildStep2(),
@@ -418,11 +418,16 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   ),
                 );
 
-                
                 if (!context.mounted) return;
 
+                // Redirigir a la pantalla de verificación de email
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) =>  LoginScreen()), 
+                  MaterialPageRoute(
+                    builder: (context) => EmailVerificationScreen(
+                      userEmail: _emailController.text,
+                      userRole: 'patient',
+                    ),
+                  ),
                 );
               }
             },
@@ -434,7 +439,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   onPressed: state.status == AuthStatus.loading
                       ? null
                       : () {
-                          // Dispara evento Bloc para registrar psicólogo
                           if (_formKeyStep2.currentState?.validate() ?? false) {
                             context.read<AuthBloc>().add(
                               AuthRegisterPatientRequested(
@@ -447,7 +451,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                             );
                           }
                         },
-                  // Estilo del botón Crear cuenta
                   style: ElevatedButton.styleFrom(
                     elevation: 4,
                     backgroundColor: null,
@@ -456,7 +459,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     ),
                     padding: EdgeInsets.zero,
                   ),
-                  // Contenedor para el botón
                   child: Ink(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(

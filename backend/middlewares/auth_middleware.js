@@ -12,18 +12,10 @@ async function verifyFirebaseToken(req, res, next) {
 
     const idToken = authHeader.split("Bearer ")[1];
 
-    console.log('🔍 Verificando token...');
-    console.log('🔍 TOKEN recibido en servidor:', idToken);
-    // Log para confirmar si se están usando emuladores o cloud de forma consistente
-    console.log('🔍 Usando emuladores:', process.env.USE_EMULATORS === 'true');
-    console.log('🔍 Entorno:', process.env.NODE_ENV);
-
-
     try {
         const decodedToken = await auth.verifyIdToken(idToken);
         req.firebaseUser = decodedToken;
-        req.userId = decodedToken.uid; // ⬅️ Agregar esta línea
-        console.log('✅ Token verificado exitosamente para:', decodedToken.email || decodedToken.uid);
+        req.userId = decodedToken.uid; 
         next();
     } catch (error) {
         console.error('❌ Error verifying Firebase token:', error.message);

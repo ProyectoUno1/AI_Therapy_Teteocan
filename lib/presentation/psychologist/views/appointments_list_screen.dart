@@ -1,13 +1,18 @@
 // lib/presentation/psychologist/views/appointments_list_screen.dart
+// Con bloqueo por estado de aprobación
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/appointment_confirmation_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 
 class AppointmentsListScreen extends StatefulWidget {
   final String psychologistId;
@@ -21,21 +26,21 @@ class AppointmentsListScreen extends StatefulWidget {
 class _AppointmentsListScreenState extends State<AppointmentsListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _didInitBloc = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+  }
 
-    // Cargar citas al inicializar
-    context.read<AppointmentBloc>().add(
-      LoadAppointmentsEvent(
-        userId: widget.psychologistId,
-        isForPsychologist: true,
-        startDate: DateTime.now().subtract(const Duration(days: 30)),
-        endDate: DateTime.now(),
-      ),
-    );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didInitBloc) {
+      _loadAppointments();
+      _didInitBloc = true;
+    }
   }
 
   @override
@@ -44,8 +49,31 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
     super.dispose();
   }
 
+  void _loadAppointments() {
+    context.read<AppointmentBloc>().add(
+      LoadAppointmentsEvent(
+        userId: widget.psychologistId,
+        isForPsychologist: true,
+        startDate: DateTime.now().subtract(const Duration(days: 365)),
+        endDate: DateTime.now().add(const Duration(days: 365)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        return ApprovalStatusBlocker(
+          psychologist: authState.psychologist,
+          featureName: 'citas',
+          child: _buildAppointmentsContent(context),
+        );
+      },
+    );
+  }
+
+  Widget _buildAppointmentsContent(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -57,7 +85,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
           onPressed: () => Navigator.pop(context),
-          onLongPress: _refreshAppointments,
+          onLongPress: _loadAppointments,
         ),
         title: Text(
           'Mis Citas',
@@ -69,36 +97,12 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         ),
         centerTitle: true,
         actions: [
-          // BOTÓN TEMPORAL PARA GENERAR CITAS DE PRUEBA
-          IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-            onPressed: () {
-              // Generar citas de prueba y actualizar el estado del BLoC
-              final sampleAppointments = _generateSampleAppointments();
-              context.read<AppointmentBloc>().add(
-                LoadSampleAppointmentsEvent(appointments: sampleAppointments),
-              );
-            },
-            tooltip: 'Generar Citas de Prueba',
-          ),
           IconButton(
             icon: Icon(
               Icons.refresh,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
-            onPressed: () {
-              context.read<AppointmentBloc>().add(
-                LoadAppointmentsEvent(
-                  userId: widget.psychologistId,
-                  isForPsychologist: true,
-                  startDate: DateTime.now().subtract(const Duration(days: 30)),
-                  endDate: DateTime.now(),
-                ),
-              );
-            },
+            onPressed: _loadAppointments,
           ),
         ],
       ),
@@ -123,30 +127,25 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       color: Colors.red[600],
                       fontFamily: 'Poppins',
                     ),
+                    textAlign: TextAlign.center, 
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    state.errorMessage ?? 'Error desconocido',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontFamily: 'Poppins',
+                  Padding( 
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      state.errorMessage ?? 'Error desconocido',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontFamily: 'Poppins',
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis, 
                     ),
-                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      context.read<AppointmentBloc>().add(
-                        LoadAppointmentsEvent(
-                          userId: widget.psychologistId,
-                          isForPsychologist: true,
-                          startDate: DateTime.now().subtract(
-                            const Duration(days: 30),
-                          ),
-                          endDate: DateTime.now(),
-                        ),
-                      );
-                    },
+                    onPressed: _loadAppointments,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Reintentar'),
                     style: ElevatedButton.styleFrom(
@@ -161,10 +160,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
 
           return Column(
             children: [
-              // Estadísticas resumidas
               _buildStatisticsCard(state),
-
-              // TabBar
               Container(
                 color: Theme.of(context).cardColor,
                 child: TabBar(
@@ -175,27 +171,17 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                   labelStyle: const TextStyle(
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
-                    fontSize: 12, 
+                    fontSize: 11, 
                   ),
-                  isScrollable:
-                      true, 
+                  isScrollable: true,
                   tabs: [
                     Tab(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.schedule,
-                            size: 16,
-                          ), 
-                          const SizedBox(width: 4), 
-                          Flexible(
-                            child: Text(
-                              'Pendientes (${state.pendingCount})',
-                              overflow: TextOverflow
-                                  .ellipsis, 
-                            ),
-                          ),
+                          const Icon(Icons.schedule, size: 14), 
+                          const SizedBox(width: 4),
+                          Text('Pendientes (${state.pendingCount})'),
                         ],
                       ),
                     ),
@@ -203,14 +189,9 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.event_available, size: 16),
+                          const Icon(Icons.event_available, size: 14), 
                           const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Próximas (${state.upcomingCount})',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Text('Próximas (${state.upcomingCount})'),
                         ],
                       ),
                     ),
@@ -218,22 +199,25 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history, size: 16),
+                          const Icon(Icons.play_arrow, size: 14), 
                           const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Pasadas (${state.pastCount})',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Text('Progreso (${state.inProgressCount})'),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.history, size: 14), 
+                          const SizedBox(width: 4),
+                          Text('Pasadas (${state.pastCount})'),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // TabBarView
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -245,6 +229,10 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                     _buildAppointmentsList(
                       state.upcomingAppointments,
                       'upcoming',
+                    ),
+                    _buildAppointmentsList(
+                      state.inProgressAppointments,
+                      'in_progress',
                     ),
                     _buildAppointmentsList(state.pastAppointments, 'past'),
                   ],
@@ -285,13 +273,12 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             ),
           ),
           const SizedBox(height: 16),
-
           Row(
             children: [
               Expanded(
                 child: _buildStatItem(
                   icon: Icons.schedule,
-                  label: 'Pendientes',
+                  label: 'Pendiente',
                   value: state.pendingCount.toString(),
                   color: Colors.orange,
                 ),
@@ -299,15 +286,23 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               Expanded(
                 child: _buildStatItem(
                   icon: Icons.event_available,
-                  label: 'Próximas',
+                  label: 'Próxima',
                   value: state.upcomingCount.toString(),
                   color: Colors.green,
                 ),
               ),
               Expanded(
                 child: _buildStatItem(
+                  icon: Icons.play_arrow,
+                  label: 'En Progreso',
+                  value: state.inProgressCount.toString(),
+                  color: Colors.blue,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
                   icon: Icons.history,
-                  label: 'Completadas',
+                  label: 'Completada',
                   value: state.pastCount.toString(),
                   color: AppConstants.primaryColor,
                 ),
@@ -345,6 +340,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: color,
             fontFamily: 'Poppins',
           ),
+          textAlign: TextAlign.center, 
         ),
         Text(
           label,
@@ -353,6 +349,9 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             color: Colors.grey[600],
             fontFamily: 'Poppins',
           ),
+          textAlign: TextAlign.center, 
+          maxLines: 1, 
+          overflow: TextOverflow.ellipsis, 
         ),
       ],
     );
@@ -396,6 +395,11 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         title = 'Sin citas próximas';
         subtitle = 'Las citas confirmadas aparecerán aquí';
         break;
+      case 'in_progress':
+        icon = Icons.play_arrow_outlined;
+        title = 'Sin citas en progreso';
+        subtitle = 'Las citas que inicies aparecerán aquí';
+        break;
       case 'past':
         icon = Icons.history_outlined;
         title = 'Sin historial de citas';
@@ -421,12 +425,18 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
               color: Colors.grey[600],
               fontFamily: 'Poppins',
             ),
+            textAlign: TextAlign.center, 
           ),
           const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(color: Colors.grey[500], fontFamily: 'Poppins'),
-            textAlign: TextAlign.center,
+          Padding( 
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              subtitle,
+              style: TextStyle(color: Colors.grey[500], fontFamily: 'Poppins'),
+              textAlign: TextAlign.center,
+              maxLines: 2, 
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -452,39 +462,44 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header con estado y fecha
+            
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        appointment.status.icon,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        appointment.status.displayName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusColor(appointment.status),
-                          fontFamily: 'Poppins',
+                Expanded( 
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(appointment.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          appointment.status.icon,
+                          style: const TextStyle(fontSize: 12),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible( 
+                          child: Text(
+                            appointment.status.displayName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _getStatusColor(appointment.status),
+                              fontFamily: 'Poppins',
+                            ),
+                            overflow: TextOverflow.ellipsis, 
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8), 
                 if (appointment.isToday)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -508,7 +523,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 else if (appointment.isTomorrow)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 6, 
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
@@ -518,7 +533,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                     child: Text(
                       'MAÑANA',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9, 
                         fontWeight: FontWeight.bold,
                         color: Colors.orange,
                         fontFamily: 'Poppins',
@@ -527,17 +542,13 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                   ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Información del paciente
+            
             Row(
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: AppConstants.lightAccentColor.withOpacity(
-                    0.3,
-                  ),
+                  backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
                   backgroundImage: appointment.patientProfileUrl != null
                       ? NetworkImage(appointment.patientProfileUrl!)
                       : null,
@@ -555,7 +566,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                       : null,
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                Expanded( 
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -566,6 +577,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Poppins',
                         ),
+                        overflow: TextOverflow.ellipsis, 
+                        maxLines: 1, 
                       ),
                       Text(
                         appointment.patientEmail,
@@ -574,6 +587,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                           color: Colors.grey[600],
                           fontFamily: 'Poppins',
                         ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1, 
                       ),
                     ],
                   ),
@@ -589,40 +604,47 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Detalles de fecha y hora
+            
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Text(
-                  appointment.formattedDate,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Poppins',
-                    color: Colors.grey[700],
+                Expanded( 
+                  child: Text(
+                    appointment.formattedDate,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Poppins',
+                      color: Colors.grey[700],
+                    ),
+                    overflow: TextOverflow.ellipsis, 
+                    maxLines: 1, 
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
+           
             Row(
               children: [
                 Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Text(
-                  '${appointment.timeRange} (${appointment.formattedDuration})',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Poppins',
-                    color: Colors.grey[700],
+                Expanded( 
+                  child: Text(
+                    '${appointment.timeRange} (${appointment.formattedDuration})',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Poppins',
+                      color: Colors.grey[700],
+                    ),
+                    overflow: TextOverflow.ellipsis, 
+                    maxLines: 1, 
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '\$${appointment.price.toInt()}',
                   style: TextStyle(
@@ -634,8 +656,7 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                 ),
               ],
             ),
-
-            // Notas del paciente 
+           
             if (appointment.patientNotes != null) ...[
               const SizedBox(height: 8),
               Container(
@@ -650,11 +671,11 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[700],
-                    fontFamily: 'Poppins',
                     fontStyle: FontStyle.italic,
+                    fontFamily: 'Poppins',
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2, 
+                  overflow: TextOverflow.ellipsis, 
                 ),
               ),
             ],
@@ -670,77 +691,19 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         return Colors.orange;
       case AppointmentStatus.confirmed:
         return Colors.green;
+      case AppointmentStatus.in_progress:
+        return Colors.blue;
       case AppointmentStatus.cancelled:
         return Colors.red;
       case AppointmentStatus.completed:
         return AppConstants.primaryColor;
+      case AppointmentStatus.rated:
+        return Colors.amber;
       case AppointmentStatus.rescheduled:
         return Colors.blue;
+      case AppointmentStatus.refunded:
+      return Colors.purple;
     }
-  }
-
-  // FUNCIÓN TEMPORAL PARA GENERAR CITAS DE PRUEBA
-  List<AppointmentModel> _generateSampleAppointments() {
-    final now = DateTime.now();
-    return [
-      AppointmentModel(
-        id: 'sample_001',
-        patientId: 'patient_001',
-        patientName: 'María García',
-        patientEmail: 'maria.garcia@email.com',
-        psychologistId: widget.psychologistId,
-        psychologistName: 'Dr. Psicólogo',
-        psychologistSpecialty: 'Psicología Clínica',
-        scheduledDateTime: now.add(const Duration(days: 1)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.pending,
-        price: 500.0,
-        patientNotes: 'Primera consulta - Ansiedad y estrés laboral',
-        createdAt: now,
-      ),
-      AppointmentModel(
-        id: 'sample_002',
-        patientId: 'patient_002',
-        patientName: 'Carlos Rodríguez',
-        patientEmail: 'carlos.rodriguez@email.com',
-        psychologistId: widget.psychologistId,
-        psychologistName: 'Dr. Psicólogo',
-        psychologistSpecialty: 'Psicología Clínica',
-        scheduledDateTime: now.add(const Duration(days: 2)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.confirmed,
-        price: 500.0,
-        patientNotes: 'Seguimiento - Terapia cognitivo-conductual',
-        createdAt: now.subtract(const Duration(days: 1)),
-        confirmedAt: now,
-      ),
-      AppointmentModel(
-        id: 'sample_003',
-        patientId: 'patient_003',
-        patientName: 'Ana Martínez',
-        patientEmail: 'ana.martinez@email.com',
-        psychologistId: widget.psychologistId,
-        psychologistName: 'Dr. Psicólogo',
-        psychologistSpecialty: 'Psicología Clínica',
-        scheduledDateTime: now.add(const Duration(days: 3)),
-        type: AppointmentType.online,
-        status: AppointmentStatus.pending,
-        price: 500.0,
-        patientNotes: 'Consulta sobre depresión postparto',
-        createdAt: now.subtract(const Duration(hours: 2)),
-      ),
-    ];
-  }
-
-  void _refreshAppointments() {
-    context.read<AppointmentBloc>().add(
-      LoadAppointmentsEvent(
-        userId: widget.psychologistId,
-        isForPsychologist: true,
-        startDate: DateTime.now().subtract(const Duration(days: 365)),
-        endDate: DateTime.now().add(const Duration(days: 365)),
-      ),
-    );
   }
 
   void _navigateToConfirmationScreen(
@@ -756,10 +719,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
         ),
       ),
     );
-
-    // refresca la lista.
-    if (result == true && mounted) {
-      _refreshAppointments();
+    if (result == true) {
+      _loadAppointments();
     }
   }
 }

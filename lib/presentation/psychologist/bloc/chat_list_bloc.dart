@@ -42,8 +42,6 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
           if (otherMemberId.isNotEmpty) {
             final patientDoc = await _firestore.collection('patients').doc(otherMemberId).get();
             final patientData = patientDoc.data();
-            
-            // --- Obtener el estado de conexión del paciente ---
             final userDoc = await _firestore.collection('users').doc(otherMemberId).get();
             final userData = userDoc.data();
             final bool isOnline = userData?['isOnline'] ?? false;
@@ -69,7 +67,6 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         add(ChatsUpdated(chats));
       });
     } catch (e) {
-      log('Error al cargar los chats: $e', name: 'ChatListBloc');
       emit(ChatListError('Error al cargar los chats: $e'));
     }
   }

@@ -14,7 +14,9 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_state.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
+import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 
 class ProfessionalInfoSetupScreen extends StatefulWidget {
   final PsychologistModel? psychologist;
@@ -43,6 +45,7 @@ class _ProfessionalInfoSetupScreenState
   final TextEditingController _educationController = TextEditingController();
   final TextEditingController _certificationsController =
       TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
 
   String? _selectedSpecialty;
   final List<String> _selectedSubSpecialties = [];
@@ -76,6 +79,8 @@ class _ProfessionalInfoSetupScreenState
   // Variables de estado
   File? _profileImage;
   File? _imageFile;
+  String? _currentProfilePictureUrl;
+  bool _isUploadingImage = false;
 
   // Listas de opciones
   final List<String> _specialties = [
@@ -126,28 +131,24 @@ class _ProfessionalInfoSetupScreenState
     ],
   };
 
-  
   late StreamSubscription _blocSubscription;
 
   @override
   void initState() {
     super.initState();
-    // Inicia la suscripción al stream del Bloc
-    _blocSubscription = context.read<PsychologistInfoBloc>().stream.listen((
-      state,
-    ) {
+    _currentProfilePictureUrl = widget.psychologist?.profilePictureUrl;
+    
+    _blocSubscription = context.read<PsychologistInfoBloc>().stream.listen((state) {
       if (state is PsychologistInfoLoaded) {
-        // Rellena los campos si se han cargado los datos
         _fillFormWithData(state.psychologist);
       }
     });
 
-    // Inicia la carga de la información del psicólogo al entrar a la pantalla
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      BlocProvider.of<PsychologistInfoBloc>(
-        context,
-      ).add(LoadPsychologistInfoEvent(uid: uid));
+      BlocProvider.of<PsychologistInfoBloc>(context).add(
+        LoadPsychologistInfoEvent(uid: uid)
+      );
     }
   }
 
@@ -155,9 +156,11 @@ class _ProfessionalInfoSetupScreenState
     _fullNameController.text = psychologist.fullName ?? '';
     _professionalTitleController.text = psychologist.professionalTitle ?? '';
     _licenseNumberController.text = psychologist.professionalLicense ?? '';
+    _currentProfilePictureUrl = psychologist.profilePictureUrl;
     _yearsExperienceController.text =
         psychologist.yearsExperience?.toString() ?? '';
     _descriptionController.text = psychologist.description ?? '';
+    _priceController.text = psychologist.price?.toString() ?? '';
 
     if (psychologist.education != null) {
       _educationController.text = psychologist.education!.join('\n');
@@ -197,57 +200,59 @@ class _ProfessionalInfoSetupScreenState
   }
 
   void _saveProfessionalInfo() {
-    final user = FirebaseAuth.instance.currentUser;
+  final user = FirebaseAuth.instance.currentUser;
 
-    if (user != null && _formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  if (user != null && _formKey.currentState!.validate()) {
+    _formKey.currentState!.save();
 
-      // Lógica para procesar los controladores de texto en listas
-      final educationList = _educationController.text
-          .split('\n')
-          .where((s) => s.isNotEmpty)
-          .toList();
-      final certificationsList = _certificationsController.text
-          .split('\n')
-          .where((s) => s.isNotEmpty)
-          .toList();
+    final educationList = _educationController.text
+        .split('\n')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final certificationsList = _certificationsController.text
+        .split('\n')
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-      // Lógica para procesar el horario
-      final Map<String, Map<String, String>> formattedSchedule = {};
-      _startSchedule.forEach((day, time) {
-        if (time != null && _endSchedule[day] != null) {
-          formattedSchedule[day] = {
-            'from':
-                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-            'to':
-                '${_endSchedule[day]!.hour.toString().padLeft(2, '0')}:${_endSchedule[day]!.minute.toString().padLeft(2, '0')}',
-          };
-        }
-      });
+    final double? price = _priceController.text.isNotEmpty
+        ? double.tryParse(_priceController.text)
+        : null;
 
-      context.read<PsychologistInfoBloc>().add(
-        SetupProfessionalInfoEvent(
-          uid: user.uid,
-          email: user.email ?? '',
-          fullName: _fullNameController.text,
-          professionalTitle: _professionalTitleController.text,
-          licenseNumber: _licenseNumberController.text,
-          yearsExperience: int.tryParse(_yearsExperienceController.text) ?? 0,
-          description: _descriptionController.text,
-          education: educationList,
-          certifications: certificationsList,
-          profilePictureUrl:
-              null, 
-          selectedSpecialty: _selectedSpecialty,
-          selectedSubSpecialties: _selectedSubSpecialties,
-          schedule: formattedSchedule,
-          isAvailable: true,
-        ),
-      );
-    } else {
+    final Map<String, Map<String, String>> formattedSchedule = {};
+    _startSchedule.forEach((day, time) {
+      if (time != null && _endSchedule[day] != null) {
+        formattedSchedule[day] = {
+          'startTime': _formatTimeOfDay(time),
+          'endTime': _formatTimeOfDay(_endSchedule[day]!),
+        };
+      }
+    });
+
+    context.read<PsychologistInfoBloc>().add(
+      SetupProfessionalInfoEvent(
+        uid: user.uid,
+        email: user.email ?? '',
+        fullName: _fullNameController.text,
+        professionalTitle: _professionalTitleController.text,
+        licenseNumber: _licenseNumberController.text,
+        yearsExperience: int.tryParse(_yearsExperienceController.text) ?? 0,
+        description: _descriptionController.text,
+        education: educationList,
+        certifications: certificationsList,
+        profilePictureUrl: _currentProfilePictureUrl,
+        selectedSpecialty: _selectedSpecialty,
+        selectedSubSpecialties: _selectedSubSpecialties,
+        schedule: formattedSchedule,
+        isAvailable: true,
+        price: price,
+      ),
+    );
+  } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error: No hay un usuario autenticado.'),
+          content: Text(
+            'Error: No hay un usuario autenticado o faltan datos requeridos.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -256,7 +261,6 @@ class _ProfessionalInfoSetupScreenState
 
   @override
   void dispose() {
-    
     _blocSubscription.cancel();
     _fullNameController.dispose();
     _professionalTitleController.dispose();
@@ -265,6 +269,7 @@ class _ProfessionalInfoSetupScreenState
     _descriptionController.dispose();
     _educationController.dispose();
     _certificationsController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -282,16 +287,94 @@ class _ProfessionalInfoSetupScreenState
         setState(() {
           _profileImage = File(image.path);
         });
+        await _uploadProfilePicture(File(image.path));
       }
     } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al seleccionar imagen: $e'),
+            backgroundColor: AppConstants.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadProfilePicture(File imageFile) async {
+  if (_isUploadingImage) return;
+
+  setState(() {
+    _isUploadingImage = true;
+  });
+
+  try {
+    final remoteDataSource = PsychologistRemoteDataSource();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Subiendo imagen...'),
+            ],
+          ),
+          duration: Duration(minutes: 2),
+        ),
+      );
+    }
+    
+    final uploadedUrl = await remoteDataSource.uploadProfilePicture(
+      imageFile.path,
+    );
+    
+    setState(() {
+      _currentProfilePictureUrl = uploadedUrl;
+      _isUploadingImage = false;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al seleccionar imagen: $e'),
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Imagen subida: $uploadedUrl'), 
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  } catch (e) {
+    setState(() {
+      _isUploadingImage = false;
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al subir imagen: $e'),
           backgroundColor: AppConstants.errorColor,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
   }
+}
 
   Future<void> _selectTime(String day, bool isEndTime) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -358,51 +441,91 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
         const SizedBox(height: 32),
-
-        // Foto de perfil
         Center(
-          child: GestureDetector(
-            onTap: _pickImage,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppConstants.lightAccentColor.withOpacity(0.1),
-                border: Border.all(
-                  color: AppConstants.lightAccentColor,
-                  width: 2,
+          child: Stack(
+            children: [
+              GestureDetector(
+                onTap: _isUploadingImage ? null : _pickImage,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConstants.lightAccentColor.withOpacity(0.1),
+                    border: Border.all(
+                      color: AppConstants.lightAccentColor,
+                      width: 2,
+                    ),
+                  ),
+                  child: _isUploadingImage
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: AppConstants.lightAccentColor,
+                          ),
+                        )
+                      : (_profileImage != null || _currentProfilePictureUrl != null)
+                          ? ClipOval(
+                              child: _profileImage != null
+                                  ? Image.file(
+                                      _profileImage!,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                    )
+                                  : Image.network(
+                                      _currentProfilePictureUrl!,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Icon(
+                                          Icons.person,
+                                          size: 60,
+                                          color: AppConstants.lightAccentColor,
+                                        );
+                                      },
+                                    ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo,
+                                  size: 32,
+                                  color: AppConstants.lightAccentColor,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Agregar foto',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ],
+                            ),
                 ),
               ),
-              child: _profileImage != null
-                  ? ClipOval(
-                      child: Image.file(
-                        _profileImage!,
-                        fit: BoxFit.cover,
-                        width: 120,
-                        height: 120,
-                      ),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_a_photo,
-                          size: 32,
-                          color: AppConstants.lightAccentColor,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Agregar foto',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
+              if (_currentProfilePictureUrl != null && !_isUploadingImage)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
-            ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
 
@@ -469,7 +592,7 @@ class _ProfessionalInfoSetupScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Experiencia Profesional',
+          'Información Profesional',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -479,7 +602,7 @@ class _ProfessionalInfoSetupScreenState
         ),
         const SizedBox(height: 8),
         const Text(
-          'Cuéntanos sobre tu experiencia',
+          'Completa tu información profesional',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey,
@@ -488,23 +611,19 @@ class _ProfessionalInfoSetupScreenState
         ),
         const SizedBox(height: 32),
 
-        // Campos de información personal
+        // Años de experiencia
         CustomTextField(
           controller: _yearsExperienceController,
           hintText: 'Años de experiencia',
           icon: Icons.work_outline,
-          keyboardType: TextInputType.number,
           filled: true,
           fillColor: Colors.grey[100]!,
           borderRadius: 12,
           placeholderColor: Colors.grey,
+          keyboardType: TextInputType.number,
           validator: (value) {
             if (value?.isEmpty ?? true) {
               return 'Por favor ingresa tus años de experiencia';
-            }
-            final years = int.tryParse(value!);
-            if (years == null || years < 0) {
-              return 'Por favor ingresa un número válido';
             }
             return null;
           },
@@ -517,30 +636,26 @@ class _ProfessionalInfoSetupScreenState
           decoration: BoxDecoration(
             color: Colors.grey[100],
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextFormField(
             controller: _descriptionController,
-            maxLines: 5,
+            maxLines: 4,
             decoration: const InputDecoration(
-              hintText:
-                  'Descripción profesional...\n\nEjemplo: "Especialista en terapia cognitivo-conductual con más de 10 años de experiencia. Ayudo a pacientes con ansiedad, depresión y trastornos del estado de ánimo."',
-              hintStyle: TextStyle(
-                color: Colors.grey,
-                fontFamily: 'Poppins',
-                fontSize: 14,
-              ),
+              hintText: 'Descripción profesional (mínimo 50 caracteres)',
+              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12)),
                 borderSide: BorderSide.none,
               ),
               contentPadding: EdgeInsets.all(16),
+              prefixIcon: Icon(Icons.description_outlined, color: Colors.grey),
             ),
-            style: const TextStyle(fontFamily: 'Poppins'),
             validator: (value) {
               if (value?.isEmpty ?? true) {
-                return 'Por favor agrega una descripción profesional';
+                return 'Por favor ingresa una descripción';
               }
-              if (value!.length < 50) {
+              if ((value?.length ?? 0) < 50) {
                 return 'La descripción debe tener al menos 50 caracteres';
               }
               return null;
@@ -550,32 +665,61 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 16),
 
-        CustomTextField(
-          controller: _educationController,
-          hintText: 'Formación académica (Universidad, posgrados)',
-          icon: Icons.school,
-          filled: true,
-          fillColor: Colors.grey[100]!,
-          borderRadius: 12,
-          placeholderColor: Colors.grey,
-          validator: (value) {
-            if (value?.isEmpty ?? true) {
-              return 'Por favor ingresa tu formación académica';
-            }
-            return null;
-          },
+        // Educación
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: TextFormField(
+            controller: _educationController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Educación (separa cada título con una nueva línea)',
+              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: EdgeInsets.all(16),
+              prefixIcon: Icon(Icons.school_outlined, color: Colors.grey),
+            ),
+            validator: (value) {
+              if (value?.isEmpty ?? true) {
+                return 'Por favor ingresa tu educación';
+              }
+              return null;
+            },
+          ),
         ),
 
         const SizedBox(height: 16),
 
-        CustomTextField(
-          controller: _certificationsController,
-          hintText: 'Certificaciones adicionales (opcional)',
-          icon: Icons.verified_outlined,
-          filled: true,
-          fillColor: Colors.grey[100]!,
-          borderRadius: 12,
-          placeholderColor: Colors.grey,
+        // Certificaciones
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: TextFormField(
+            controller: _certificationsController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Certificaciones (separa cada una con una nueva línea)',
+              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: EdgeInsets.all(16),
+              prefixIcon: Icon(
+                Icons.card_membership_outlined,
+                color: Colors.grey,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -613,7 +757,7 @@ class _ProfessionalInfoSetupScreenState
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: DropdownButtonFormField<String>(
-            isExpanded: true, // 🔹 Evita el overflow
+            isExpanded: true, 
             value: _selectedSpecialty,
             decoration: const InputDecoration(
               hintText: 'Selecciona tu especialidad principal',
@@ -634,8 +778,7 @@ class _ProfessionalInfoSetupScreenState
                 child: Text(
                   specialty,
                   style: const TextStyle(fontFamily: 'Poppins'),
-                  overflow:
-                      TextOverflow.ellipsis, 
+                  overflow: TextOverflow.ellipsis,
                 ),
               );
             }).toList(),
@@ -703,6 +846,62 @@ class _ProfessionalInfoSetupScreenState
         ],
 
         const SizedBox(height: 24),
+
+        // Campo para el precio
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: TextFormField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              hintText: 'Precio por consulta (MXN)',
+              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: EdgeInsets.all(16),
+              prefixIcon: Icon(Icons.attach_money, color: Colors.grey),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor, ingrese un precio';
+              }
+              final n = num.tryParse(value);
+              if (n == null) {
+                return '"$value" no es un número válido';
+              }
+              return null;
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Aviso sobre la evaluación del precio
+        RichText(
+          text: const TextSpan(
+            style: TextStyle(color: Colors.black, fontSize: 14),
+            children: <TextSpan>[
+              TextSpan(
+                text: 'Aviso: ',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(
+                text:
+                    'El precio se evaluará manualmente según la especialidad y la experiencia',
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // Nota informativa sobre tarifas y modalidades
         Container(
           padding: const EdgeInsets.all(16),
@@ -736,7 +935,7 @@ class _ProfessionalInfoSetupScreenState
               ),
               SizedBox(height: 8),
               Text(
-                '• Las tarifas por sesión serán establecidas por el administrador\n'
+                '• Las tarifas por sesión serán establecidas por el administrador si no cumple con los requisitos \n'
                 '• Las modalidades de atención (presencial/en línea) se configurarán posteriormente\n'
                 '• Tu perfil será revisado antes de ser publicado para los pacientes',
                 style: TextStyle(
@@ -895,7 +1094,6 @@ class _ProfessionalInfoSetupScreenState
 
   void _nextStep() {
     if (_currentStep < 3) {
-      // Lógica para avanzar al siguiente paso
       if (_validateCurrentStep()) {
         setState(() {
           _currentStep++;
@@ -908,12 +1106,15 @@ class _ProfessionalInfoSetupScreenState
         );
       }
     } else {
-      // Lógica para finalizar y guardar la información (Paso final)
       if (_formKey.currentState!.validate()) {
         _formKey.currentState!.save();
 
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
+          final double? price = _priceController.text.isNotEmpty
+              ? double.tryParse(_priceController.text)
+              : null;
+
           context.read<PsychologistInfoBloc>().add(
             SetupProfessionalInfoEvent(
               uid: user.uid,
@@ -937,6 +1138,7 @@ class _ProfessionalInfoSetupScreenState
               selectedSubSpecialties: _selectedSubSpecialties,
               schedule: _convertScheduleToBackendFormat(),
               isAvailable: true,
+              price: price,
             ),
           );
         } else {
@@ -1014,7 +1216,6 @@ class _ProfessionalInfoSetupScreenState
             (Route<dynamic> route) => false,
           );
         } else if (state is PsychologistInfoError) {
-          // Muestra un error si algo falla en el BLoC
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error al guardar: ${state.message}'),

@@ -3,12 +3,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_event.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/views/psychology_session_payment_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/patient/bloc/psychology_payment_bloc.dart';
+import 'package:ai_therapy_teteocan/data/repositories/psychology_payment_repository.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
   final PsychologistModel psychologist;
@@ -29,6 +35,20 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   TimeSlot? _selectedTimeSlot;
   AppointmentType _selectedType = AppointmentType.online;
   final TextEditingController _notesController = TextEditingController();
+  bool _isPremium = false;
+  bool _isLoadingSubscription = true;
+  Set<DateTime> _datesWithAvailability = {};
+  bool _isLoadingAvailableDates = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserSubscription();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentMonth();
+    });
+  }
 
   @override
   void dispose() {
@@ -36,6 +56,86 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     _notesController.dispose();
     super.dispose();
   }
+
+
+DateTime _getValidInitialDate(DateTime today) {
+  if (_selectedDate != null) {
+    final normalizedSelected = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+    );
+    if (_datesWithAvailability.isNotEmpty) {
+      if (_datesWithAvailability.contains(normalizedSelected)) {
+        return _selectedDate!;
+      }
+    } else if (!normalizedSelected.isBefore(today)) {
+      return _selectedDate!;
+    }
+  }
+
+  if (_datesWithAvailability.isNotEmpty) {
+    final sortedDates = _datesWithAvailability.toList()..sort();
+    return sortedDates.first;
+  }
+
+  return today;
+}
+
+  Future<void> _checkUserSubscription() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('patients')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _isPremium = userDoc.data()?['isPremium'] == true;
+            _isLoadingSubscription = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isPremium = false;
+          _isLoadingSubscription = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadCurrentMonth() async {
+  if (!mounted) return;
+
+  setState(() {
+    _isLoadingAvailableDates = true;
+  });
+
+  try {
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, now.day);
+    // Cargar 60 días de disponibilidad
+    final endDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 60));
+
+    context.read<AppointmentBloc>().add(
+      LoadAvailableTimeSlotsEvent(
+        psychologistId: widget.psychologist.uid,
+        startDate: startDate,
+        endDate: endDate,
+      ),
+    );
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _isLoadingAvailableDates = false;
+      });
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -64,30 +164,26 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       body: BlocListener<AppointmentBloc, AppointmentState>(
         listener: (context, state) {
           if (state.isBooked) {
-            _showSuccessDialog();
+            if (_isPremium) {
+              _showSuccessDialog();
 
-            // RECARGAR LAS CITAS DESPUÉS DE AGENDAR
-            context.read<AppointmentBloc>().add(
-              LoadAppointmentsEvent(
-                userId: FirebaseAuth.instance.currentUser!.uid,
-                isForPsychologist: false,
-                startDate: DateTime.now(),
-                endDate: DateTime.now().add(const Duration(days: 60)),
-              ),
-            );
+              context.read<AppointmentBloc>().add(
+                LoadAppointmentsEvent(
+                  userId: FirebaseAuth.instance.currentUser!.uid,
+                  isForPsychologist: false,
+                  startDate: DateTime.now(),
+                  endDate: DateTime.now().add(const Duration(days: 60)),
+                ),
+              );
+            }
           } else if (state.isError) {
             _showErrorSnackBar(state.errorMessage!);
           }
         },
         child: Column(
           children: [
-            // Indicador de pasos
             _buildStepsIndicator(),
-
-            // Información del psicólogo
             _buildPsychologistInfo(),
-
-            // Contenido del paso actual
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -104,13 +200,46 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 ],
               ),
             ),
-
-            // Botones de navegación
             _buildNavigationButtons(),
           ],
         ),
       ),
     );
+  }
+
+  void _navigateToPaymentScreen() {
+    if (_selectedDate != null && _selectedTimeSlot != null) {
+      final appointmentDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTimeSlot!.dateTime.hour,
+        _selectedTimeSlot!.dateTime.minute,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BlocProvider(
+            create: (context) => PsychologyPaymentBloc(
+              repository: PsychologyPaymentRepositoryImpl(),
+            ),
+            child: PsychologySessionPaymentScreen(
+              psychologist: widget.psychologist,
+              sessionDateTime: appointmentDateTime,
+              appointmentType: _selectedType,
+              notes: _notesController.text.trim().isEmpty
+                  ? null
+                  : _notesController.text.trim(),
+            ),
+          ),
+        ),
+      ).then((paymentSuccess) {
+        if (paymentSuccess == true) {
+          _showSuccessDialog(isPaidSession: true);
+        }
+      });
+    }
   }
 
   Widget _buildStepsIndicator() {
@@ -198,228 +327,90 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
-            backgroundImage: widget.psychologist.profilePictureUrl != null
-                ? NetworkImage(widget.psychologist.profilePictureUrl!)
-                : null,
-            child: widget.psychologist.profilePictureUrl == null
-                ? Text(
-                    widget.psychologist.username.isNotEmpty
-                        ? widget.psychologist.username[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
-                      color: AppConstants.lightAccentColor,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.psychologist.username,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                Text(
-                  widget.psychologist.specialty ?? 'Psicología General',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+                backgroundImage: widget.psychologist.profilePictureUrl != null
+                    ? NetworkImage(widget.psychologist.profilePictureUrl!)
+                    : null,
+                child: widget.psychologist.profilePictureUrl == null
+                    ? Text(
+                        widget.psychologist.username.isNotEmpty
+                            ? widget.psychologist.username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                          color: AppConstants.lightAccentColor,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.attach_money,
-                      size: 16,
-                      color: AppConstants.primaryColor,
+                    Text(
+                      widget.psychologist.username,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
                     Text(
-                      '\$${(widget.psychologist.hourlyRate ?? 0.0).toInt()}/sesión',
+                      widget.psychologist.specialty ?? 'Psicología General',
                       style: TextStyle(
-                        color: AppConstants.primaryColor,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
                         fontSize: 14,
                         fontFamily: 'Poppins',
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateSelectionStep() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Selecciona una fecha',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Elige el día que prefieras para tu sesión',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Calendario personalizado
-          Expanded(child: _buildCustomCalendar()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCustomCalendar() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: CalendarDatePicker(
-        initialDate: _selectedDate ?? today,
-        firstDate: today, // PERMITIR SELECCIONAR HOY
-        lastDate: today.add(const Duration(days: 60)),
-        onDateChanged: (date) {
-          setState(() {
-            _selectedDate = date;
-            _selectedTimeSlot = null;
-          });
-
-          // Cargar slots de tiempo para la fecha seleccionada
-          context.read<AppointmentBloc>().add(
-            LoadAvailableTimeSlotsEvent(
-              psychologistId: widget.psychologist.uid,
-              startDate: date,
-              endDate: date,
-            ),
-          );
-        },
-        selectableDayPredicate: (date) {
-          // Permitir fines de semana también
-          return date.isAfter(now.subtract(const Duration(days: 1)));
-        },
-      ),
-    );
-  }
-
-  Widget _buildTimeSelectionStep() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selecciona una hora',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _selectedDate != null
-                ? 'Horarios disponibles para ${_formatSelectedDate()}'
-                : 'Primero selecciona una fecha',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          if (_selectedDate != null) ...[
-            Expanded(
-              child: BlocBuilder<AppointmentBloc, AppointmentState>(
-                builder: (context, state) {
-                  if (state.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (state.hasAvailableTimeSlots) {
-                    return _buildTimeSlotGrid(state.availableTimeSlots);
-                  }
-
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.schedule_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No hay horarios disponibles',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
               ),
-            ),
-          ] else ...[
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.date_range_outlined,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Selecciona una fecha primero',
+            ],
+          ),
+
+          if (!_isLoadingSubscription) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _isPremium ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _isPremium ? Colors.green[200]! : Colors.orange[200]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isPremium ? Icons.star : Icons.payment,
+                    color: _isPremium ? Colors.green[700] : Colors.orange[700],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _isPremium
+                          ? 'Tu suscripción Premium incluye esta sesión'
+                          : 'Pago único de \$${(widget.psychologist.price ?? 100.0).toInt()} requerido',
                       style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
+                        fontSize: 12,
+                        color: _isPremium
+                            ? Colors.green[700]
+                            : Colors.orange[700],
                         fontFamily: 'Poppins',
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -428,77 +419,666 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     );
   }
 
-  Widget _buildTimeSlotGrid(List<TimeSlot> timeSlots) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: timeSlots.length,
-      itemBuilder: (context, index) {
-        final slot = timeSlots[index];
-        final isSelected = _selectedTimeSlot?.time == slot.time;
+  Widget _buildDateSelectionStep() {
+  return Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Selecciona una fecha',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Elige el día que prefieras para tu sesión',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 24),
+        Expanded(child: _buildCustomCalendar()),
+      ],
+    ),
+  );
+}
 
-        return InkWell(
-          onTap: slot.isAvailable
-              ? () {
-                  setState(() {
-                    _selectedTimeSlot = slot;
-                  });
-                }
-              : null,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: slot.isAvailable
-                  ? isSelected
-                        ? AppConstants.lightAccentColor
-                        : Theme.of(context).cardColor
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected
-                    ? AppConstants.lightAccentColor
-                    : slot.isAvailable
-                    ? Colors.grey[300]!
-                    : Colors.grey[400]!,
-                width: isSelected ? 2 : 1,
+
+  Widget _buildCustomCalendar() {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  return BlocConsumer<AppointmentBloc, AppointmentState>(
+    listener: (context, state) {
+      if (state.hasAvailableTimeSlots) {
+        final availableDates = <DateTime>{};
+        for (var slot in state.availableTimeSlots) {
+          if (slot.isAvailable) {
+            final date = DateTime(
+              slot.dateTime.year,
+              slot.dateTime.month,
+              slot.dateTime.day,
+            );
+            availableDates.add(date);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _datesWithAvailability = availableDates;
+            _isLoadingAvailableDates = false;
+          });
+        }
+      }
+      if (state.isError) {
+        if (mounted) {
+          setState(() {
+            _isLoadingAvailableDates = false;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudieron cargar las fechas disponibles'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    },
+    builder: (context, state) {
+      if (_isLoadingAvailableDates) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: AppConstants.lightAccentColor,
               ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  slot.time,
+              const SizedBox(height: 16),
+              Text(
+                'Cargando fechas disponibles...',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Si no hay fechas disponibles, mostrar mensaje
+      if (_datesWithAvailability.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.calendar_month_outlined,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'No hay fechas disponibles',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'El psicólogo no tiene horarios disponibles en este momento. Por favor intenta más tarde.',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[500],
                     fontSize: 14,
                     fontFamily: 'Poppins',
-                    color: slot.isAvailable
-                        ? isSelected
-                              ? Colors.white
-                              : Theme.of(context).textTheme.bodyLarge?.color
-                        : Colors.grey[500],
+                    height: 1.5,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                if (!slot.isAvailable && slot.reason != null)
-                  Text(
-                    slot.reason!,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey[500],
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _isLoadingAvailableDates = true;
+                  });
+                  _loadCurrentMonth();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppConstants.lightAccentColor,
+                  side: BorderSide(color: AppConstants.lightAccentColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        children: [
+          // Leyenda de disponibilidad
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppConstants.lightAccentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppConstants.lightAccentColor.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildLegendItem(
+                  color: AppConstants.lightAccentColor,
+                  label: 'Disponible',
+                  icon: Icons.check_circle,
+                ),
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: Colors.grey[300],
+                ),
+                _buildLegendItem(
+                  color: Colors.grey[300]!,
+                  label: 'No disponible',
+                  icon: Icons.cancel_outlined,
+                ),
               ],
             ),
           ),
-        );
-      },
+          const SizedBox(height: 16),
+          
+          // Contador de fechas disponibles
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event_available,
+                  size: 18,
+                  color: Colors.green[700],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_datesWithAvailability.length} fecha${_datesWithAvailability.length != 1 ? 's' : ''} con disponibilidad',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.green[700],
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Calendario
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: AppConstants.lightAccentColor,
+                      onPrimary: Colors.white,
+                      surface: Colors.white,
+                      onSurface: Colors.black87,
+                    ),
+                    textButtonTheme: TextButtonThemeData(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppConstants.lightAccentColor,
+                      ),
+                    ),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: _getValidInitialDate(today),
+                    firstDate: today,
+                    lastDate: today.add(const Duration(days: 60)),
+                    onDateChanged: (date) {
+                      setState(() {
+                        _selectedDate = date;
+                        _selectedTimeSlot = null;
+                      });
+
+                      context.read<AppointmentBloc>().add(
+                        LoadAvailableTimeSlotsEvent(
+                          psychologistId: widget.psychologist.uid,
+                          startDate: date,
+                          endDate: date,
+                        ),
+                      );
+                    },
+                    selectableDayPredicate: (date) {
+                      final normalizedDate = DateTime(date.year, date.month, date.day);
+                      final normalizedNow = DateTime(now.year, now.month, now.day);
+
+                      // No permitir fechas pasadas
+                      if (normalizedDate.isBefore(normalizedNow)) {
+                        return false;
+                      }
+
+                      // Solo permitir fechas con disponibilidad
+                      return _datesWithAvailability.contains(normalizedDate);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+  Widget _buildTimeSelectionStep() {
+  return Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Selecciona una hora',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _selectedDate != null
+              ? 'Horarios disponibles para ${_formatSelectedDate()}'
+              : 'Primero selecciona una fecha',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        if (_selectedDate != null) ...[
+          Expanded(
+            child: BlocBuilder<AppointmentBloc, AppointmentState>(
+              builder: (context, state) {
+                if (state.isLoading) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          color: AppConstants.lightAccentColor,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Cargando horarios...',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (state.hasAvailableTimeSlots) {
+                  return _buildTimeSlotGrid(state.availableTimeSlots);
+                }
+
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.schedule_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No hay horarios disponibles',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'para esta fecha',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ] else ...[
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppConstants.lightAccentColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.date_range_outlined,
+                      size: 48,
+                      color: AppConstants.lightAccentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Selecciona una fecha primero',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton.icon(
+                    onPressed: () {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Ir a calendario'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppConstants.lightAccentColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+
+  Widget _buildTimeSlotGrid(List<TimeSlot> timeSlots) {
+  final availableSlots = timeSlots.where((slot) => slot.isAvailable).toList();
+
+  if (availableSlots.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.schedule_outlined,
+              size: 48,
+              color: Colors.orange[400],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No hay horarios disponibles',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'para esta fecha',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 14,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              // Volver al paso de selección de fecha
+              if (_currentStep > 0) {
+                _pageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+            },
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Elegir otra fecha'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.lightAccentColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  // Ordenar horarios por hora
+  availableSlots.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+  return Column(
+    children: [
+      // Contador de horarios disponibles
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green[200]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.access_time,
+              color: Colors.green[700],
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${availableSlots.length} horario${availableSlots.length != 1 ? 's' : ''} disponible${availableSlots.length != 1 ? 's' : ''}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.green[700],
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      
+      // Grid de horarios
+      Expanded(
+        child: GridView.builder(
+          padding: const EdgeInsets.only(bottom: 16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 2.2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: availableSlots.length,
+          itemBuilder: (context, index) {
+            final slot = availableSlots[index];
+            final isSelected = _selectedTimeSlot?.time == slot.time;
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedTimeSlot = slot;
+                });
+                // Feedback háptico
+                HapticFeedback.lightImpact();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            AppConstants.lightAccentColor,
+                            AppConstants.lightAccentColor.withOpacity(0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: isSelected ? null : Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppConstants.lightAccentColor
+                        : Colors.grey[300]!,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppConstants.lightAccentColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white
+                                : AppConstants.lightAccentColor,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            slot.time,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              fontFamily: 'Poppins',
+                              color: isSelected
+                                  ? Colors.white
+                                  : Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check_circle,
+                            color: AppConstants.lightAccentColor,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildAppointmentDetailsStep() {
     return SingleChildScrollView(
@@ -525,7 +1105,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Tipo de cita
           Text(
             'Modalidad de la sesión',
             style: const TextStyle(
@@ -546,25 +1125,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                   subtitle: 'Videoconferencia',
                 ),
               ),
-              // Por ahora solo modalidad en línea disponible
-              // TODO: Implementar modalidad presencial en el futuro
-              /* 
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildAppointmentTypeCard(
-                  type: AppointmentType.inPerson,
-                  icon: Icons.location_on,
-                  title: 'Presencial',
-                  subtitle: 'En consultorio',
-                ),
-              ),
-              */
             ],
           ),
 
           const SizedBox(height: 24),
 
-          // Notas adicionales
           Text(
             'Notas adicionales (opcional)',
             style: const TextStyle(
@@ -707,7 +1272,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Resumen de la cita
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -749,7 +1313,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 _buildSummaryRow(
                   icon: Icons.attach_money,
                   label: 'Precio',
-                  value: '\$${(widget.psychologist.hourlyRate ?? 0.0).toInt()}',
+                  value: _isPremium
+                      ? 'Incluido en Premium'
+                      : '\${(widget.psychologist.price ?? 0.0).toInt()}',
                 ),
                 if (_notesController.text.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -799,10 +1365,15 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '• Tu cita quedará pendiente de confirmación\n'
-                  '• El psicólogo confirmará en un máximo de 24 horas\n'
-                  '• Recibirás una notificación cuando sea confirmada\n'
-                  '• Podrás cancelar hasta 2 horas antes de la cita',
+                  _isPremium
+                      ? '• Tu cita quedará confirmada inmediatamente\n'
+                            '• Recibirás una notificación de confirmación\n'
+                            '• Esta sesión está incluida en tu plan Premium\n'
+                            '• Podrás cancelar hasta 2 horas antes de la cita'
+                      : '• Tu cita requiere pago antes de ser confirmada\n'
+                            '• Serás dirigido al proceso de pago\n'
+                            '• La cita se confirmará después del pago exitoso\n'
+                            '• Podrás cancelar hasta 2 horas antes de la cita',
                   style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'Poppins',
@@ -924,7 +1495,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                           ),
                         )
                       : Text(
-                          _currentStep == 3 ? 'Confirmar Cita' : 'Siguiente',
+                          _currentStep == 3
+                              ? (_isPremium
+                                    ? 'Confirmar Cita'
+                                    : 'Continuar al Pago')
+                              : 'Siguiente',
                           style: const TextStyle(
                             color: Colors.white,
                             fontFamily: 'Poppins',
@@ -968,7 +1543,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       case 1:
         return _selectedTimeSlot != null;
       case 2:
-        return true; 
+        return true;
       case 3:
         return _selectedDate != null && _selectedTimeSlot != null;
       default:
@@ -978,24 +1553,31 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
 
   void _bookAppointment() {
     if (_selectedDate != null && _selectedTimeSlot != null) {
-      final appointmentDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTimeSlot!.dateTime.hour,
-        _selectedTimeSlot!.dateTime.minute,
-      );
+      if (_isPremium) {
+        // Si es premium, agendar normalmente
+        final appointmentDateTime = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTimeSlot!.dateTime.hour,
+          _selectedTimeSlot!.dateTime.minute,
+        );
 
-      context.read<AppointmentBloc>().add(
-        BookAppointmentEvent(
-          psychologistId: widget.psychologist.uid,
-          scheduledDateTime: appointmentDateTime,
-          type: _selectedType,
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
-        ),
-      );
+        context.read<AppointmentBloc>().add(
+          BookAppointmentEvent(
+            psychologistId: widget.psychologist.uid,
+            scheduledDateTime: appointmentDateTime,
+            patientId: FirebaseAuth.instance.currentUser!.uid,
+            type: _selectedType,
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
+          ),
+        );
+      } else {
+        // Si no es premium, ir directamente al pago SIN agendar
+        _navigateToPaymentScreen();
+      }
     }
   }
 
@@ -1035,7 +1617,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     return '$weekday, $day de $month de $year';
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog({bool isPaidSession = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1055,7 +1637,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              '¡Cita agendada!',
+              isPaidSession
+                  ? '¡Sesión pagada, tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto!'
+                  : '¡Cita agendada!',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -1065,7 +1649,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto.',
+              isPaidSession
+                  ? 'Tu pago ha sido procesado y tu sesión está lista para ser confirmada.'
+                  : _isPremium
+                  ? 'Tu sesión Premium está confirmada. ¡Nos vemos pronto!'
+                  : 'Tu cita ha sido enviada al psicólogo. Recibirás una confirmación pronto.',
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,
@@ -1078,8 +1666,14 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Cerrar diálogo
-                  Navigator.of(context).pop(); // Volver a la pantalla anterior
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const PatientAppointmentsListScreen(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.lightAccentColor,
@@ -1114,4 +1708,30 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       ),
     );
   }
+}
+
+Widget _buildLegendItem({
+  required Color color,
+  required String label,
+  required IconData icon,
+}) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(
+        icon,
+        size: 18,
+        color: color,
+      ),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  );
 }
