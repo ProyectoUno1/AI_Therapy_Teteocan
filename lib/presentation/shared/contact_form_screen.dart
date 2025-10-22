@@ -45,14 +45,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     {'value': 'feedback', 'label': 'Sugerencia', 'icon': Icons.feedback},
   ];
 
-  String get _baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    }
-    return 'https://tu-servidor.com';
-  }
+ static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   @override
   void dispose() {
@@ -122,7 +115,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     try {
 
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/support/tickets'),
+        Uri.parse('$baseUrl/api/support/tickets'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

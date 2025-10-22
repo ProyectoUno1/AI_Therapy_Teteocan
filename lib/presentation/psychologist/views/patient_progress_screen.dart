@@ -47,7 +47,7 @@ class _PatientProgressScreenState extends State<PatientProgressScreen> {
       final startDate = endDate.subtract(Duration(days: days));
 
       final emotionRepo = EmotionRepositoryImpl(
-        dataSource: EmotionRemoteDataSource(baseUrl: 'http://10.0.2.2:3000'),
+        dataSource: EmotionRemoteDataSource(baseUrl: 'https://ai-therapy-teteocan.onrender.com/api'),
       );
       final emotions = await emotionRepo.getEmotionsByDateRange(
         widget.patientId,

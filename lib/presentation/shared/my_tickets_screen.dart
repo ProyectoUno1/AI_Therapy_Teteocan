@@ -32,14 +32,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
     {'value': 'closed', 'label': 'Cerrados', 'icon': Icons.cancel},
   ];
 
-  String get _baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    }
-    return 'https://tu-servidor.com';
-  }
+  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   @override
   void initState() {

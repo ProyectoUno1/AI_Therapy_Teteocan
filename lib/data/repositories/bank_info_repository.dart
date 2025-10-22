@@ -5,7 +5,7 @@ import 'package:ai_therapy_teteocan/data/models/payment_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class BankInfoRepository {
-  static const String _baseUrl = 'http://10.0.2.2:3000/api';
+  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   BankInfoRepository();

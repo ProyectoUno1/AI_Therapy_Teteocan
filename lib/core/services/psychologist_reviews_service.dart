@@ -37,7 +37,7 @@ class PsychologistReview {
 }
 
 class PsychologistReviewsService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   static Future<String?> _getAuthToken() async {
     try {

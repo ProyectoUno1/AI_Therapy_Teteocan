@@ -78,8 +78,8 @@ app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
 app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
 app.use('/api', fcmRoutes);
-app.use('/articles', articleRouter);
-app.use('/articles/public', articleRouter);
+app.use('/api/articles', articleRouter);
+app.use('/api/articles/public', articleRouter);
 app.use("/api/support", supportRoutes);
 app.use('/api', bankInfoRoutes);
 
