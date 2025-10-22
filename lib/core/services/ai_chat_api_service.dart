@@ -8,7 +8,7 @@ class AiChatApiService {
   final String _baseUrl = 'http://10.0.2.2:3000/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<Map<String, dynamic>> sendMessage(String message) async {
+  Future<String> sendMessage(String message) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw Exception('Usuario no autenticado.');
@@ -16,6 +16,8 @@ class AiChatApiService {
 
     final idToken = await user.getIdToken();
     final url = Uri.parse('$_baseUrl/chats/ai-chat/messages');
+    
+    print('📤 Enviando mensaje a IA: "$message"');
     
     final response = await http.post(
       url,
@@ -29,10 +31,49 @@ class AiChatApiService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+      final aiMessage = data['aiMessage'];
+      print('📥 Respuesta de IA recibida: "$aiMessage"');
+      return aiMessage;
     } else {
       final errorData = jsonDecode(response.body);
       throw Exception(errorData['error'] ?? 'Error al enviar mensaje al backend.');
+    }
+  }
+
+  // ✅ NUEVO MÉTODO PARA CARGAR MENSAJES DE IA
+  Future<List<dynamic>> loadAIChatMessages() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado.');
+    }
+
+    final idToken = await user.getIdToken();
+    final url = Uri.parse('$_baseUrl/chats/ai-chat/messages');
+    
+    print('📥 Cargando mensajes de chat IA...');
+    
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> messages = jsonDecode(response.body);
+      print('📨 Mensajes de IA cargados: ${messages.length} mensajes');
+      
+      // Log de depuración
+      for (var msg in messages) {
+        print('   💬 Mensaje: "${msg['content']}" | isAI: ${msg['isAI']}');
+      }
+      
+      return messages;
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['error'] ?? 'Error al cargar mensajes del chat.');
     }
   }
 }

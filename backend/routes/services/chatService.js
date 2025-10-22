@@ -1,17 +1,12 @@
-/// backend/routes/services/chatService.js (VERSIÓN OPTIMIZADA CON FIX)
+/// backend/routes/services/chatService.js
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
-import { encrypt } from './encryptionUtils.js';
+import { encrypt, decrypt } from '../../utils/encryptionUtils.js';
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
-
-// ENCRIPTAR el contenido del mensaje
-const encryptedContent = encrypt(messageContent);
-// ENCRIPTAR la respuesta de la IA
-const encryptedAIResponse = encrypt(aiResponseContent);
 
 
 const validateMessageLimit = async (userId) => {
@@ -71,13 +66,15 @@ async function getOrCreateAIChatId(userId) {
             });
 
             const messagesCollection = chatRef.collection('messages');
+            const welcomeMessageContent = encrypt(`¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`);
+            
             const welcomeMessage = {
                 senderId: 'aurora',
-                content: `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`,
+                content: welcomeMessageContent,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
-                isWelcomeMessage: true, // 🔥 MARCADOR PARA IDENTIFICARLO
+                isWelcomeMessage: true, 
             };
             await messagesCollection.add(welcomeMessage);
 
@@ -105,10 +102,11 @@ async function processUserMessage(userId, messageContent) {
         const chatId = userId;
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
-
+        const encryptedUserContent = encrypt(messageContent);
+        
         const userMessageData = {
             senderId: userId,
-            content: encryptedContent,
+            content: encryptedUserContent, // Guardar encriptado
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
@@ -123,9 +121,11 @@ async function processUserMessage(userId, messageContent) {
         const history = snapshot.docs
             .map(doc => {
                 const data = doc.data();
+                const decryptedContent = decrypt(data.content); 
+                
                 return {
                     isAI: data.isAI || false,
-                    content: data.content,
+                    content: decryptedContent,
                     timestamp: data.timestamp,
                     isWelcomeMessage: data.isWelcomeMessage || false, 
                 };
@@ -149,9 +149,11 @@ async function processUserMessage(userId, messageContent) {
             throw new Error('Respuesta vacía de Gemini');
         }
 
+        const encryptedAIResponse = encrypt(aiResponseContent);
+
         const aiMessageData = {
             senderId: 'aurora',
-            content: encryptedAIResponse,
+            content: encryptedAIResponse, // Guardar encriptado
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
@@ -178,6 +180,7 @@ async function processUserMessage(userId, messageContent) {
     }
 }
 
+// En la función loadChatMessages de chatService.js - AGREGAR ESTOS LOGS
 
 async function loadChatMessages(chatId) {
     try {
@@ -190,12 +193,23 @@ async function loadChatMessages(chatId) {
             .orderBy('timestamp', 'asc')
             .get();
 
+        console.log(`[ChatService] 📥 Cargando ${snapshot.size} mensajes para chat: ${chatId}`);
+
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
+            const decryptedContent = decrypt(data.content);
+
+            // 🎯 LOGS DE DEPURACIÓN CRÍTICOS
+            console.log(`[ChatService] Mensaje ${doc.id}:`);
+            console.log(`   - Encriptado en DB: ${data.content.substring(0, 30)}...`);
+            console.log(`   - Desencriptado: "${decryptedContent.substring(0, 50)}..."`);
+            console.log(`   - isAI: ${data.isAI}`);
+            console.log(`   - senderId: ${data.senderId}`);
+
             return {
                 id: doc.id,
                 senderId: data.senderId,
-                content: data.content,
+                content: decryptedContent, // ← Esto va desencriptado al frontend
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
@@ -216,7 +230,7 @@ function getAuroraSystemPrompt() {
 
 ## 🎯 IDENTIDAD FUNDAMENTAL
 
-Eres **Aurora**, una asistente de IA especializada en apoyo emocional operando en la app "Teteocan" en México. Tu nombre simboliza esperanza y renovación emocional.
+Eres **Aurora**, una asistente de IA especializada en apoyo emocional operando en la app "Aurora AI Therapy" en México. Tu nombre simboliza esperanza y renovación emocional.
 
 **Misión:** Proporcionar un espacio terapéutico seguro, empático y profesional.
 
@@ -308,7 +322,7 @@ Ni urgente ni importante: Elimina"
 📞 **LÍNEAS DE CRISIS 24/7 EN MÉXICO:**
 
 **Línea de la Vida:** 800 911 2000
-**SAPTEL:** 55 5259 8121  
+**SAPTEL:** 55 5259 8121  
 **Emergencias:** 911
 **Locatel CDMX:** 55 5658 1111
 
@@ -432,11 +446,8 @@ Estoy aquí cuando me necesites. 💙"
 4. Valida sin juzgar
 5. Mantén límites profesionales
 
-**Tu objetivo: ACOMPAÑAR, VALIDAR, OFRECER HERRAMIENTAS y CONECTAR CON AYUDA PROFESIONAL.**
-
-Eres a menudo el primer contacto en crisis. Tu respuesta puede salvar vidas. ✨`;
+**Tu objetivo: ACOMPAÑAR, VALIDAR, OFRECER HERRAMIENTAS y CONECTAR CON AYUDA PROFESIONAL. Somos un puente.** ✨`;
 }
-
 
 
 export {

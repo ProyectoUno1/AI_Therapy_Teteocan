@@ -17,13 +17,10 @@ import supportRoutes from "./routes/supportRoutes.js";
 import bankInfoRoutes from './routes/bankInfoRoutes.js';
 
 const app = express();
-
-// --- Configuración CORS para desarrollo y producción ---
 const allowedOrigins = process.env.NODE_ENV === "production"
   ? [
       process.env.FRONTEND_URL,
       'https://ai-therapy-teteocan.onrender.com',
-      // Agrega aquí otros dominios permitidos en producción
     ].filter(Boolean)
   : [
       "http://localhost:3000",
@@ -33,7 +30,6 @@ const allowedOrigins = process.env.NODE_ENV === "production"
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Permitir requests sin origin (como mobile apps o Postman)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== "production") {

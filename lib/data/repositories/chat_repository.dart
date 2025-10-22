@@ -101,43 +101,91 @@ class ChatRepository {
     }
   }
 
-  Future<String> sendAIMessage(String chatId, String message) async {
+   Future<String> sendAIMessage(String message) async {
     try {
+
       final response = await http.post(
-        Uri.parse('$_baseUrl/ai/chat'),
+        Uri.parse('$_baseUrl/chats/ai-chat/messages'),
         headers: await _getHeaders(),
         body: jsonEncode({
-          'chatId': chatId,
           'message': message,
         }),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['aiMessage'];
+        final aiMessage = data['aiMessage'] as String;
+        return aiMessage;
       } else {
-        throw Exception('Fallo al enviar mensaje a la IA: ${response.statusCode} - ${response.body}');
+        final errorData = json.decode(response.body);
+        final errorMsg = errorData['error'] ?? 'Error al enviar mensaje a IA';
+        throw Exception(errorMsg);
       }
     } catch (e) {
-      throw Exception('Error de red o servidor al enviar mensaje a la IA: $e');
+      rethrow;
     }
   }
 
-  Future<List<MessageModel>> loadMessages(String chatId) async {
+
+   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
+      if (chatId == _auth.currentUser?.uid || chatId.contains('ai')) {
+        return await loadAIChatMessages();
+      }
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
-        headers: await _getHeaders(), 
+        headers: await _getHeaders(),
       );
+      
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = json.decode(response.body);
-        return jsonList.map((json) => MessageModel.fromJson(json)).toList();
+        
+        return jsonList.map((json) {
+          return MessageModel.fromJson({
+            'id': json['id'] ?? '',
+            'text': json['content'] ?? '', 
+            'isUser': json['senderId'] == _auth.currentUser?.uid,
+            'senderId': json['senderId'] ?? '',
+            'receiverId': json['receiverId'],
+            'timestamp': json['timestamp'],
+            'isRead': json['isRead'] ?? false,
+          });
+        }).toList();
       } else {
-        throw Exception('Fallo al cargar mensajes: ${response.statusCode} - ${response.body}');
+        throw Exception('Error al cargar mensajes: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error de red o servidor al cargar mensajes: $e');
+      rethrow;
     }
   }
+
+ Future<List<MessageModel>> loadAIChatMessages() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/chats/ai-chat/messages'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+        
+        return jsonList.map((json) {
+          return MessageModel.fromJson({
+            'id': json['id'] ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
+            'text': json['text'] ?? '', 
+            'isUser': json['isUser'] ?? false, 
+            'senderId': json['senderId'] ?? '',
+            'timestamp': json['timestamp'],
+            'isRead': true, 
+          });
+        }).toList();
+      } else {
+        throw Exception('Error al cargar mensajes: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
 
 Future<void> markMessagesAsReadFirestore({
   required String chatId,

@@ -1,4 +1,4 @@
-// ai_chat_screen.dart 
+// ai_chat_screen.dart - VERSIÓN CORREGIDA
 import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,14 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_event.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/bloc/chat_state.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
-import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
-import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/ai_usage_limit_indicator.dart';
+import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart'; 
 
 class AIChatScreen extends StatefulWidget {
@@ -27,12 +21,14 @@ class AIChatScreen extends StatefulWidget {
 class _AIChatScreenState extends State<AIChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ChatRepository _chatRepository = ChatRepository();
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   
+  List<MessageModel> _messages = [];
+  bool _isLoading = false;
+  bool _isSending = false;
   bool _isUserScrolling = false;
-  int _previousMessageCount = 0;
-  
   
   StreamSubscription<DocumentSnapshot>? _userSubscription;
   int _usedMessages = 0;
@@ -42,21 +38,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   void initState() {
     super.initState();
-  
     _scrollController.addListener(_onScrollListener);
-    
-
     _startListeningToUserData();
-    
-    // Inicializar el chat
-    final authState = context.read<AuthBloc>().state;
-    if (authState.isAuthenticatedPatient) {
-      final userId = authState.patient!.uid;
-      context.read<ChatBloc>().add(InitAIChat(userId));
-    }
+    _loadMessages();
   }
 
-  
   void _startListeningToUserData() {
     final userId = _auth.currentUser?.uid;
     if (userId != null) {
@@ -69,7 +55,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           final data = snapshot.data()!;
           setState(() {
             _usedMessages = data['messageCount'] ?? 0;
-            // Si es premium, límite muy alto, sino 5 mensajes
             _messageLimit = data['isPremium'] == true ? 99999 : 5;
             _isPremium = data['isPremium'] == true;
           });
@@ -82,7 +67,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     if (_scrollController.position.isScrollingNotifier.value) {
       _isUserScrolling = true;
       
-      if (_scrollController.offset <= _scrollController.position.minScrollExtent + 100) {
+      if (_scrollController.offset >= _scrollController.position.maxScrollExtent - 100) {
         _isUserScrolling = false;
       }
     }
@@ -97,26 +82,135 @@ class _AIChatScreenState extends State<AIChatScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+  Future<void> _loadMessages() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      print('🔄 Cargando mensajes desde API...');
+      final messages = await _chatRepository.loadAIChatMessages();
+      
+      print('✅ Mensajes cargados: ${messages.length}');
+      for (var msg in messages) {
+        print('   💬 "${msg.content}" | isUser: ${msg.isUser} | Timestamp: ${msg.timestamp}');
+      }
+      
+      // ✅ CORREGIDO: Ordenar mensajes por timestamp (más antiguo primero)
+      messages.sort((a, b) {
+        final aTime = a.timestamp ?? DateTime(0);
+        final bTime = b.timestamp ?? DateTime(0);
+        return aTime.compareTo(bTime);
+      });
+      
+      setState(() {
+        _messages = messages;
+        _isLoading = false;
+      });
+      
+      _scrollToBottom();
+      
+    } catch (e) {
+      print('❌ Error cargando mensajes: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar mensajes: $e')),
+      );
+    }
+  }
 
-   
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty || _isSending) return;
+
+    // Verificar límite de mensajes
     if (!_isPremium && _usedMessages >= _messageLimit) {
-      // Mostrar mensaje de límite alcanzado
       _showLimitReachedDialog();
       return;
     }
 
-    context.read<ChatBloc>().add(
-      SendMessageEvent(_messageController.text.trim(), _auth.currentUser!.uid),
-    );
+    setState(() {
+      _isSending = true;
+    });
 
+    // Agregar mensaje usuario localmente
+    final userMessage = MessageModel(
+      id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+      content: message,
+      isUser: true,
+      senderId: 'user',
+      timestamp: DateTime.now(),
+    );
+    
+    setState(() {
+      _messages.add(userMessage); // Se agrega al final (más reciente)
+    });
+    
     _messageController.clear();
-    _isUserScrolling = false;
     _scrollToBottom();
+
+    try {
+      print('📤 Enviando mensaje: "$message"');
+      final aiResponse = await _chatRepository.sendAIMessage(message);
+      
+      print('✅ Respuesta IA: "$aiResponse"');
+      
+      // Remover mensaje temporal y agregar mensajes reales
+      setState(() {
+        _messages.removeWhere((msg) => msg.id.startsWith('temp-'));
+        
+        // Agregar mensaje usuario confirmado
+        final userMessageReal = MessageModel(
+          id: 'user-${DateTime.now().millisecondsSinceEpoch}',
+          content: message,
+          isUser: true,
+          senderId: 'user',
+          timestamp: DateTime.now(),
+        );
+        
+        // Agregar respuesta IA
+        final aiMessage = MessageModel(
+          id: 'ai-${DateTime.now().millisecondsSinceEpoch}',
+          content: aiResponse,
+          isUser: false,
+          senderId: 'aurora',
+          timestamp: DateTime.now(),
+        );
+        
+        // ✅ CORREGIDO: Agregar en orden cronológico (al final)
+        _messages.add(userMessageReal);
+        _messages.add(aiMessage);
+      });
+      
+      _scrollToBottom();
+      
+    } catch (e) {
+      print('❌ Error enviando mensaje: $e');
+      
+      // Remover mensaje temporal si falló
+      setState(() {
+        _messages.removeWhere((msg) => msg.id.startsWith('temp-'));
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al enviar mensaje: $e'),
+          action: SnackBarAction(
+            label: 'Reintentar',
+            onPressed: _sendMessage,
+          ),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
+    }
   }
 
-  
   void _showLimitReachedDialog() {
     showDialog(
       context: context,
@@ -138,7 +232,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
             child: const Text('Cerrar'),
           ),
           ElevatedButton(
-            
             onPressed: () {
               Navigator.pop(context);
               Navigator.push(
@@ -165,19 +258,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients && !_isUserScrolling) {
         _scrollController.animateTo(
-          _scrollController.position.minScrollExtent,
+          _scrollController.position.maxScrollExtent, // ✅ Ir al final (mensaje más reciente)
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
-  }
-
-  void _autoScrollOnNewMessage(int currentMessageCount) {
-    if (currentMessageCount > _previousMessageCount && !_isUserScrolling) {
-      _scrollToBottom();
-    }
-    _previousMessageCount = currentMessageCount;
   }
 
   Widget _buildTypingIndicator() {
@@ -197,7 +283,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Aurora está escribiendo'),
+              const Text('Aurora está escribiendo...'),
               const SizedBox(width: 8),
               SizedBox(
                 width: 20,
@@ -216,197 +302,65 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final userId = _auth.currentUser?.uid;
-
-    if (userId == null) {
-      return const Scaffold(
-        body: Center(child: Text('Error: Usuario no autenticado')),
-      );
-    }
-
-    final messagesStream = _firestore
-        .collection('ai_chats')
-        .doc(userId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
-
-    
-    final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: AppConstants.lightAccentColor,
-              child: Icon(
-                Icons.psychology,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Aurora AI',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                Text(
-                  'Siempre disponible',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.more_vert, color: Colors.grey[700]),
-            onPressed: () {
-              // Opciones adicionales
-            },
-          ),
-        ],
-      ),
-      body: Column(
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: BlocListener<ChatBloc, ChatState>(
-                listenWhen: (previous, current) {
-                  return previous.isTyping != current.isTyping;
-                },
-                listener: (context, state) {
-                  if (!state.isTyping) {
-                    Future.delayed(const Duration(milliseconds: 500), () {
-                      _scrollToBottom();
-                    });
-                  }
-                },
-                child: BlocBuilder<ChatBloc, ChatState>(
-                  builder: (context, state) {
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: messagesStream,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Text(
-                              'Error: ${snapshot.error}',
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          );
-                        }
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.psychology,
-                                  size: 64,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Hola! Soy Aurora 🌟',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Inicia la conversación para comenzar',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        final messages = snapshot.data!.docs.map((doc) {
-                          return MessageModel.fromFirestore(doc, userId);
-                        }).toList();
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _autoScrollOnNewMessage(messages.length);
-                        });
-
-                        return ListView.builder(
-                          controller: _scrollController,
-                          reverse: true,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: messages.length + (state.isTyping ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (state.isTyping && index == 0) {
-                              return _buildTypingIndicator();
-                            }
-
-                            final messageIndex = state.isTyping ? index - 1 : index;
-
-                            if (messageIndex >= 0 && messageIndex < messages.length) {
-                              final message = messages[messageIndex];
-                              return MessageBubble(
-                                message: message,
-                                isMe: message.isUser,
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
+          Icon(
+            Icons.psychology,
+            size: 64,
+            color: Colors.grey,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Hola! Soy Aurora 🌟',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
             ),
           ),
-          BlocBuilder<ChatBloc, ChatState>(
-            builder: (context, state) {
-             
-              if (isLimitReached || state.isMessageLimitReached) {
-                return _buildSubscriptionPrompt(context);
-              } else {
-                return _buildMessageInput(context, state.isLoading);
-              }
-            },
+          SizedBox(height: 8),
+          Text(
+            'Inicia la conversación para comenzar',
+            style: TextStyle(
+              color: Colors.grey,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageInput(BuildContext context, bool isLoading) {
-    // Determinar si mostrar límite alcanzado basado en datos locales
+  Widget _buildMessagesList(List<MessageModel> messages) {
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: false, // ✅ NO invertir - orden natural
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: messages.length + (_isSending ? 1 : 0),
+      itemBuilder: (context, index) {
+        // Si está enviando, mostrar indicador al FINAL de la lista
+        if (_isSending && index == messages.length) {
+          return _buildTypingIndicator();
+        }
+
+        // Mensajes normales en orden cronológico
+        if (index < messages.length) {
+          final message = messages[index];
+          return MessageBubble(
+            message: message,
+            isMe: message.isUser,
+          );
+        }
+        
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildMessageInput() {
     final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
-    
-    // Mostrar progreso hacia el límite si no es premium
     final bool showWarning = !_isPremium && _usedMessages >= _messageLimit - 1;
     
     return Container(
@@ -416,7 +370,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         child: Column(
           children: [
             // Mostrar advertencia cuando queda 1 mensaje
-            if (showWarning && !isLoading && !isLimitReached)
+            if (showWarning && !_isSending && !isLimitReached)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 8),
@@ -427,8 +381,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber, 
-                         color: Colors.orange, size: 20),
+                    Icon(Icons.warning_amber, color: Colors.orange, size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -447,17 +400,17 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
-                    enabled: !isLoading && !isLimitReached,
+                    enabled: !_isSending && !isLimitReached,
                     decoration: InputDecoration(
                       hintText: isLimitReached
                           ? 'Límite de mensajes alcanzado'
-                          : isLoading 
+                          : _isSending 
                               ? 'Aurora está pensando...' 
                               : 'Escribe un mensaje...',
                       hintStyle: TextStyle(
                         color: isLimitReached 
                             ? Colors.red.shade400
-                            : isLoading 
+                            : _isSending 
                                 ? Colors.grey.shade400 
                                 : Colors.grey,
                         fontFamily: 'Poppins',
@@ -469,7 +422,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       filled: true,
                       fillColor: isLimitReached
                           ? Colors.red.shade50
-                          : isLoading 
+                          : _isSending 
                               ? Colors.grey[200] 
                               : Colors.grey[100],
                       contentPadding: const EdgeInsets.symmetric(
@@ -477,7 +430,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         vertical: 10,
                       ),
                     ),
-                    onSubmitted: (isLoading || isLimitReached) ? null : (_) => _sendMessage(),
+                    onSubmitted: (_isSending || isLimitReached) ? null : (_) => _sendMessage(),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
                   ),
@@ -485,13 +438,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: (isLoading || isLimitReached)
+                    color: (_isSending || isLimitReached)
                         ? Colors.grey 
                         : AppConstants.lightAccentColor,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: isLoading 
+                    icon: _isSending 
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -504,7 +457,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                             isLimitReached ? Icons.lock : Icons.send_rounded,
                             color: Colors.white,
                           ),
-                    onPressed: (isLoading || isLimitReached) ? null : _sendMessage,
+                    onPressed: (_isSending || isLimitReached) ? null : _sendMessage,
                   ),
                 ),
               ],
@@ -584,6 +537,90 @@ class _AIChatScreenState extends State<AIChatScreen> {
               elevation: 2,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: AppConstants.lightAccentColor,
+              child: const Icon(
+                Icons.psychology,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aurora AI',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                Text(
+                  'Siempre disponible',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.grey),
+            onPressed: _loadMessages,
+            tooltip: 'Recargar mensajes',
+          ),
+          IconButton(
+            icon: Icon(Icons.more_vert, color: Colors.grey[700]),
+            onPressed: () {
+              // Opciones adicionales
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_isLoading && _messages.isEmpty)
+            const LinearProgressIndicator(),
+            
+          Expanded(
+            child: Container(
+              color: Colors.grey[50],
+              child: _isLoading && _messages.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _messages.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMessagesList(_messages),
+            ),
+          ),
+          
+          isLimitReached 
+              ? _buildSubscriptionPrompt(context)
+              : _buildMessageInput(),
         ],
       ),
     );
