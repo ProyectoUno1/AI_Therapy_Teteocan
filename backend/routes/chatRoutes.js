@@ -2,28 +2,30 @@
 
 import express from 'express'; 
 import { db } from '../firebase-admin.js'; 
-import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js'; // Asumiendo este módulo existe
 import { FieldValue } from 'firebase-admin/firestore';
-import { createNotification } from './notifications.js';
-import { encrypt } from '../utils/encryptionUtils.js';
+import { createNotification } from './notifications.js'; // Asumiendo este módulo existe
+import { encrypt, decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
-
-const encryptedContent = encrypt(content);
 
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId, senderId, receiverId, content } = req.body;
+        
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ error: 'ID de remitente no coincide con el usuario autenticado.' });
         }
 
-        // Guardar el mensaje
+        // 🟢 Encriptación del contenido
+        const encryptedContent = encrypt(content);
+
+        // Guardar el mensaje ENCRIPTADO
         const messageRef = db.collection('chats').doc(chatId).collection('messages');
         await messageRef.add({
             senderId,
             receiverId,
-            content: encryptedContent,
+            content: encryptedContent, // Usar contenido encriptado
             isRead: false, 
             timestamp: FieldValue.serverTimestamp(), 
         });
@@ -43,9 +45,8 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                     }
                 }
 
-
-                // CREAR NOTIFICACIÓN DIRECTAMENTE EN FIRESTORE 
-                const encryptedMessagePreview = encrypt(content); // Encriptar el cuerpo de la notificación
+                // Crear Notificación
+                const encryptedMessagePreview = encrypt(content);
                 const notificationBody = `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`;
                 const notificationRef = db.collection('notifications').doc();
                 await notificationRef.set({
@@ -59,7 +60,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                         chatId: chatId,
                         senderId: senderId,
                         senderName: senderName,
-                        messagePreview: encryptedMessagePreview,
+                        messagePreview: encryptedMessagePreview, // Guardar encriptado
                         timestamp: new Date().toISOString()
                     }
                 });
@@ -131,9 +132,13 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         const querySnapshot = await q.get();
         const messages = querySnapshot.docs.map(doc => {
             const data = doc.data();
+            
+            // 🟢 Desencriptar directamente. El manejo de errores está en encryptionUtils.js
+            const decryptedContent = decrypt(data.content);
+            
             return {
                 id: doc.id,
-                content: decrypt(data.content),
+                content: decryptedContent,
                 senderId: data.senderId,
                 receiverId: data.receiverId,
                 isRead: data.isRead || false, 
