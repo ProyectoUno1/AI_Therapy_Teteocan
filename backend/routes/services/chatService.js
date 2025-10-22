@@ -1,13 +1,11 @@
-/// backend/routes/services/chatService.js
+// backend/routes/services/chatService.js - CON SOPORTE E2EE
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
-import { encrypt, decrypt } from '../../utils/encryptionUtils.js';
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
-
 
 const validateMessageLimit = async (userId) => {
     try {
@@ -20,7 +18,6 @@ const validateMessageLimit = async (userId) => {
                 isPremium: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            
             return false;
         }
 
@@ -28,18 +25,13 @@ const validateMessageLimit = async (userId) => {
         const isPremium = userData.isPremium || false;
         const messageCount = userData.messageCount || 0;
 
-        if (isPremium) {
-            return false;
-        }
-
-        const isLimitReached = messageCount >= FREE_MESSAGE_LIMIT;
-        return isLimitReached;
+        if (isPremium) return false;
+        return messageCount >= FREE_MESSAGE_LIMIT;
 
     } catch (error) {
         return true;
     }
 };
-
 
 async function getOrCreateAIChatId(userId) {
     try {
@@ -66,18 +58,20 @@ async function getOrCreateAIChatId(userId) {
             });
 
             const messagesCollection = chatRef.collection('messages');
-            const welcomeMessageContent = encrypt(`¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`);
+            
+            // ⚠️ Mensaje de bienvenida en TEXTO PLANO (será cifrado en cliente)
+            const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
             
             const welcomeMessage = {
                 senderId: 'aurora',
-                content: welcomeMessageContent,
+                content: welcomeMessageContent, // SIN CIFRAR - se cifrará en cliente
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
-                isWelcomeMessage: true, 
+                isWelcomeMessage: true,
+                isE2EE: false, // Flag para identificar mensajes no cifrados
             };
             await messagesCollection.add(welcomeMessage);
-
         } else {
             await chatRef.update({
                 lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -91,7 +85,13 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
-async function processUserMessage(userId, messageContent) {
+/**
+ * ✅ FUNCIÓN CON SOPORTE E2EE
+ * @param {string} userId - ID del usuario
+ * @param {string} plainMessage - Mensaje en texto plano (para Gemini)
+ * @param {string} encryptedMessage - Mensaje cifrado (para guardar en BD)
+ */
+async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
     const startTime = Date.now();
     try {
         const isLimitReached = await validateMessageLimit(userId);
@@ -102,36 +102,19 @@ async function processUserMessage(userId, messageContent) {
         const chatId = userId;
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
-        const encryptedUserContent = encrypt(messageContent);
         
+        // ✅ Guardar mensaje del usuario CIFRADO
         const userMessageData = {
             senderId: userId,
-            content: encryptedUserContent, // Guardar encriptado
+            content: encryptedMessage || plainMessage, // Usar cifrado si existe
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
+            isE2EE: !!encryptedMessage, // Flag E2EE si hay mensaje cifrado
         };
         await messagesCollection.add(userMessageData);
 
-        const snapshot = await messagesCollection
-            .orderBy('timestamp', 'desc')
-            .limit(MAX_HISTORY_MESSAGES)
-            .get();
-
-        const history = snapshot.docs
-            .map(doc => {
-                const data = doc.data();
-                const decryptedContent = decrypt(data.content); 
-                
-                return {
-                    isAI: data.isAI || false,
-                    content: decryptedContent,
-                    timestamp: data.timestamp,
-                    isWelcomeMessage: data.isWelcomeMessage || false, 
-                };
-            })
-            .reverse();
-
+        // ✅ Obtener respuesta de Gemini con mensaje PLANO
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),
@@ -139,8 +122,7 @@ async function processUserMessage(userId, messageContent) {
 
         const messagesForGemini = [
             systemInstruction,
-            ...history,
-            { isAI: false, content: messageContent }
+            { isAI: false, content: plainMessage }
         ];
 
         const aiResponseContent = await getGeminiChatResponse(messagesForGemini);
@@ -149,17 +131,19 @@ async function processUserMessage(userId, messageContent) {
             throw new Error('Respuesta vacía de Gemini');
         }
 
-        const encryptedAIResponse = encrypt(aiResponseContent);
-
+        // ✅ Guardar respuesta de IA en TEXTO PLANO
+        // (El cliente la cifrará si es necesario al cargarla)
         const aiMessageData = {
             senderId: 'aurora',
-            content: encryptedAIResponse, // Guardar encriptado
+            content: aiResponseContent, // TEXTO PLANO - cliente decide si cifrar
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
+            isE2EE: false, // Las respuestas de IA se guardan sin cifrar por defecto
         };
         await messagesCollection.add(aiMessageData);
 
+        // Actualizar contador de mensajes
         const userRef = db.collection('patients').doc(userId);
         await userRef.update({
             messageCount: admin.firestore.FieldValue.increment(1),
@@ -180,8 +164,7 @@ async function processUserMessage(userId, messageContent) {
     }
 }
 
-// En la función loadChatMessages de chatService.js - AGREGAR ESTOS LOGS
-
+// ✅ Cargar mensajes (sin descifrar - el cliente lo hace)
 async function loadChatMessages(chatId) {
     try {
         const messagesCollection = db
@@ -197,23 +180,16 @@ async function loadChatMessages(chatId) {
 
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
-            const decryptedContent = decrypt(data.content);
 
-            // 🎯 LOGS DE DEPURACIÓN CRÍTICOS
-            console.log(`[ChatService] Mensaje ${doc.id}:`);
-            console.log(`   - Encriptado en DB: ${data.content.substring(0, 30)}...`);
-            console.log(`   - Desencriptado: "${decryptedContent.substring(0, 50)}..."`);
-            console.log(`   - isAI: ${data.isAI}`);
-            console.log(`   - senderId: ${data.senderId}`);
-
+            // ✅ NO DESCIFRAR AQUÍ - enviar tal cual al cliente
             return {
                 id: doc.id,
                 senderId: data.senderId,
-                content: decryptedContent, // ← Esto va desencriptado al frontend
+                content: data.content, // Puede estar cifrado o no
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                attachmentUrl: data.attachmentUrl || null,
+                isE2EE: data.isE2EE || false, // Flag para que cliente sepa si debe descifrar
             };
         });
 

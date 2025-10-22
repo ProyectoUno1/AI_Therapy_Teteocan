@@ -61,6 +61,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
+import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -70,7 +71,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Mensaje en background: ${message.messageId}');
 }
 
-/// Punto de entrada principal de la aplicación.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -78,7 +78,6 @@ void main() async {
   await initializeDateFormatting('es_ES', null);
 
   await FirebaseAppCheck.instance.activate(
-    
     androidProvider: AndroidProvider.debug, 
   );
 
@@ -116,6 +115,28 @@ void main() async {
   final articleRepository = ArticleRepository(baseUrl: ApiConstants.baseUrl);
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 🔐 ESCUCHAR CAMBIOS DE AUTENTICACIÓN PARA E2EE
+  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+    final e2eeService = E2EEService();
+    
+    if (user != null) {
+      try {
+        print('🔐 Inicializando E2EE para usuario: ${user.uid}');
+        await e2eeService.initialize();
+        print('✅ E2EE listo');
+      } catch (e) {
+        print('❌ Error inicializando E2EE: $e');
+      }
+    } else {
+      try {
+        await e2eeService.clearKeys();
+        print('🗑️ Claves E2EE eliminadas');
+      } catch (e) {
+        print('Error limpiando claves: $e');
+      }
+    }
+  });
 
   runApp(
     MultiBlocProvider(
@@ -264,7 +285,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  // Suscripción al estado de autenticación para escuchar los cambios del usuario
   late StreamSubscription<User?> _authStateSubscription;
 
   @override
@@ -273,14 +293,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addObserver(this);
 
-    // Suscribirse a los cambios de estado de autenticación de Firebase
     _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
       user,
     ) {
       if (user != null) {
-        // Usuario ha iniciado sesión
         _setupUserPresence(user.uid);
-
         _loadUserNotifications();
       }
     });
@@ -294,13 +311,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (currentUser != null) {
       switch (state) {
         case AppLifecycleState.resumed:
-          // App viene del background - actualizar presencia y cargar notificaciones
           _setupUserPresence(currentUser.uid);
           _loadUserNotifications();
           break;
         case AppLifecycleState.paused:
         case AppLifecycleState.inactive:
-          // App va al background - marcar como offline
           _setUserOffline(currentUser.uid);
           break;
         case AppLifecycleState.detached:
@@ -335,7 +350,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _loadUserNotifications() {
     final context = navigatorKey.currentContext;
     if (context != null) {
-      // Disparar evento para cargar notificaciones
       context.read<NotificationBloc>().add(
         LoadNotifications(
           userId: FirebaseAuth.instance.currentUser!.uid,
@@ -346,24 +360,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  // Método que configura el estado de presencia del usuario
   void _setupUserPresence(String userId) async {
     final userRealtimeRef = FirebaseDatabase.instance.ref('status/$userId');
 
-    // 1. Establecer el estado inicial en línea en Realtime Database
     await userRealtimeRef.set({
       'isOnline': true,
       'lastSeen': ServerValue.timestamp,
     });
 
-    // 2. Configurar la función onDisconnect en Realtime Database
     userRealtimeRef.onDisconnect().set({
       'isOnline': false,
       'lastSeen': ServerValue.timestamp,
     });
   }
 
-  // --- Temas de la aplicación usando FlexColorScheme ---
   ThemeData _lightTheme() {
     final lightColorScheme = FlexColorScheme.light(scheme: FlexScheme.tealM3);
     return FlexThemeData.light(

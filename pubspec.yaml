@@ -32,6 +32,9 @@ dependencies:
   firebase_storage: ^12.4.10
   fl_chart: ^0.66.0
   firebase_app_check: ^0.3.2+10
+  encrypt: ^5.0.3              # Cifrado AES/RSA
+  pointycastle: ^3.7.3         # Cryptografía (RSA key generation)
+  flutter_secure_storage: ^9.0.0
   
 
 

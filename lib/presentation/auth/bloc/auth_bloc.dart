@@ -1,4 +1,5 @@
 // lib/presentation/auth/bloc/auth_bloc.dart
+// ACTUALIZADO CON E2EE
 
 import 'dart:async';
 import 'dart:developer';
@@ -15,6 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:http/http.dart' as http;
+import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
@@ -22,6 +24,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final RegisterUserUseCase _registerUserUseCase;
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final E2EEService _e2eeService = E2EEService();
 
   late StreamSubscription<dynamic> _userSubscription;
   StreamSubscription<DocumentSnapshot>? _patientDataSubscription;
@@ -53,18 +57,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthAcceptTermsAndConditions>(_onAcceptTermsAndConditions);
 
     log(
-      ' AuthBloc: Inicializando _userSubscription para authStateChanges.',
+      '🔐 AuthBloc: Inicializando _userSubscription para authStateChanges.',
       name: 'AuthBloc',
     );
     _userSubscription = _authRepository.authStateChanges.listen((userProfile) {
       log(
-        ' AuthBloc Subscription: Recibido userProfile del repositorio: ${userProfile?.runtimeType}',
+        '📡 AuthBloc Subscription: Recibido userProfile del repositorio: ${userProfile?.runtimeType}',
         name: 'AuthBloc',
       );
 
       if (userProfile == null) {
         log(
-          ' AuthBloc Subscription: Firebase User es null. Añadiendo AuthStatusChanged para UNATHENTICATED.',
+          '🚪 AuthBloc Subscription: Firebase User es null. Añadiendo AuthStatusChanged para UNAUTHENTICATED.',
           name: 'AuthBloc',
         );
         add(
@@ -76,7 +80,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
       } else if (userProfile is PatientModel) {
         log(
-          ' AuthBloc Subscription: userProfile es PatientModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Patient).',
+          '✅ AuthBloc Subscription: userProfile es PatientModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Patient).',
           name: 'AuthBloc',
         );
         add(
@@ -88,7 +92,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
       } else if (userProfile is PsychologistModel) {
         log(
-          ' AuthBloc Subscription: userProfile es PsychologistModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Psychologist).',
+          '✅ AuthBloc Subscription: userProfile es PsychologistModel. Añadiendo AuthStatusChanged para AUTHENTICATED (Psychologist).',
           name: 'AuthBloc',
         );
         add(
@@ -100,7 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
       } else {
         log(
-          ' AuthBloc Subscription: userProfile es de tipo inesperado: ${userProfile.runtimeType}. Forzando cierre de sesión.',
+          '⚠️ AuthBloc Subscription: userProfile es de tipo inesperado: ${userProfile.runtimeType}. Forzando cierre de sesión.',
           name: 'AuthBloc',
         );
         add(
@@ -120,7 +124,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthStartListeningToPatient event,
     Emitter<AuthState> emit,
   ) {
-    log('AuthBloc: Iniciando escucha de datos del paciente: ${event.userId}', name: 'AuthBloc');
+    log('📊 AuthBloc: Iniciando escucha de datos del paciente: ${event.userId}', name: 'AuthBloc');
     
     // Cancelar suscripción anterior si existe
     _patientDataSubscription?.cancel();
@@ -134,13 +138,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         try {
           final patient = PatientModel.fromFirestore(snapshot, null);
           add(AuthPatientDataUpdated(patient));
-          log('AuthBloc: Datos del paciente actualizados: ${patient.messageCount} mensajes usados', name: 'AuthBloc');
+          log('📈 AuthBloc: Datos del paciente actualizados: ${patient.messageCount} mensajes usados', name: 'AuthBloc');
         } catch (e) {
-          log('AuthBloc: Error parsing patient data: $e', name: 'AuthBloc');
+          log('❌ AuthBloc: Error parsing patient data: $e', name: 'AuthBloc');
         }
       }
     }, onError: (error) {
-      log('AuthBloc: Error listening to patient data: $error', name: 'AuthBloc');
+      log('❌ AuthBloc: Error listening to patient data: $error', name: 'AuthBloc');
     });
   }
 
@@ -148,7 +152,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthStopListeningToPatient event,
     Emitter<AuthState> emit,
   ) {
-    log('AuthBloc: Deteniendo escucha de datos del paciente', name: 'AuthBloc');
+    log('🛑 AuthBloc: Deteniendo escucha de datos del paciente', name: 'AuthBloc');
     _patientDataSubscription?.cancel();
     _patientDataSubscription = null;
   }
@@ -157,70 +161,87 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthPatientDataUpdated event,
     Emitter<AuthState> emit,
   ) {
-    log('AuthBloc: Actualizando estado con nuevos datos del paciente', name: 'AuthBloc');
+    log('🔄 AuthBloc: Actualizando estado con nuevos datos del paciente', name: 'AuthBloc');
     
     if (state.isAuthenticatedPatient && state.patient?.uid == event.patient.uid) {
       emit(state.copyWith(
         patient: event.patient,
       ));
-      log('AuthBloc: Estado actualizado con nuevos datos del paciente', name: 'AuthBloc');
+      log('✅ AuthBloc: Estado actualizado con nuevos datos del paciente', name: 'AuthBloc');
+    }
+  }
+
+  // 🔐 MÉTODO AUXILIAR: Inicializar E2EE después de autenticación
+  Future<void> _initializeE2EE(String userId) async {
+    try {
+      log('🔐 AuthBloc: Inicializando E2EE para usuario: $userId', name: 'AuthBloc');
+      await _e2eeService.initialize();
+      log('✅ AuthBloc: E2EE inicializado correctamente', name: 'AuthBloc');
+    } catch (e) {
+      log('⚠️ AuthBloc: Error inicializando E2EE (continuando sin cifrado): $e', name: 'AuthBloc');
+      // No fallar el login por error de E2EE - continuar en modo degradado
     }
   }
 
   Future<void> _onAuthStarted(
-  AuthStarted event,
-  Emitter<AuthState> emit,
-) async {
-  log(
-    ' AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
-    name: 'AuthBloc',
-  );
+    AuthStarted event,
+    Emitter<AuthState> emit,
+  ) async {
+    log(
+      '🚀 AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
+      name: 'AuthBloc',
+    );
 
-  try {
-    emit(const AuthState.loading());
+    try {
+      emit(const AuthState.loading());
 
-    final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUser = FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null) {
-      log(
-        ' AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
-        name: 'AuthBloc',
-      );
+      if (currentUser != null) {
+        log(
+          '👤 AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
+          name: 'AuthBloc',
+        );
 
-      final userDoc = await _firestore
-          .collection('patients')
-          .doc(currentUser.uid)
-          .get();
+        // 🔐 INICIALIZAR E2EE AL INICIO
+        await _initializeE2EE(currentUser.uid);
 
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        final userRole = userData['role'] as String?;
+        final userDoc = await _firestore
+            .collection('patients')
+            .doc(currentUser.uid)
+            .get();
 
-        if (userRole == 'patient') {
-          final patient = PatientModel.fromFirestore(userDoc, null);
-          emit(
-            AuthState.authenticated(
-              userRole: UserRole.patient,
-              patient: patient,
-            ),
-          );
-          
-          add(AuthStartListeningToPatient(patient.uid));
-        } else if (userRole == 'psychologist') {
-          
-          final psychologistDoc = await _firestore
-              .collection('users')
-              .doc(currentUser.uid)
-              .get();
-          if (psychologistDoc.exists) {
-            final psychologistData = psychologistDoc.data()!;
-            final psychologist = PsychologistModel.fromFirestore(psychologistData);
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final userRole = userData['role'] as String?;
+
+          if (userRole == 'patient') {
+            final patient = PatientModel.fromFirestore(userDoc, null);
             emit(
               AuthState.authenticated(
-                userRole: UserRole.psychologist,
-                psychologist: psychologist,
+                userRole: UserRole.patient,
+                patient: patient,
               ),
             );
+            
+            add(AuthStartListeningToPatient(patient.uid));
+          } else if (userRole == 'psychologist') {
+            final psychologistDoc = await _firestore
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+            if (psychologistDoc.exists) {
+              final psychologistData = psychologistDoc.data()!;
+              final psychologist = PsychologistModel.fromFirestore(psychologistData);
+              emit(
+                AuthState.authenticated(
+                  userRole: UserRole.psychologist,
+                  psychologist: psychologist,
+                ),
+              );
+            } else {
+              emit(const AuthState.unauthenticated());
+            }
           } else {
             emit(const AuthState.unauthenticated());
           }
@@ -228,27 +249,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           emit(const AuthState.unauthenticated());
         }
       } else {
+        log('🚫 AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
         emit(const AuthState.unauthenticated());
       }
-    } else {
-      log(' AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
-      emit(const AuthState.unauthenticated());
+    } catch (e) {
+      log('❌ AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
+      emit(
+        const AuthState.error(errorMessage: 'Error verificando autenticación'),
+      );
     }
-  } catch (e) {
-    log(' AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
-    emit(
-      const AuthState.error(errorMessage: 'Error verificando autenticación'),
-    );
   }
-}
 
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
     log(
-      'DEBUG AUTHBLOC: Inicia procesamiento de _onAuthStatusChanged para evento: ${event.status}',
+      '🔄 DEBUG AUTHBLOC: Inicia procesamiento de _onAuthStatusChanged para evento: ${event.status}',
       name: 'AuthBloc',
     );
     log(
-      ' AuthBloc Event: AuthStatusChanged recibido. Nuevo estado: ${event.status}, Rol: ${event.userRole}, Perfil: ${event.userProfile?.runtimeType}, Mensaje Error: ${event.errorMessage}',
+      '📡 AuthBloc Event: AuthStatusChanged recibido. Nuevo estado: ${event.status}, Rol: ${event.userRole}, Perfil: ${event.userProfile?.runtimeType}, Mensaje Error: ${event.errorMessage}',
       name: 'AuthBloc',
     );
 
@@ -259,6 +277,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     switch (event.status) {
       case AuthStatus.authenticated:
+        // 🔐 INICIALIZAR E2EE AL AUTENTICARSE
+        if (event.userProfile != null) {
+          final userId = event.userProfile is PatientModel 
+              ? (event.userProfile as PatientModel).uid
+              : (event.userProfile as PsychologistModel).uid;
+          _initializeE2EE(userId);
+        }
+
         if (event.userRole == UserRole.patient &&
             event.userProfile is PatientModel) {
           final patient = event.userProfile as PatientModel;
@@ -267,7 +293,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             patient: patient,
           );
           
-         
           add(AuthStartListeningToPatient(patient.uid));
           
         } else if (event.userRole == UserRole.psychologist &&
@@ -278,7 +303,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           );
         } else {
           log(
-            ' AuthBloc Event: AuthStatusChanged (authenticated) con rol/perfil inconsistente. Forzando unauthenticated.',
+            '⚠️ AuthBloc Event: AuthStatusChanged (authenticated) con rol/perfil inconsistente. Forzando unauthenticated.',
             name: 'AuthBloc',
           );
           newState = AuthState.unauthenticated(
@@ -289,20 +314,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           _authRepository.signOut();
         }
         break;
-      case AuthStatus.unauthenticated:
         
+      case AuthStatus.unauthenticated:
+        // 🔐 LIMPIAR CLAVES E2EE AL CERRAR SESIÓN
+        _clearE2EEKeys();
         add(const AuthStopListeningToPatient());
         newState = AuthState.unauthenticated(errorMessage: event.errorMessage);
         break;
+        
       case AuthStatus.loading:
         newState = const AuthState.loading();
         break;
+        
       case AuthStatus.error:
         newState = AuthState.error(errorMessage: event.errorMessage);
         break;
+        
       case AuthStatus.success:
         newState = AuthState.success(errorMessage: event.errorMessage);
         break;
+        
       case AuthStatus.unknown:
       default:
         newState = const AuthState.unknown();
@@ -312,14 +343,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (state != newState) {
       emit(newState);
       log(
-        ' AuthBloc Emitió: Nuevo estado: ${newState.status}. Detalle: ${newState.userRole}, Patient: ${newState.patient != null}, Psychologist: ${newState.psychologist != null}, Error: ${newState.errorMessage}',
+        '✅ AuthBloc Emitió: Nuevo estado: ${newState.status}. Detalle: ${newState.userRole}, Patient: ${newState.patient != null}, Psychologist: ${newState.psychologist != null}, Error: ${newState.errorMessage}',
         name: 'AuthBloc',
       );
     } else {
       log(
-        ' AuthBloc NO EMITIÓ: Nuevo estado es idéntico al actual (${newState.status}). Equatable funcionó.',
+        '⏭️ AuthBloc NO EMITIÓ: Nuevo estado es idéntico al actual (${newState.status}). Equatable funcionó.',
         name: 'AuthBloc',
       );
+    }
+  }
+
+  // 🔐 MÉTODO AUXILIAR: Limpiar claves E2EE
+  Future<void> _clearE2EEKeys() async {
+    try {
+      log('🗑️ AuthBloc: Limpiando claves E2EE...', name: 'AuthBloc');
+      await _e2eeService.clearKeys();
+      log('✅ AuthBloc: Claves E2EE eliminadas del dispositivo', name: 'AuthBloc');
+    } catch (e) {
+      log('⚠️ AuthBloc: Error limpiando claves E2EE: $e', name: 'AuthBloc');
     }
   }
 
@@ -375,7 +417,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     log(
-      ' AuthBloc Event: AuthSignInRequested para ${event.email}',
+      '🔐 AuthBloc Event: AuthSignInRequested para ${event.email}',
       name: 'AuthBloc',
     );
     emit(const AuthState.loading());
@@ -383,18 +425,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await _signInUseCase(email: event.email, password: event.password);
       log(
-        ' AuthBloc Event: SignInUseCase completado. Esperando emisión de authStateChanges.',
+        '✅ AuthBloc Event: SignInUseCase completado. Esperando emisión de authStateChanges.',
         name: 'AuthBloc',
       );
+      
+      // 🔐 E2EE se inicializará automáticamente en _onAuthStatusChanged
+      
     } on AppException catch (e) {
       log(
-        ' AuthBloc Event: Error de AppException al iniciar sesión: ${e.message}',
+        '❌ AuthBloc Event: Error de AppException al iniciar sesión: ${e.message}',
         name: 'AuthBloc',
       );
       emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
       log(
-        ' AuthBloc Event: Error inesperado al iniciar sesión: $e',
+        '❌ AuthBloc Event: Error inesperado al iniciar sesión: $e',
         name: 'AuthBloc',
       );
       emit(
@@ -404,102 +449,111 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onAuthRegisterPatientRequested(
-  AuthRegisterPatientRequested event,
-  Emitter<AuthState> emit,
-) async {
-  log('AuthBloc Event: AuthRegisterPatientRequested para ${event.email}', name: 'AuthBloc');
-  emit(const AuthState.loading());
+    AuthRegisterPatientRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    log('📝 AuthBloc Event: AuthRegisterPatientRequested para ${event.email}', name: 'AuthBloc');
+    emit(const AuthState.loading());
 
-  try {
-    // 1. Registrar paciente
-    await _authRepository.registerPatient(
-      email: event.email,
-      password: event.password,
-      username: event.username,
-      phoneNumber: event.phoneNumber,
-      dateOfBirth: event.dateOfBirth,
-    );
+    try {
+      // 1. Registrar paciente
+      await _authRepository.registerPatient(
+        email: event.email,
+        password: event.password,
+        username: event.username,
+        phoneNumber: event.phoneNumber,
+        dateOfBirth: event.dateOfBirth,
+      );
 
-    log('AuthBloc: Registro exitoso, iniciando sesión automática para ${event.email}', name: 'AuthBloc');
+      log('✅ AuthBloc: Registro exitoso, iniciando sesión automática para ${event.email}', name: 'AuthBloc');
 
-    // 2. Iniciar sesión automáticamente
-    await _signInUseCase(email: event.email, password: event.password);
+      // 2. Iniciar sesión automáticamente
+      await _signInUseCase(email: event.email, password: event.password);
 
-    // 3.Enviar email de verificación
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
-      log('AuthBloc: Email de verificación enviado a ${event.email}', name: 'AuthBloc');
+      // 🔐 3. Inicializar E2EE para el nuevo usuario
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await _initializeE2EE(currentUser.uid);
+      }
+
+      // 4. Enviar email de verificación
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+        log('📧 AuthBloc: Email de verificación enviado a ${event.email}', name: 'AuthBloc');
+      }
+
+      // 5. Emitir éxito
+      emit(const AuthState.success(errorMessage: 'Registro exitoso'));
+      
+    } on AppException catch (e) {
+      log('❌ AuthBloc: Error de AppException al registrar paciente: ${e.message}', name: 'AuthBloc');
+      emit(AuthState.error(errorMessage: e.message));
+    } catch (e) {
+      log('❌ AuthBloc: Error inesperado al registrar paciente: $e', name: 'AuthBloc');
+      emit(AuthState.error(errorMessage: 'Error inesperado al registrar paciente: $e'));
     }
-
-    // 4. Emitir éxito
-    emit(const AuthState.success(errorMessage: 'Registro exitoso'));
-    
-  } on AppException catch (e) {
-    log('AuthBloc: Error de AppException al registrar paciente: ${e.message}', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: e.message));
-  } catch (e) {
-    log('AuthBloc: Error inesperado al registrar paciente: $e', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: 'Error inesperado al registrar paciente: $e'));
   }
-}
 
   Future<void> _onAuthRegisterPsychologistRequested(
-  AuthRegisterPsychologistRequested event,
-  Emitter<AuthState> emit,
-) async {
-  log('AuthBloc: Iniciando registro de psicólogo para ${event.email}', name: 'AuthBloc');
-  emit(const AuthState.loading());
+    AuthRegisterPsychologistRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    log('📝 AuthBloc: Iniciando registro de psicólogo para ${event.email}', name: 'AuthBloc');
+    emit(const AuthState.loading());
 
-  try {
-    // Paso 1: Registrar psicólogo 
-    final psychologist = await _authRepository.registerPsychologist(
-      email: event.email,
-      password: event.password,
-      username: event.username,
-      phoneNumber: event.phoneNumber,
-      professionalLicense: event.professionalLicense,
-      dateOfBirth: event.dateOfBirth,
-    );
-    
-    log('AuthBloc: Psicólogo registrado en Firestore: ${psychologist.uid}', name: 'AuthBloc');
+    try {
+      // Paso 1: Registrar psicólogo 
+      final psychologist = await _authRepository.registerPsychologist(
+        email: event.email,
+        password: event.password,
+        username: event.username,
+        phoneNumber: event.phoneNumber,
+        professionalLicense: event.professionalLicense,
+        dateOfBirth: event.dateOfBirth,
+      );
+      
+      log('✅ AuthBloc: Psicólogo registrado en Firestore: ${psychologist.uid}', name: 'AuthBloc');
 
-    // Paso 2: Iniciar sesión automáticamente
-    await _signInUseCase(email: event.email, password: event.password);
-    log('AuthBloc: Sesión iniciada automáticamente para ${event.email}', name: 'AuthBloc');
+      // Paso 2: Iniciar sesión automáticamente
+      await _signInUseCase(email: event.email, password: event.password);
+      log('✅ AuthBloc: Sesión iniciada automáticamente para ${event.email}', name: 'AuthBloc');
 
-    // Paso 3: Enviar email de verificación
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
-      log('AuthBloc: Email de verificación enviado a ${event.email}', name: 'AuthBloc');
+      // 🔐 Paso 2.5: Inicializar E2EE
+      await _initializeE2EE(psychologist.uid);
+
+      // Paso 3: Enviar email de verificación
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+        log('📧 AuthBloc: Email de verificación enviado a ${event.email}', name: 'AuthBloc');
+      }
+
+      // Paso 4: Emitir éxito (esto dispara la navegación)
+      emit(const AuthState.success(
+        errorMessage: 'Registro completado exitosamente.',
+      ));
+      
+    } on AppException catch (e) {
+      log('❌ AuthBloc: Error AppException al registrar: ${e.message}', name: 'AuthBloc');
+      emit(AuthState.error(errorMessage: e.message));
+    } catch (e) {
+      log('❌ AuthBloc: Error inesperado al registrar: $e', name: 'AuthBloc');
+      emit(AuthState.error(errorMessage: 'Error inesperado: $e'));
     }
-
-    // Paso 4: Emitir éxito (esto dispara la navegación)
-    emit(const AuthState.success(
-      errorMessage: 'Registro completado exitosamente.',
-    ));
-    
-  } on AppException catch (e) {
-    log('AuthBloc: Error AppException al registrar: ${e.message}', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: e.message));
-  } catch (e) {
-    log('AuthBloc: Error inesperado al registrar: $e', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: 'Error inesperado: $e'));
   }
-}
 
   Future<void> _onAuthSignOutRequested(
     AuthSignOutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    log(' AuthBloc Event: AuthSignOutRequested recibido.', name: 'AuthBloc');
+    log('🚪 AuthBloc Event: AuthSignOutRequested recibido.', name: 'AuthBloc');
     emit(const AuthState.loading());
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         log(
-          'AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.',
+          '📴 AuthBloc: Actualizando estado offline de usuario ${currentUser.uid} antes de cerrar sesión.',
           name: 'AuthBloc',
         );
         await _firestore
@@ -511,20 +565,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             }, SetOptions(merge: true));
       }
 
+      // 🔐 LIMPIAR CLAVES E2EE ANTES DE CERRAR SESIÓN
+      await _clearE2EEKeys();
+
       await _authRepository.signOut();
       log(
-        ' AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).',
+        '✅ AuthBloc Event: SignOut completado. Esperando emisión de authStateChanges (unauthenticated).',
         name: 'AuthBloc',
       );
     } on AppException catch (e) {
       log(
-        ' AuthBloc Event: Error de AppException al cerrar sesión: ${e.message}',
+        '❌ AuthBloc Event: Error de AppException al cerrar sesión: ${e.message}',
         name: 'AuthBloc',
       );
       emit(AuthState.error(errorMessage: e.message));
     } catch (e) {
       log(
-        ' AuthBloc Event: Error inesperado al cerrar sesión: $e',
+        '❌ AuthBloc Event: Error inesperado al cerrar sesión: $e',
         name: 'AuthBloc',
       );
       emit(
@@ -534,212 +591,219 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onAuthPasswordResetRequested(
-  AuthPasswordResetRequested event,
-  Emitter<AuthState> emit,
-) async {
-  log(
-    'AuthBloc Event: AuthPasswordResetRequested para ${event.email}',
-    name: 'AuthBloc',
-  );
-  emit(const AuthState.loading());
+    AuthPasswordResetRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    log(
+      '🔑 AuthBloc Event: AuthPasswordResetRequested para ${event.email}',
+      name: 'AuthBloc',
+    );
+    emit(const AuthState.loading());
 
-  try {
-    await _authRepository.sendPasswordResetEmail(email: event.email);
-    log(
-      'AuthBloc: Correo de recuperación enviado exitosamente a ${event.email}',
-      name: 'AuthBloc',
-    );
-    emit(
-      const AuthState.success(
-        errorMessage: 'Hemos enviado un correo con instrucciones para recuperar tu contraseña. Revisa tu bandeja de entrada.',
-      ),
-    );
-  } on AppException catch (e) {
-    log(
-      'AuthBloc: Error de AppException al enviar correo de recuperación: ${e.message}',
-      name: 'AuthBloc',
-    );
-    emit(AuthState.error(errorMessage: e.message));
-  } catch (e) {
-    log(
-      'AuthBloc: Error inesperado al enviar correo de recuperación: $e',
-      name: 'AuthBloc',
-    );
-    emit(
-      AuthState.error(
-        errorMessage: 'Error inesperado al enviar correo de recuperación: $e',
-      ),
-    );
+    try {
+      await _authRepository.sendPasswordResetEmail(email: event.email);
+      log(
+        '📧 AuthBloc: Correo de recuperación enviado exitosamente a ${event.email}',
+        name: 'AuthBloc',
+      );
+      emit(
+        const AuthState.success(
+          errorMessage: 'Hemos enviado un correo con instrucciones para recuperar tu contraseña. Revisa tu bandeja de entrada.',
+        ),
+      );
+    } on AppException catch (e) {
+      log(
+        '❌ AuthBloc: Error de AppException al enviar correo de recuperación: ${e.message}',
+        name: 'AuthBloc',
+      );
+      emit(AuthState.error(errorMessage: e.message));
+    } catch (e) {
+      log(
+        '❌ AuthBloc: Error inesperado al enviar correo de recuperación: $e',
+        name: 'AuthBloc',
+      );
+      emit(
+        AuthState.error(
+          errorMessage: 'Error inesperado al enviar correo de recuperación: $e',
+        ),
+      );
+    }
   }
-}
 
+  Future<void> _onCheckEmailVerification(
+    AuthCheckEmailVerification event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      await currentUser?.reload();
+      final refreshedUser = FirebaseAuth.instance.currentUser;
 
-Future<void> _onCheckEmailVerification(
-  AuthCheckEmailVerification event,
-  Emitter<AuthState> emit,
-) async {
-  try {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    await currentUser?.reload();
-    final refreshedUser = FirebaseAuth.instance.currentUser;
+      if (refreshedUser != null && refreshedUser.emailVerified) {
+        // 🔐 Inicializar E2EE después de verificar email
+        await _initializeE2EE(refreshedUser.uid);
 
-    if (refreshedUser != null && refreshedUser.emailVerified) {
-      // Intentar cargar como psicólogo primero
-      final psychologistDoc = await _firestore
+        // Intentar cargar como psicólogo primero
+        final psychologistDoc = await _firestore
+            .collection('psychologists')
+            .doc(refreshedUser.uid)
+            .get();
+        
+        if (psychologistDoc.exists) {
+          final psychologist = PsychologistModel.fromFirestore(psychologistDoc.data()!);
+          emit(AuthState.authenticated(
+            userRole: UserRole.psychologist,
+            psychologist: psychologist,
+          ));
+          return;
+        }
+        
+        final patientDoc = await _firestore
+            .collection('patients')
+            .doc(refreshedUser.uid)
+            .get();
+        
+        if (patientDoc.exists) {
+          final patient = PatientModel.fromFirestore(patientDoc, null);
+          emit(AuthState.authenticated(
+            userRole: UserRole.patient,
+            patient: patient,
+          ));
+          
+          // Iniciar escucha de datos del paciente
+          add(AuthStartListeningToPatient(patient.uid));
+          return;
+        }
+        
+        emit(const AuthState.error(
+          errorMessage: 'No se encontró tu perfil. Por favor contacta soporte.',
+        ));
+        
+      } else {
+        log('⚠️ AuthBloc: Email aún no verificado', name: 'AuthBloc');
+      }
+    } catch (e) {
+      emit(AuthState.error(
+        errorMessage: 'Error al verificar: $e',
+      ));
+    }
+  }
+
+  Future<void> _onAuthUpdateEmailRequested(
+    AuthUpdateEmailRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    log('📧 AuthBloc: Actualizando email a ${event.newEmail}', name: 'AuthBloc');
+    emit(const AuthState.loading());
+
+    try {
+      await _authRepository.updateEmail(newEmail: event.newEmail);
+      log('✅ AuthBloc: Email actualizado exitosamente', name: 'AuthBloc');
+      emit(const AuthState.success(
+        errorMessage: 'Hemos enviado un correo de verificación a tu nuevo email.',
+      ));
+      
+      // Cerrar sesión para que vuelva a iniciar con el nuevo email
+      await Future.delayed(const Duration(seconds: 2));
+      add(const AuthSignOutRequested());
+    } on AppException catch (e) {
+      log('❌ AuthBloc: Error al actualizar email: ${e.message}', name: 'AuthBloc');
+      emit(AuthState.error(errorMessage: e.message));
+    } catch (e) {
+      log('❌ AuthBloc: Error inesperado al actualizar email: $e', name: 'AuthBloc');
+      emit(AuthState.error(
+        errorMessage: 'Error inesperado al actualizar email: $e',
+      ));
+    }
+  }
+
+  Future<void> _onCheckAuthStatus(CheckAuthStatus event, Emitter<AuthState> emit) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Recargar los datos del psicólogo desde Firestore
+      final psychologistDoc = await FirebaseFirestore.instance
           .collection('psychologists')
-          .doc(refreshedUser.uid)
+          .doc(user.uid)
           .get();
       
       if (psychologistDoc.exists) {
-        final psychologist = PsychologistModel.fromFirestore(psychologistDoc.data()!);
+        final psychologist = PsychologistModel.fromFirestore(
+          psychologistDoc.data()!
+        );
         emit(AuthState.authenticated(
           userRole: UserRole.psychologist,
           psychologist: psychologist,
         ));
-        return;
-      };
-      final patientDoc = await _firestore
-          .collection('patients')
-          .doc(refreshedUser.uid)
-          .get();
-      
-      if (patientDoc.exists) {
-        final patient = PatientModel.fromFirestore(patientDoc, null);
-        emit(AuthState.authenticated(
-          userRole: UserRole.patient,
-          patient: patient,
-        ));
-        
-        // Iniciar escucha de datos del paciente
-        add(AuthStartListeningToPatient(patient.uid));
+      }
+    }
+  }
+
+  Future<void> _onAcceptTermsAndConditions(
+    AuthAcceptTermsAndConditions event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        log('❌ AuthBloc: No hay usuario autenticado para aceptar términos', name: 'AuthBloc');
         return;
       }
-      emit(const AuthState.error(
-        errorMessage: 'No se encontró tu perfil. Por favor contacta soporte.',
-      ));
+
+      log('📋 AuthBloc: Aceptando términos para ${event.userRole}', name: 'AuthBloc');
+
+      final token = await user.getIdToken();
       
-    } else {
-      log('AuthBloc: Email aún no verificado', name: 'AuthBloc');
-    }
-  } catch (e) {
-    emit(AuthState.error(
-      errorMessage: 'Error al verificar: $e',
-    ));
-  }
-}
+      // Construir la URL correcta según el tipo de usuario
+      final String endpoint = event.userRole == 'patient' 
+          ? '/patients/accept-terms'
+          : '/psychologists/accept-terms';
 
-Future<void> _onAuthUpdateEmailRequested(
-  AuthUpdateEmailRequested event,
-  Emitter<AuthState> emit,
-) async {
-  log('AuthBloc: Actualizando email a ${event.newEmail}', name: 'AuthBloc');
-  emit(const AuthState.loading());
+      log('🌐 AuthBloc: Llamando a endpoint: $endpoint', name: 'AuthBloc');
 
-  try {
-    await _authRepository.updateEmail(newEmail: event.newEmail);
-    log('AuthBloc: Email actualizado exitosamente', name: 'AuthBloc');
-    emit(const AuthState.success(
-      errorMessage: 'Hemos enviado un correo de verificación a tu nuevo email.',
-    ));
-    
-    // Cerrar sesión para que vuelva a iniciar con el nuevo email
-    await Future.delayed(const Duration(seconds: 2));
-    add(const AuthSignOutRequested());
-  } on AppException catch (e) {
-    log('AuthBloc: Error al actualizar email: ${e.message}', name: 'AuthBloc');
-    emit(AuthState.error(errorMessage: e.message));
-  } catch (e) {
-    log('AuthBloc: Error inesperado al actualizar email: $e', name: 'AuthBloc');
-    emit(AuthState.error(
-      errorMessage: 'Error inesperado al actualizar email: $e',
-    ));
-  }
-}
-
-Future<void> _onCheckAuthStatus(CheckAuthStatus event, Emitter<AuthState> emit) async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    // Recargar los datos del psicólogo desde Firestore
-    final psychologistDoc = await FirebaseFirestore.instance
-        .collection('psychologists')
-        .doc(user.uid)
-        .get();
-    
-    if (psychologistDoc.exists) {
-      final psychologist = PsychologistModel.fromFirestore(
-        psychologistDoc.data()!
+      final response = await http.patch(
+        Uri.parse('${AppConstants.baseUrl}$endpoint'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
-      emit(AuthState.authenticated(
-        userRole: UserRole.psychologist,
-        psychologist: psychologist,
+
+      if (response.statusCode == 200) {
+        log('✅ AuthBloc: Términos aceptados exitosamente en el backend', name: 'AuthBloc');
+        
+        // Actualizar el estado local
+        if (event.userRole == 'patient' && state.patient != null) {
+          emit(state.copyWith(
+            patient: state.patient!.copyWith(termsAccepted: true),
+          ));
+        } else if (event.userRole == 'psychologist' && state.psychologist != null) {
+          emit(state.copyWith(
+            psychologist: state.psychologist!.copyWith(termsAccepted: true),
+          ));
+        }
+        
+        log('✅ AuthBloc: Estado actualizado con termsAccepted: true', name: 'AuthBloc');
+      } else {
+        log('❌ AuthBloc: Error del servidor: ${response.statusCode} - ${response.body}', name: 'AuthBloc');
+        throw Exception('Error al actualizar términos: ${response.statusCode}');
+      }
+    } catch (e) {
+      log('❌ AuthBloc: Error al aceptar términos: $e', name: 'AuthBloc');
+      emit(AuthState.error(
+        errorMessage: 'Error al aceptar términos: $e',
       ));
     }
   }
-}
-
-Future<void> _onAcceptTermsAndConditions(
-  AuthAcceptTermsAndConditions event,
-  Emitter<AuthState> emit,
-) async {
-  try {
-    final user = _auth.currentUser;
-    if (user == null) {
-      log('AuthBloc: No hay usuario autenticado para aceptar términos', name: 'AuthBloc');
-      return;
-    }
-
-    log('AuthBloc: Aceptando términos para ${event.userRole}', name: 'AuthBloc');
-
-    final token = await user.getIdToken();
-    
-    // Construir la URL correcta según el tipo de usuario
-    final String endpoint = event.userRole == 'patient' 
-        ? '/patients/accept-terms'
-        : '/psychologists/accept-terms';
-
-    log('AuthBloc: Llamando a endpoint: $endpoint', name: 'AuthBloc');
-
-    final response = await http.patch(
-      Uri.parse('${AppConstants.baseUrl}$endpoint'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      log('AuthBloc: Términos aceptados exitosamente en el backend', name: 'AuthBloc');
-      
-      // Actualizar el estado local
-      if (event.userRole == 'patient' && state.patient != null) {
-        emit(state.copyWith(
-          patient: state.patient!.copyWith(termsAccepted: true),
-        ));
-      } else if (event.userRole == 'psychologist' && state.psychologist != null) {
-        emit(state.copyWith(
-          psychologist: state.psychologist!.copyWith(termsAccepted: true),
-        ));
-      }
-      
-      log('AuthBloc: Estado actualizado con termsAccepted: true', name: 'AuthBloc');
-    } else {
-      log('AuthBloc: Error del servidor: ${response.statusCode} - ${response.body}', name: 'AuthBloc');
-      throw Exception('Error al actualizar términos: ${response.statusCode}');
-    }
-  } catch (e) {
-    log('AuthBloc: Error al aceptar términos: $e', name: 'AuthBloc');
-    emit(AuthState.error(
-      errorMessage: 'Error al aceptar términos: $e',
-    ));
-  }
-}
 
   @override
   Future<void> close() {
     _userSubscription.cancel();
     _patientDataSubscription?.cancel();
-    log(' AuthBloc: Todas las suscripciones canceladas.', name: 'AuthBloc');
+    
+    // 🔐 Limpiar E2EE al cerrar el Bloc
+    _clearE2EEKeys();
+    
+    log('🔒 AuthBloc: Todas las suscripciones canceladas.', name: 'AuthBloc');
     return super.close();
   }
-  
 }
