@@ -6,5 +6,5 @@ class ApiConstants {
   // Cambia según el ambiente
   static const String baseUrl = kDebugMode 
     ? 'http://10.0.2.2:3000'  // Desarrollo local (emulador Android)
-    : 'https://ai-therapy-teteocan.onrender.com'; // Producción en Render
+    : 'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
 }

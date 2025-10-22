@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SubscriptionService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api/stripe';
 
   // OBTENER ESTADO DE SUSCRIPCIÓN DEL USUARIO
 static Future<SubscriptionStatus?> getUserSubscriptionStatus() async {

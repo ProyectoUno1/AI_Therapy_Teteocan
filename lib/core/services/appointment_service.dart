@@ -7,7 +7,7 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_state.d
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppointmentService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   Future<String?> _getAuthToken() async {
     try {

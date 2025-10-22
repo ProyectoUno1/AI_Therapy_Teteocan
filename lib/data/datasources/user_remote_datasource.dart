@@ -69,7 +69,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   final FirebaseFirestore _firestore;
 
   // URL base 
-  static const String _baseUrl = 'http://10.0.2.2:3000';
+  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   UserRemoteDataSourceImpl(this._firestore);
   

@@ -20,7 +20,7 @@ abstract class SubscriptionRepository {
 }
 
 class SubscriptionRepositoryImpl implements SubscriptionRepository {
-  static const String baseUrl = 'http://10.0.2.2:3000/api/stripe';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api/stripe';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 

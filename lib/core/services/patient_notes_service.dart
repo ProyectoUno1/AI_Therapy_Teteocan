@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/data/models/patient_note.dart';
 
 class PatientNotesService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   Future<String?> _getAuthToken() async {
     try {

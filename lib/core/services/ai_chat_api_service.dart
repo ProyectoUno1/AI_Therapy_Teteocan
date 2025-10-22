@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AiChatApiService {
-  final String _baseUrl = 'http://10.0.2.2:3000/api';
+  final String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<String> sendMessage(String message) async {
