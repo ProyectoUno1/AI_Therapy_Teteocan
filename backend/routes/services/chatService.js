@@ -1,13 +1,11 @@
-/// backend/routes/services/chatService.js
+// backend/routes/services/chatService.js - VERSIÓN CORREGIDA COMPLETA
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
-import { encrypt, decrypt } from '../../utils/encryptionUtils.js';
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
-
 
 const validateMessageLimit = async (userId) => {
     try {
@@ -20,7 +18,6 @@ const validateMessageLimit = async (userId) => {
                 isPremium: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            
             return false;
         }
 
@@ -28,18 +25,13 @@ const validateMessageLimit = async (userId) => {
         const isPremium = userData.isPremium || false;
         const messageCount = userData.messageCount || 0;
 
-        if (isPremium) {
-            return false;
-        }
-
-        const isLimitReached = messageCount >= FREE_MESSAGE_LIMIT;
-        return isLimitReached;
+        if (isPremium) return false;
+        return messageCount >= FREE_MESSAGE_LIMIT;
 
     } catch (error) {
         return true;
     }
 };
-
 
 async function getOrCreateAIChatId(userId) {
     try {
@@ -67,17 +59,16 @@ async function getOrCreateAIChatId(userId) {
 
             const messagesCollection = chatRef.collection('messages');
             
-            // ⚠️ Mensaje de bienvenida en TEXTO PLANO (será cifrado en cliente)
             const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
             
             const welcomeMessage = {
                 senderId: 'aurora',
-                content: welcomeMessageContent, // SIN CIFRAR - se cifrará en cliente
+                content: welcomeMessageContent,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
                 isWelcomeMessage: true,
-                isE2EE: false, // Flag para identificar mensajes no cifrados
+                isE2EE: false,
             };
             await messagesCollection.add(welcomeMessage);
         } else {
@@ -95,9 +86,6 @@ async function getOrCreateAIChatId(userId) {
 
 /**
  * ✅ FUNCIÓN CON SOPORTE E2EE
- * @param {string} userId - ID del usuario
- * @param {string} plainMessage - Mensaje en texto plano (para Gemini)
- * @param {string} encryptedMessage - Mensaje cifrado (para guardar en BD)
  */
 async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
     const startTime = Date.now();
@@ -111,18 +99,18 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // ✅ Guardar mensaje del usuario CIFRADO
+        // Guardar mensaje del usuario (cifrado si existe)
         const userMessageData = {
             senderId: userId,
-            content: encryptedMessage || plainMessage, // Usar cifrado si existe
+            content: encryptedMessage || plainMessage,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
-            isE2EE: !!encryptedMessage, // Flag E2EE si hay mensaje cifrado
+            isE2EE: !!encryptedMessage,
         };
         await messagesCollection.add(userMessageData);
 
-        // ✅ Obtener respuesta de Gemini con mensaje PLANO
+        // Obtener respuesta de Gemini con mensaje PLANO
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),
@@ -139,15 +127,14 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
             throw new Error('Respuesta vacía de Gemini');
         }
 
-        // ✅ Guardar respuesta de IA en TEXTO PLANO
-        // (El cliente la cifrará si es necesario al cargarla)
+        // Guardar respuesta de IA en TEXTO PLANO
         const aiMessageData = {
             senderId: 'aurora',
-            content: aiResponseContent, // TEXTO PLANO - cliente decide si cifrar
+            content: aiResponseContent,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
-            isE2EE: false, // Las respuestas de IA se guardan sin cifrar por defecto
+            isE2EE: false,
         };
         await messagesCollection.add(aiMessageData);
 
@@ -172,8 +159,6 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
     }
 }
 
-// En la función loadChatMessages de chatService.js - AGREGAR ESTOS LOGS
-
 async function loadChatMessages(chatId) {
     try {
         const messagesCollection = db
@@ -190,15 +175,14 @@ async function loadChatMessages(chatId) {
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
 
-            // ✅ NO DESCIFRAR AQUÍ - enviar tal cual al cliente
             return {
                 id: doc.id,
                 senderId: data.senderId,
-                content: data.content, // Puede estar cifrado o no
+                content: data.content,
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                isE2EE: data.isE2EE || false, // Flag para que cliente sepa si debe descifrar
+                isE2EE: data.isE2EE || false,
             };
         });
 
@@ -209,7 +193,6 @@ async function loadChatMessages(chatId) {
         throw error;
     }
 }
-
 
 function getAuroraSystemPrompt() {
     return `# AURORA - Asistente Terapéutica de IA Especializada
@@ -308,7 +291,7 @@ Ni urgente ni importante: Elimina"
 📞 **LÍNEAS DE CRISIS 24/7 EN MÉXICO:**
 
 **Línea de la Vida:** 800 911 2000
-**SAPTEL:** 55 5259 8121  
+**SAPTEL:** 55 5259 8121  
 **Emergencias:** 911
 **Locatel CDMX:** 55 5658 1111
 
@@ -438,7 +421,7 @@ Estoy aquí cuando me necesites. 💙"
 
 export {
     getOrCreateAIChatId,
-    processUserMessage,
+    processUserMessageE2EE,
     loadChatMessages,
     validateMessageLimit,
 };
