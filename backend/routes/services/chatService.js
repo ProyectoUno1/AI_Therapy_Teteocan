@@ -1,11 +1,13 @@
-// backend/routes/services/chatService.js - CON SOPORTE E2EE
+/// backend/routes/services/chatService.js
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
+import { encrypt, decrypt } from '../../utils/encryptionUtils.js';
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
+
 
 const validateMessageLimit = async (userId) => {
     try {
@@ -18,6 +20,7 @@ const validateMessageLimit = async (userId) => {
                 isPremium: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
+            
             return false;
         }
 
@@ -25,13 +28,18 @@ const validateMessageLimit = async (userId) => {
         const isPremium = userData.isPremium || false;
         const messageCount = userData.messageCount || 0;
 
-        if (isPremium) return false;
-        return messageCount >= FREE_MESSAGE_LIMIT;
+        if (isPremium) {
+            return false;
+        }
+
+        const isLimitReached = messageCount >= FREE_MESSAGE_LIMIT;
+        return isLimitReached;
 
     } catch (error) {
         return true;
     }
 };
+
 
 async function getOrCreateAIChatId(userId) {
     try {
@@ -164,7 +172,8 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
     }
 }
 
-// ✅ Cargar mensajes (sin descifrar - el cliente lo hace)
+// En la función loadChatMessages de chatService.js - AGREGAR ESTOS LOGS
+
 async function loadChatMessages(chatId) {
     try {
         const messagesCollection = db
@@ -200,6 +209,7 @@ async function loadChatMessages(chatId) {
         throw error;
     }
 }
+
 
 function getAuroraSystemPrompt() {
     return `# AURORA - Asistente Terapéutica de IA Especializada
