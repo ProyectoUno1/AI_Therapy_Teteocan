@@ -4,9 +4,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   // URL base del backend
-  static const String baseUrl = kDebugMode 
-    ? 'http://10.0.2.2:3000/api'  // Desarrollo local con /api
-    : 'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
+  static const String baseUrl =  'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
   
   // Endpoints específicos (si los necesitas)
   static const String patientsEndpoint = '/patients';

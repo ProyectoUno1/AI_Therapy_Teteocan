@@ -23,9 +23,7 @@ const allowedOrigins = process.env.NODE_ENV === "production"
       'https://ai-therapy-teteocan.onrender.com',
     ].filter(Boolean)
   : [
-      "http://localhost:3000",
-      "http://10.0.2.2:3000",
-      "http://127.0.0.1:3000"
+      
     ];
 
 const corsOptions = {

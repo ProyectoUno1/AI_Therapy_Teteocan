@@ -24,7 +24,5 @@ class AppConstants {
   static const Duration animationDuration = Duration(milliseconds: 300);
 
   // URLs del backend - ACTUALIZADO PARA RENDER
-  static const String baseUrl = kDebugMode
-      ? 'http://10.0.2.2:3000/api'  // Desarrollo local
-      : 'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
+  static const String baseUrl =   'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
 }
