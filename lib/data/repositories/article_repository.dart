@@ -86,10 +86,11 @@ class ArticleRepository {
 
   Future<ArticleLimitInfo> getArticleLimit(String psychologistId) async {
     try {
-      final uri = Uri.parse('$baseUrl/articles/psychologist/$psychologistId/limit');
+      final url = '$baseUrl/articles/psychologist/$psychologistId/limit';
+      print('🌐 GET ArticleLimit: $url'); // Debug
       
       final response = await http.get(
-        uri,
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -100,9 +101,11 @@ class ArticleRepository {
         final responseData = json.decode(response.body);
         return ArticleLimitInfo.fromJson(responseData);
       } else {
+        print('❌ Error ArticleLimit: ${response.statusCode}');
         return _getDefaultLimitInfo();
       }
     } catch (e) {
+      print('❌ Exception ArticleLimit: $e');
       return _getDefaultLimitInfo();
     }
   }
@@ -119,8 +122,11 @@ class ArticleRepository {
 
   Future<Article> createArticle(Article article) async {
     try {
+      final url = '$baseUrl/articles/create';
+      print('🌐 POST CreateArticle: $url'); // Debug
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/articles/create'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -159,10 +165,12 @@ class ArticleRepository {
         final errorData = json.decode(response.body);
         throw Exception(errorData['message'] ?? 'Has alcanzado el límite de artículos');
       } else {
+        print('❌ Error CreateArticle: ${response.statusCode} - ${response.body}');
         final errorData = json.decode(response.body);
         throw Exception(errorData['error'] ?? 'Error al crear artículo');
       }
     } catch (e) {
+      print('❌ Exception CreateArticle: $e');
       rethrow;
     }
   }
@@ -183,6 +191,8 @@ class ArticleRepository {
       final uri = Uri.parse('$baseUrl/articles/psychologist/$psychologistId')
           .replace(queryParameters: queryParams);
       
+      print('🌐 GET PsychologistArticles: $uri'); // Debug
+      
       final response = await http.get(
         uri,
         headers: {
@@ -191,11 +201,11 @@ class ArticleRepository {
         },
       );
 
-
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body) as Map<String, dynamic>;
         return ArticleListResponse.fromJson(responseData);
       } else if (response.statusCode == 404) {
+        print('⚠️ No articles found for psychologist');
         return ArticleListResponse(
           articles: [],
           totalArticles: 0,
@@ -204,6 +214,7 @@ class ArticleRepository {
           articleLimit: _getDefaultLimitInfo(),
         );
       } else {
+        print('❌ Error PsychologistArticles: ${response.statusCode}');
         return ArticleListResponse(
           articles: [],
           totalArticles: 0,
@@ -213,6 +224,7 @@ class ArticleRepository {
         );
       }
     } catch (e) {
+      print('❌ Exception PsychologistArticles: $e');
       return ArticleListResponse(
         articles: [],
         totalArticles: 0,
@@ -225,8 +237,11 @@ class ArticleRepository {
 
   Future<Article> updateArticle(Article article) async {
     try {
+      final url = '$baseUrl/articles/update/${article.id}';
+      print('🌐 PUT UpdateArticle: $url'); // Debug
+      
       final response = await http.put(
-        Uri.parse('$baseUrl/articles/update/${article.id}'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -247,19 +262,23 @@ class ArticleRepository {
       if (response.statusCode == 200) {
         return article;
       } else {
+        print('❌ Error UpdateArticle: ${response.statusCode}');
         final errorData = json.decode(response.body);
         throw Exception('Failed to update article: ${errorData['error'] ?? response.body}');
       }
     } catch (e) {
+      print('❌ Exception UpdateArticle: $e');
       throw Exception('Error de conexión: $e');
     }
   }
 
   Future<void> deleteArticle(String articleId, String psychologistId) async {
     try {
+      final url = '$baseUrl/articles/delete/$articleId';
+      print('🌐 DELETE Article: $url'); // Debug
       
       final response = await http.delete(
-        Uri.parse('$baseUrl/articles/delete/$articleId'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -268,18 +287,24 @@ class ArticleRepository {
       );
 
       if (response.statusCode == 200) {
+        print('✅ Article deleted successfully');
       } else {
+        print('❌ Error DeleteArticle: ${response.statusCode}');
         final errorData = json.decode(response.body);
         final errorMessage = errorData['error'] ?? response.body;
         throw Exception('Failed to delete article: $errorMessage');
       }
     } catch (e) {
+      print('❌ Exception DeleteArticle: $e');
       throw Exception('Error de conexión: $e');
     }
   }
 
   Future<List<Article>> getPublishedArticles() async {
     try {
+      final url = '$baseUrl/articles/public';
+      print('🌐 GET PublishedArticles: $url'); // Debug
+      
       final headers = <String, String>{
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -290,21 +315,27 @@ class ArticleRepository {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/articles/public'),
+        Uri.parse(url),
         headers: headers,
       );
+
+      print('📊 Response Status: ${response.statusCode}');
+      print('📊 Response Body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List<dynamic> articlesData = responseData['articles'];
+        print('✅ Loaded ${articlesData.length} published articles');
         return articlesData.map((json) => Article.fromJson(json)).toList();
       } else if (response.statusCode == 404) {
+        print('⚠️ No published articles found');
         return [];
       } else {
+        print('❌ Error loading articles: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Error loading published articles: $e');
+      print('❌ Exception loading published articles: $e');
       return [];
     }
   }
@@ -312,6 +343,8 @@ class ArticleRepository {
   Future<String> uploadArticleImage(String imagePath, String psychologistId) async {
     try {
       final uri = Uri.parse('$baseUrl/articles/upload-image');
+      print('🌐 POST UploadImage: $uri'); // Debug
+      
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('Usuario no autenticado');
@@ -337,21 +370,26 @@ class ArticleRepository {
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
+        print('✅ Image uploaded: ${jsonResponse['imageUrl']}');
         return jsonResponse['imageUrl'];
       } else {
+        print('❌ Error UploadImage: ${response.statusCode}');
         final errorBody = json.decode(response.body);
         throw Exception('Fallo al subir la imagen: ${errorBody['error'] ?? 'Error desconocido'}');
       }
     } catch (e) {
+      print('❌ Exception UploadImage: $e');
       throw Exception('Error de conexión al subir imagen: $e');
     }
   }
 
-
   Future<void> likeArticle(String articleId, String userId) async {
     try {
+      final url = '$baseUrl/articles/$articleId/like';
+      print('🌐 POST LikeArticle: $url'); // Debug
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/articles/$articleId/like'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -363,18 +401,22 @@ class ArticleRepository {
       );
 
       if (response.statusCode != 200) {
+        print('❌ Error LikeArticle: ${response.statusCode}');
         final errorData = json.decode(response.body);
         throw Exception('Failed to like article: ${errorData['error'] ?? response.body}');
       }
     } catch (e) {
+      print('❌ Exception LikeArticle: $e');
       throw Exception('Error de conexión: $e');
     }
   }
 
   Future<void> logArticleView(String articleId) async {
     try {
+      final url = '$baseUrl/articles/$articleId/view';
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/articles/$articleId/view'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -382,18 +424,19 @@ class ArticleRepository {
       );
 
       if (response.statusCode != 200) {
-        print('Warning: Could not log article view');
+        print('⚠️ Could not log article view');
       }
     } catch (e) {
-      print('Error logging article view: $e');
-      // No lanzar error, solo log
+      print('⚠️ Error logging article view: $e');
     }
   }
 
   Future<bool> isArticleLiked(String articleId, String userId) async {
     try {
+      final url = '$baseUrl/articles/$articleId/is-liked/$userId';
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/articles/$articleId/is-liked/$userId'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -412,6 +455,9 @@ class ArticleRepository {
 
   Future<Article> getArticleById(String articleId) async {
     try {
+      final url = '$baseUrl/articles/$articleId';
+      print('🌐 GET ArticleById: $url'); // Debug
+      
       final headers = <String, String>{
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -422,7 +468,7 @@ class ArticleRepository {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/articles/$articleId'),
+        Uri.parse(url),
         headers: headers,
       );
 
@@ -434,10 +480,12 @@ class ArticleRepository {
           throw Exception('Invalid response format: missing "article" key');
         }
       } else {
+        print('❌ Error GetArticleById: ${response.statusCode}');
         final errorData = json.decode(response.body);
         throw Exception('Failed to load article: ${errorData['error'] ?? 'Unknown error'}');
       }
     } catch (e) {
+      print('❌ Exception GetArticleById: $e');
       throw Exception('Error de conexión: $e');
     }
   }
