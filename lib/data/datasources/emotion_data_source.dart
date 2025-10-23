@@ -66,7 +66,7 @@ class EmotionRemoteDataSource implements EmotionDataSource {
   Future<void> saveEmotion(Emotion emotion) async {
     try {
       final response = await _authenticatedPost(
-        '$baseUrl/api/patient-management/emotions',
+        '$baseUrl/patient-management/emotions',
         emotion.toMap(),
       );
 
