@@ -1,4 +1,4 @@
-// articleRoutes.js
+/// articleRoutes.js
 import dotenv from "dotenv";
 import express from "express";
 import { FieldValue } from 'firebase-admin/firestore';
@@ -10,7 +10,7 @@ dotenv.config();
 
 const articleRouter = express.Router();
 
-//Límite máximo de artículos por psicólogo
+// Límite máximo de artículos por psicólogo
 const MAX_ARTICLES_PER_PSYCHOLOGIST = 3;
 
 // Middleware para validar que el usuario sea psicólogo
@@ -35,12 +35,11 @@ const validatePsychologist = async (req, res, next) => {
   }
 };
 
-//Middleware para verificar límite de artículos
+// Middleware para verificar límite de artículos
 const checkArticleLimit = async (req, res, next) => {
   const { psychologistId } = req.body;
 
   try {
-    // Contar artículos activos (no eliminados)
     const articlesSnapshot = await db.collection('articles')
       .where('psychologistId', '==', psychologistId)
       .where('status', 'in', ['draft', 'published'])
@@ -51,7 +50,7 @@ const checkArticleLimit = async (req, res, next) => {
     if (currentArticleCount >= MAX_ARTICLES_PER_PSYCHOLOGIST) {
       return res.status(403).json({
         error: "Límite de artículos alcanzado",
-        message: `Has alcanzado el límite de ${MAX_ARTICLES_PER_PSYCHOLOGIST} artículos. Elimina algunos artículos antes de crear nuevos.`,
+        message: `Has alcanzado el límite de ${MAX_ARTICLES_PER_PSYCHOLOGIST} artículos.`,
         currentCount: currentArticleCount,
         maxLimit: MAX_ARTICLES_PER_PSYCHOLOGIST
       });
@@ -67,344 +66,17 @@ const checkArticleLimit = async (req, res, next) => {
   }
 };
 
-// Endpoint para crear/subir un nuevo artículo
-articleRouter.post("/create", validatePsychologist, checkArticleLimit, async (req, res) => {
-  const {
-    psychologistId,
-    title,
-    content,
-    summary,
-    imageUrl,
-    tags = [],
-    category,
-    readingTimeMinutes,
-    isPublished = false
-  } = req.body;
+// ========================================
+// RUTAS PÚBLICAS (sin autenticación)
+// ========================================
 
-  // Validaciones del contenido
-  if (!title || !content) {
-    return res.status(400).json({
-      error: "title y content son requeridos."
-    });
-  }
-
-  if (title.length < 10 || title.length > 200) {
-    return res.status(400).json({
-      error: "El título debe tener entre 10 y 200 caracteres."
-    });
-  }
-
-  if (content.length < 100) {
-    return res.status(400).json({
-      error: "El contenido debe tener al menos 100 caracteres."
-    });
-  }
-
-  try {
-    console.log(`Creando artículo para psicólogo: ${psychologistId}`);
-    console.log(`Artículos restantes: ${req.articlesRemaining}`);
-
-    // Crear el artículo en Firebase
-    const articleRef = await db.collection('articles').add({
-      psychologistId: psychologistId,
-      fullName: req.psychologist.fullName || 'Psicólogo',
-      psychologistEmail: req.psychologist.email || '',
-      title: title.trim(),
-      content: content.trim(),
-      summary: summary?.trim() || content.substring(0, 200) + '...',
-      imageUrl: imageUrl || `https://picsum.photos/seed/article_${Date.now()}/400/250`,
-      tags: Array.isArray(tags) ? tags.map(tag => tag.trim().toLowerCase()) : [],
-      category: category || 'general',
-      readingTimeMinutes: readingTimeMinutes || Math.ceil(content.length / 200),
-      isPublished: isPublished,
-      status: isPublished ? 'published' : 'draft',
-      views: 0,
-      likes: 0,
-      comments: [],
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      publishedAt: isPublished ? FieldValue.serverTimestamp() : null
-    });
-
-    // Actualizar estadísticas del psicólogo
-    await db.collection('psychologists').doc(psychologistId).update({
-      articlesCount: FieldValue.increment(1),
-      lastArticleDate: FieldValue.serverTimestamp()
-    });
-
-    console.log(`Artículo creado exitosamente: ${articleRef.id}`);
-
-    res.status(201).json({
-      success: true,
-      articleId: articleRef.id,
-      message: "Artículo creado exitosamente",
-      article: {
-        id: articleRef.id,
-        title: title,
-        status: isPublished ? 'published' : 'draft',
-        createdAt: new Date().toISOString()
-      },
-      articlesRemaining: req.articlesRemaining - 1,
-      maxArticles: MAX_ARTICLES_PER_PSYCHOLOGIST
-    });
-
-  } catch (error) {
-    console.error("Error al crear artículo:", error);
-    res.status(500).json({
-      error: "Error al crear el artículo",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-//Endpoint para obtener el límite y contador de artículos
-articleRouter.get("/psychologist/:psychologistId/limit", async (req, res) => {
-  const { psychologistId } = req.params;
-
-  if (!psychologistId) {
-    return res.status(400).json({ error: "psychologistId es requerido" });
-  }
-
-  try {
-    const articlesSnapshot = await db.collection('articles')
-      .where('psychologistId', '==', psychologistId)
-      .where('status', 'in', ['draft', 'published'])
-      .get();
-
-    const currentCount = articlesSnapshot.size;
-    const remaining = MAX_ARTICLES_PER_PSYCHOLOGIST - currentCount;
-    const canCreateMore = remaining > 0;
-
-    res.json({
-      currentCount,
-      maxLimit: MAX_ARTICLES_PER_PSYCHOLOGIST,
-      remaining,
-      canCreateMore,
-      percentage: Math.round((currentCount / MAX_ARTICLES_PER_PSYCHOLOGIST) * 100)
-    });
-
-  } catch (error) {
-    console.error("Error obteniendo límite de artículos:", error);
-    res.status(500).json({
-      error: "Error al obtener información del límite",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-// Endpoint para obtener artículos de un psicólogo específico
-articleRouter.get("/psychologist/:psychologistId", async (req, res) => {
-  const { psychologistId } = req.params;
-  const { status, limit = 10, page = 1 } = req.query;
-
-  if (!psychologistId) {
-    return res.status(400).json({ error: "psychologistId es requerido" });
-  }
-
-  try {
-    console.log(`Obteniendo artículos para psychologistId: ${psychologistId}`);
-
-    let query = db.collection('articles')
-      .where('psychologistId', '==', psychologistId);
-
-    if (status && ['draft', 'published', 'archived'].includes(status)) {
-      query = query.where('status', '==', status);
-    } else {
-      query = query.where('status', 'in', ['draft', 'published']);
-    }
-
-    query = query.orderBy('createdAt', 'desc');
-    const limitNum = Math.min(parseInt(limit), 50);
-    query = query.limit(limitNum);
-    const articlesSnapshot = await query.get();
-    const articles = articlesSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate(),
-        updatedAt: data.updatedAt?.toDate(),
-        publishedAt: data.publishedAt?.toDate()
-      };
-    });
-
-    // Obtener información del límite
-    const activeArticlesSnapshot = await db.collection('articles')
-      .where('psychologistId', '==', psychologistId)
-      .where('status', 'in', ['draft', 'published'])
-      .get();
-
-    const currentCount = activeArticlesSnapshot.size;
-
-    res.status(200).json({
-      articles: articles,
-      totalArticles: articles.length,
-      page: parseInt(page),
-      limit: limitNum,
-      articleLimit: {
-        currentCount,
-        maxLimit: MAX_ARTICLES_PER_PSYCHOLOGIST,
-        remaining: MAX_ARTICLES_PER_PSYCHOLOGIST - currentCount,
-        canCreateMore: currentCount < MAX_ARTICLES_PER_PSYCHOLOGIST
-      },
-      message: articles.length === 0 ? 'No se encontraron artículos para este psicólogo' : undefined
-    });
-
-  } catch (error) {
-    console.error("Error obteniendo artículos del psicólogo:", error);
-
-    if (error.code === 9 || error.message.includes('index')) {
-      return res.status(500).json({
-        error: "Es necesario crear un índice en Firestore. Revisa la consola de Firebase.",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        indexUrl: error.message.match(/https:\/\/[^\s]+/)?.[0]
-      });
-    }
-
-    res.status(500).json({
-      error: "Error al obtener artículos",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-articleRouter.put("/update/:articleId", async (req, res) => {
-  const { articleId } = req.params;
-  const {
-    psychologistId,
-    title,
-    content,
-    summary,
-    imageUrl,
-    tags,
-    category,
-    readingTimeMinutes,
-    isPublished
-  } = req.body;
-
-  if (!articleId || !psychologistId) {
-    return res.status(400).json({
-      error: "articleId y psychologistId son requeridos."
-    });
-  }
-
-  try {
-    const articleDoc = await db.collection('articles').doc(articleId).get();
-
-    if (!articleDoc.exists) {
-      return res.status(404).json({ error: "Artículo no encontrado" });
-    }
-
-    const articleData = articleDoc.data();
-    if (articleData.psychologistId !== psychologistId) {
-      return res.status(403).json({ error: "No tienes permisos para editar este artículo" });
-    }
-
-    const updateData = {
-      updatedAt: FieldValue.serverTimestamp()
-    };
-
-    if (title !== undefined) {
-      if (title.length < 10 || title.length > 200) {
-        return res.status(400).json({
-          error: "El título debe tener entre 10 y 200 caracteres."
-        });
-      }
-      updateData.title = title.trim();
-    }
-
-    if (content !== undefined) {
-      if (content.length < 100) {
-        return res.status(400).json({
-          error: "El contenido debe tener al menos 100 caracteres."
-        });
-      }
-      updateData.content = content.trim();
-      updateData.readingTimeMinutes = Math.ceil(content.length / 200);
-    }
-
-    if (summary !== undefined) updateData.summary = summary.trim();
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-    if (Array.isArray(tags)) updateData.tags = tags.map(tag => tag.trim().toLowerCase());
-    if (category !== undefined) updateData.category = category;
-    if (readingTimeMinutes !== undefined) updateData.readingTimeMinutes = readingTimeMinutes;
-
-    if (isPublished !== undefined) {
-      updateData.isPublished = isPublished;
-      updateData.status = isPublished ? 'published' : 'draft';
-
-      if (isPublished && !articleData.publishedAt) {
-        updateData.publishedAt = FieldValue.serverTimestamp();
-      }
-    }
-
-    await db.collection('articles').doc(articleId).update(updateData);
-
-    res.json({
-      success: true,
-      message: "Artículo actualizado exitosamente",
-      articleId: articleId
-    });
-
-  } catch (error) {
-    console.error("Error al actualizar artículo:", error);
-    res.status(500).json({
-      error: "Error al actualizar el artículo",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-articleRouter.delete("/delete/:articleId", async (req, res) => {
-  const { articleId } = req.params;
-  const { psychologistId } = req.body;
-
-  if (!articleId || !psychologistId) {
-    return res.status(400).json({
-      error: "articleId y psychologistId son requeridos."
-    });
-  }
-
-  try {
-    const articleDoc = await db.collection('articles').doc(articleId).get();
-
-    if (!articleDoc.exists) {
-      return res.status(404).json({ error: "Artículo no encontrado" });
-    }
-
-    const articleData = articleDoc.data();
-
-    if (articleData.psychologistId !== psychologistId) {
-      return res.status(403).json({ error: "No tienes permisos para eliminar este artículo" });
-    }
-
-    await db.collection('articles').doc(articleId).update({
-      status: 'deleted',
-      deletedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    });
-
-    await db.collection('psychologists').doc(psychologistId).update({
-      articlesCount: FieldValue.increment(-1)
-    });
-
-    res.json({
-      success: true,
-      message: "Artículo eliminado exitosamente"
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      error: "Error al eliminar el artículo",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
+// 🌍 GET /public - Obtener artículos publicados (PÚBLICO)
 articleRouter.get("/public", async (req, res) => {
   const { category, limit = 20, page = 1, search } = req.query;
 
   try {
+    console.log('📰 Obteniendo artículos públicos...');
+    
     let query = db.collection('articles')
       .where('isPublished', '==', true)
       .where('status', '==', 'published')
@@ -439,6 +111,8 @@ articleRouter.get("/public", async (req, res) => {
       );
     }
 
+    console.log(`✅ Devolviendo ${articles.length} artículos públicos`);
+
     res.json({
       articles: articles,
       totalArticles: articles.length,
@@ -447,7 +121,7 @@ articleRouter.get("/public", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error obteniendo artículos públicos:", error);
+    console.error("❌ Error obteniendo artículos públicos:", error);
     res.status(500).json({
       error: "Error al obtener artículos públicos",
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -455,6 +129,7 @@ articleRouter.get("/public", async (req, res) => {
   }
 });
 
+// 🌍 GET /published - Alias de /public (PÚBLICO)
 articleRouter.get("/published", async (req, res) => {
   try {
     const { limit = 10, page = 1 } = req.query;
@@ -502,6 +177,7 @@ articleRouter.get("/published", async (req, res) => {
   }
 });
 
+// 🌍 GET /:articleId - Obtener artículo específico (PÚBLICO)
 articleRouter.get("/:articleId", async (req, res) => {
   const { articleId } = req.params;
 
@@ -515,9 +191,13 @@ articleRouter.get("/:articleId", async (req, res) => {
     const articleData = articleDoc.data();
 
     res.json({
-      success: true, article: {
+      success: true,
+      article: {
         id: articleDoc.id,
-        ...articleData
+        ...articleData,
+        createdAt: articleData.createdAt?.toDate(),
+        updatedAt: articleData.updatedAt?.toDate(),
+        publishedAt: articleData.publishedAt?.toDate()
       }
     });
 
@@ -530,86 +210,7 @@ articleRouter.get("/:articleId", async (req, res) => {
   }
 });
 
-articleRouter.post("/:articleId/like", async (req, res) => {
-  const { articleId } = req.params;
-  const { userId, action = 'like' } = req.body;
-
-  if (!articleId || !userId) {
-    return res.status(400).json({
-      error: "articleId y userId son requeridos"
-    });
-  }
-
-  try {
-    const articleDoc = await db.collection('articles').doc(articleId).get();
-
-    if (!articleDoc.exists) {
-      return res.status(404).json({ error: "Artículo no encontrado" });
-    }
-
-    const likeRef = db.collection('article_likes').doc(`${articleId}_${userId}`);
-    const likeDoc = await likeRef.get();
-
-    if (action === 'like') {
-      if (!likeDoc.exists) {
-        await likeRef.set({
-          articleId: articleId,
-          userId: userId,
-          createdAt: FieldValue.serverTimestamp()
-        });
-
-        await db.collection('articles').doc(articleId).update({
-          likes: FieldValue.increment(1)
-        });
-
-        res.json({ success: true, message: "Like agregado" });
-      } else {
-        res.json({ success: true, message: "Ya has dado like a este artículo" });
-      }
-    } else if (action === 'unlike') {
-      if (likeDoc.exists) {
-        await likeRef.delete();
-
-        await db.collection('articles').doc(articleId).update({
-          likes: FieldValue.increment(-1)
-        });
-
-        res.json({ success: true, message: "Like eliminado" });
-      } else {
-        res.json({ success: true, message: "No habías dado like a este artículo" });
-      }
-    }
-
-  } catch (error) {
-    console.error("Error procesando like:", error);
-    res.status(500).json({
-      error: "Error al procesar like",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-articleRouter.get("/categories/list", async (req, res) => {
-  try {
-    const articlesSnapshot = await db.collection('articles')
-      .where('isPublished', '==', true)
-      .where('status', '==', 'published')
-      .select('category')
-      .get();
-
-    const categories = [...new Set(articlesSnapshot.docs.map(doc => doc.data().category))];
-
-    res.json({ categories });
-
-  } catch (error) {
-    console.error("Error obteniendo categorías:", error);
-    res.status(500).json({
-      error: "Error al obtener categorías",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
+// 🌍 POST /:articleId/view - Registrar vista (PÚBLICO)
 articleRouter.post("/:articleId/view", async (req, res) => {
   const { articleId } = req.params;
 
@@ -628,7 +229,6 @@ articleRouter.post("/:articleId/view", async (req, res) => {
       views: FieldValue.increment(1)
     });
 
-
     res.json({ success: true, message: "Vista registrada" });
   } catch (error) {
     console.error("Error al registrar vista:", error);
@@ -639,19 +239,335 @@ articleRouter.post("/:articleId/view", async (req, res) => {
   }
 });
 
-articleRouter.get("/:articleId/is-liked/:userId", async (req, res) => {
-  const { articleId, userId } = req.params;
+// ========================================
+// RUTAS PROTEGIDAS (requieren autenticación)
+// ========================================
+
+// 🔒 POST /create - Crear artículo (PROTEGIDO)
+articleRouter.post("/create", verifyFirebaseToken, validatePsychologist, checkArticleLimit, async (req, res) => {
+  const {
+    psychologistId,
+    title,
+    content,
+    summary,
+    imageUrl,
+    tags = [],
+    category,
+    readingTimeMinutes,
+    isPublished = false
+  } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({
+      error: "title y content son requeridos."
+    });
+  }
+
+  if (title.length < 10 || title.length > 200) {
+    return res.status(400).json({
+      error: "El título debe tener entre 10 y 200 caracteres."
+    });
+  }
+
+  if (content.length < 100) {
+    return res.status(400).json({
+      error: "El contenido debe tener al menos 100 caracteres."
+    });
+  }
+
+  try {
+    const articleRef = await db.collection('articles').add({
+      psychologistId: psychologistId,
+      fullName: req.psychologist.fullName || 'Psicólogo',
+      psychologistEmail: req.psychologist.email || '',
+      title: title.trim(),
+      content: content.trim(),
+      summary: summary?.trim() || content.substring(0, 200) + '...',
+      imageUrl: imageUrl || `https://picsum.photos/seed/article_${Date.now()}/400/250`,
+      tags: Array.isArray(tags) ? tags.map(tag => tag.trim().toLowerCase()) : [],
+      category: category || 'general',
+      readingTimeMinutes: readingTimeMinutes || Math.ceil(content.length / 200),
+      isPublished: isPublished,
+      status: isPublished ? 'published' : 'draft',
+      views: 0,
+      likes: 0,
+      comments: [],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      publishedAt: isPublished ? FieldValue.serverTimestamp() : null
+    });
+
+    await db.collection('psychologists').doc(psychologistId).update({
+      articlesCount: FieldValue.increment(1),
+      lastArticleDate: FieldValue.serverTimestamp()
+    });
+
+    res.status(201).json({
+      success: true,
+      articleId: articleRef.id,
+      message: "Artículo creado exitosamente",
+      article: {
+        id: articleRef.id,
+        title: title,
+        status: isPublished ? 'published' : 'draft',
+        createdAt: new Date().toISOString()
+      },
+      articlesRemaining: req.articlesRemaining - 1,
+      maxArticles: MAX_ARTICLES_PER_PSYCHOLOGIST
+    });
+
+  } catch (error) {
+    console.error("Error al crear artículo:", error);
+    res.status(500).json({
+      error: "Error al crear el artículo",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 GET /psychologist/:psychologistId/limit - Obtener límite (PROTEGIDO)
+articleRouter.get("/psychologist/:psychologistId/limit", verifyFirebaseToken, async (req, res) => {
+  const { psychologistId } = req.params;
+
+  if (!psychologistId) {
+    return res.status(400).json({ error: "psychologistId es requerido" });
+  }
+
+  try {
+    const articlesSnapshot = await db.collection('articles')
+      .where('psychologistId', '==', psychologistId)
+      .where('status', 'in', ['draft', 'published'])
+      .get();
+
+    const currentCount = articlesSnapshot.size;
+    const remaining = MAX_ARTICLES_PER_PSYCHOLOGIST - currentCount;
+
+    res.json({
+      currentCount,
+      maxLimit: MAX_ARTICLES_PER_PSYCHOLOGIST,
+      remaining,
+      canCreateMore: remaining > 0,
+      percentage: Math.round((currentCount / MAX_ARTICLES_PER_PSYCHOLOGIST) * 100)
+    });
+
+  } catch (error) {
+    console.error("Error obteniendo límite:", error);
+    res.status(500).json({
+      error: "Error al obtener límite",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 GET /psychologist/:psychologistId - Obtener artículos del psicólogo (PROTEGIDO)
+articleRouter.get("/psychologist/:psychologistId", verifyFirebaseToken, async (req, res) => {
+  const { psychologistId } = req.params;
+  const { status, limit = 10, page = 1 } = req.query;
+
+  if (!psychologistId) {
+    return res.status(400).json({ error: "psychologistId es requerido" });
+  }
+
+  try {
+    let query = db.collection('articles')
+      .where('psychologistId', '==', psychologistId);
+
+    if (status && ['draft', 'published', 'archived'].includes(status)) {
+      query = query.where('status', '==', status);
+    } else {
+      query = query.where('status', 'in', ['draft', 'published']);
+    }
+
+    query = query.orderBy('createdAt', 'desc');
+    const limitNum = Math.min(parseInt(limit), 50);
+    query = query.limit(limitNum);
+
+    const articlesSnapshot = await query.get();
+    const articles = articlesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+        publishedAt: data.publishedAt?.toDate()
+      };
+    });
+
+    const activeArticlesSnapshot = await db.collection('articles')
+      .where('psychologistId', '==', psychologistId)
+      .where('status', 'in', ['draft', 'published'])
+      .get();
+
+    const currentCount = activeArticlesSnapshot.size;
+
+    res.status(200).json({
+      articles: articles,
+      totalArticles: articles.length,
+      page: parseInt(page),
+      limit: limitNum,
+      articleLimit: {
+        currentCount,
+        maxLimit: MAX_ARTICLES_PER_PSYCHOLOGIST,
+        remaining: MAX_ARTICLES_PER_PSYCHOLOGIST - currentCount,
+        canCreateMore: currentCount < MAX_ARTICLES_PER_PSYCHOLOGIST
+      }
+    });
+
+  } catch (error) {
+    console.error("Error obteniendo artículos del psicólogo:", error);
+    res.status(500).json({
+      error: "Error al obtener artículos",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 PUT /update/:articleId - Actualizar artículo (PROTEGIDO)
+articleRouter.put("/update/:articleId", verifyFirebaseToken, async (req, res) => {
+  const { articleId } = req.params;
+  const { psychologistId, title, content, summary, imageUrl, tags, category, readingTimeMinutes, isPublished } = req.body;
+
+  if (!articleId || !psychologistId) {
+    return res.status(400).json({ error: "articleId y psychologistId son requeridos." });
+  }
+
+  try {
+    const articleDoc = await db.collection('articles').doc(articleId).get();
+    if (!articleDoc.exists) {
+      return res.status(404).json({ error: "Artículo no encontrado" });
+    }
+
+    const articleData = articleDoc.data();
+    if (articleData.psychologistId !== psychologistId) {
+      return res.status(403).json({ error: "No tienes permisos para editar este artículo" });
+    }
+
+    const updateData = { updatedAt: FieldValue.serverTimestamp() };
+
+    if (title !== undefined) updateData.title = title.trim();
+    if (content !== undefined) updateData.content = content.trim();
+    if (summary !== undefined) updateData.summary = summary.trim();
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (Array.isArray(tags)) updateData.tags = tags.map(tag => tag.trim().toLowerCase());
+    if (category !== undefined) updateData.category = category;
+    if (readingTimeMinutes !== undefined) updateData.readingTimeMinutes = readingTimeMinutes;
+
+    if (isPublished !== undefined) {
+      updateData.isPublished = isPublished;
+      updateData.status = isPublished ? 'published' : 'draft';
+      if (isPublished && !articleData.publishedAt) {
+        updateData.publishedAt = FieldValue.serverTimestamp();
+      }
+    }
+
+    await db.collection('articles').doc(articleId).update(updateData);
+
+    res.json({ success: true, message: "Artículo actualizado exitosamente", articleId });
+
+  } catch (error) {
+    console.error("Error al actualizar artículo:", error);
+    res.status(500).json({
+      error: "Error al actualizar el artículo",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 DELETE /delete/:articleId - Eliminar artículo (PROTEGIDO)
+articleRouter.delete("/delete/:articleId", verifyFirebaseToken, async (req, res) => {
+  const { articleId } = req.params;
+  const { psychologistId } = req.body;
+
+  if (!articleId || !psychologistId) {
+    return res.status(400).json({ error: "articleId y psychologistId son requeridos." });
+  }
+
+  try {
+    const articleDoc = await db.collection('articles').doc(articleId).get();
+    if (!articleDoc.exists) {
+      return res.status(404).json({ error: "Artículo no encontrado" });
+    }
+
+    const articleData = articleDoc.data();
+    if (articleData.psychologistId !== psychologistId) {
+      return res.status(403).json({ error: "No tienes permisos para eliminar este artículo" });
+    }
+
+    await db.collection('articles').doc(articleId).update({
+      status: 'deleted',
+      deletedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    await db.collection('psychologists').doc(psychologistId).update({
+      articlesCount: FieldValue.increment(-1)
+    });
+
+    res.json({ success: true, message: "Artículo eliminado exitosamente" });
+
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al eliminar el artículo",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 POST /:articleId/like - Like/Unlike artículo (PROTEGIDO)
+articleRouter.post("/:articleId/like", verifyFirebaseToken, async (req, res) => {
+  const { articleId } = req.params;
+  const { userId, action = 'like' } = req.body;
 
   if (!articleId || !userId) {
     return res.status(400).json({ error: "articleId y userId son requeridos" });
   }
 
   try {
+    const articleDoc = await db.collection('articles').doc(articleId).get();
+    if (!articleDoc.exists) {
+      return res.status(404).json({ error: "Artículo no encontrado" });
+    }
+
+    const likeRef = db.collection('article_likes').doc(`${articleId}_${userId}`);
+    const likeDoc = await likeRef.get();
+
+    if (action === 'like' && !likeDoc.exists) {
+      await likeRef.set({
+        articleId,
+        userId,
+        createdAt: FieldValue.serverTimestamp()
+      });
+      await db.collection('articles').doc(articleId).update({
+        likes: FieldValue.increment(1)
+      });
+      res.json({ success: true, message: "Like agregado" });
+    } else if (action === 'unlike' && likeDoc.exists) {
+      await likeRef.delete();
+      await db.collection('articles').doc(articleId).update({
+        likes: FieldValue.increment(-1)
+      });
+      res.json({ success: true, message: "Like eliminado" });
+    } else {
+      res.json({ success: true, message: "Sin cambios" });
+    }
+
+  } catch (error) {
+    console.error("Error procesando like:", error);
+    res.status(500).json({
+      error: "Error al procesar like",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 🔒 GET /:articleId/is-liked/:userId - Verificar si tiene like (PROTEGIDO)
+articleRouter.get("/:articleId/is-liked/:userId", verifyFirebaseToken, async (req, res) => {
+  const { articleId, userId } = req.params;
+
+  try {
     const likeDoc = await db.collection('article_likes').doc(`${articleId}_${userId}`).get();
-
-    const isLiked = likeDoc.exists;
-
-    res.json({ isLiked: isLiked });
+    res.json({ isLiked: likeDoc.exists });
   } catch (error) {
     console.error("Error al verificar like:", error);
     res.status(500).json({
@@ -661,31 +577,28 @@ articleRouter.get("/:articleId/is-liked/:userId", async (req, res) => {
   }
 });
 
+// 🔒 POST /upload-image - Subir imagen (PROTEGIDO)
 articleRouter.post('/upload-image', verifyFirebaseToken, async (req, res) => {
   const psychologistId = req.firebaseUser.uid;
   const imageId = `article_${psychologistId}_${Date.now()}`;
   const [uploadMiddleware, processMiddleware] = genericUploadHandler('articles_images', imageId);
+  
   uploadMiddleware(req, res, (err) => {
     if (err) {
-      console.error('Error en multer middleware:', err);
       return res.status(400).json({ error: 'Error al procesar el archivo.' });
     }
     
     processMiddleware(req, res, async (err) => {
       if (err) {
-        console.error('Error en Cloudinary middleware:', err);
-        return res.status(500).json({ error: 'Error al subir la imagen a Cloudinary.' });
+        return res.status(500).json({ error: 'Error al subir la imagen.' });
       }
 
       try {
-        const imageUrl = req.uploadedFile.url;
-        
         res.json({ 
-          message: 'Imagen de artículo subida exitosamente', 
-          imageUrl: imageUrl 
+          message: 'Imagen subida exitosamente', 
+          imageUrl: req.uploadedFile.url 
         });
       } catch (error) {
-        console.error('Error al procesar la imagen:', error);
         res.status(500).json({ error: 'Error al procesar la imagen.' });
       }
     });
