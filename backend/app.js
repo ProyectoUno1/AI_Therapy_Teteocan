@@ -76,7 +76,11 @@ app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
 app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
 app.use('/api', fcmRoutes);
+
+// ⚠️ IMPORTANTE: Articles SIN middleware global de autenticación
+// El propio articleRouter maneja la autenticación en rutas específicas
 app.use('/api/articles', articleRouter);
+
 app.use("/api/support", supportRoutes);
 app.use('/api', bankInfoRoutes);
 
