@@ -1,4 +1,6 @@
-//lib/data/models/bank_info_model.dart
+// lib/data/models/bank_info_model.dart
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BankInfoModel {
   final String? id;
@@ -12,7 +14,6 @@ class BankInfoModel {
   final String? swiftCode;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  final bool isVerified;
 
   BankInfoModel({
     this.id,
@@ -26,71 +27,33 @@ class BankInfoModel {
     this.swiftCode,
     this.createdAt,
     this.updatedAt,
-    this.isVerified = false,
   });
 
   factory BankInfoModel.fromJson(Map<String, dynamic> json) {
     return BankInfoModel(
-      id: json['id'] as String?,
-      psychologistId: json['psychologistId'] as String? ?? '',
-      accountHolderName: json['accountHolderName'] as String? ?? '',
-      bankName: json['bankName'] as String? ?? '',
-      accountType: json['accountType'] as String? ?? 'checking',
-      accountNumber: json['accountNumber'] as String? ?? '',
-      clabe: json['clabe'] as String? ?? '',
-      isInternational: json['isInternational'] as bool? ?? false,
-      swiftCode: json['swiftCode'] as String?,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
-      isVerified: json['isVerified'] as bool? ?? false,
+      id: json['id'],
+      psychologistId: json['psychologistId'] ?? '',
+      accountHolderName: json['accountHolderName'] ?? '',
+      bankName: json['bankName'] ?? '',
+      accountType: json['accountType'] ?? 'checking',
+      accountNumber: json['accountNumber'] ?? '',
+      clabe: json['clabe'] ?? '',
+      isInternational: json['isInternational'] ?? false,
+      swiftCode: json['swiftCode'],
+      createdAt: _parseTimestamp(json['createdAt']),
+      updatedAt: _parseTimestamp(json['updatedAt']),
     );
   }
 
-  // Función auxiliar para parsear fechas de Firebase
-  static DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    
-    try {
-      // Si es un String ISO
-      if (value is String) {
-        return DateTime.parse(value);
-      }
-      
-      // Si es un Map (Timestamp de Firebase)
-      if (value is Map<String, dynamic>) {
-        // Firebase Timestamp tiene _seconds y _nanoseconds
-        if (value.containsKey('_seconds')) {
-          final seconds = value['_seconds'] as int;
-          final nanoseconds = value['_nanoseconds'] as int? ?? 0;
-          return DateTime.fromMillisecondsSinceEpoch(
-            seconds * 1000 + (nanoseconds ~/ 1000000)
-          );
-        }
-        // O puede tener seconds y nanoseconds sin guión bajo
-        if (value.containsKey('seconds')) {
-          final seconds = value['seconds'] as int;
-          final nanoseconds = value['nanoseconds'] as int? ?? 0;
-          return DateTime.fromMillisecondsSinceEpoch(
-            seconds * 1000 + (nanoseconds ~/ 1000000)
-          );
-        }
-      }
-      
-      // Si es un int (timestamp en milisegundos)
-      if (value is int) {
-        return DateTime.fromMillisecondsSinceEpoch(value);
-      }
-      
-      return null;
-    } catch (e) {
-      print('Error parseando fecha: $e');
-      return null;
-    }
+  static DateTime? _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) return null;
+    if (timestamp is Timestamp) return timestamp.toDate();
+    if (timestamp is String) return DateTime.parse(timestamp);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      if (id != null) 'id': id,
+    final json = <String, dynamic>{
       'psychologistId': psychologistId,
       'accountHolderName': accountHolderName,
       'bankName': bankName,
@@ -98,11 +61,21 @@ class BankInfoModel {
       'accountNumber': accountNumber,
       'clabe': clabe,
       'isInternational': isInternational,
-      if (swiftCode != null) 'swiftCode': swiftCode,
-      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
-      'isVerified': isVerified,
     };
+
+    if (swiftCode != null) {
+      json['swiftCode'] = swiftCode;
+    }
+
+    if (createdAt != null) {
+      json['createdAt'] = Timestamp.fromDate(createdAt!);
+    }
+
+    if (updatedAt != null) {
+      json['updatedAt'] = Timestamp.fromDate(updatedAt!);
+    }
+
+    return json;
   }
 
   BankInfoModel copyWith({
@@ -117,7 +90,6 @@ class BankInfoModel {
     String? swiftCode,
     DateTime? createdAt,
     DateTime? updatedAt,
-    bool? isVerified,
   }) {
     return BankInfoModel(
       id: id ?? this.id,
@@ -131,7 +103,6 @@ class BankInfoModel {
       swiftCode: swiftCode ?? this.swiftCode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      isVerified: isVerified ?? this.isVerified,
     );
   }
 }
