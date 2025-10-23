@@ -301,44 +301,46 @@ class ArticleRepository {
   }
 
   Future<List<Article>> getPublishedArticles() async {
-    try {
-      final url = '$baseUrl/articles/public';
-      print('🌐 GET PublishedArticles: $url'); // Debug
-      
-      final headers = <String, String>{
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-      
-      if (authToken != null) {
-        headers['Authorization'] = 'Bearer $authToken';
-      }
+  try {
+    final url = '$baseUrl/articles/public';
+    print('🌐 GET PublishedArticles: $url');
+    
+    // SOLO headers básicos, SIN Authorization
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    
+    // ⚠️ REMOVER esta parte que agrega el token
+    // if (authToken != null) {
+    //   headers['Authorization'] = 'Bearer $authToken';
+    // }
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
+    final response = await http.get(
+      Uri.parse(url),
+      headers: headers,
+    );
 
-      print('📊 Response Status: ${response.statusCode}');
-      print('📊 Response Body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
+    print('📊 Response Status: ${response.statusCode}');
+    print('📊 Response Body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        final List<dynamic> articlesData = responseData['articles'];
-        print('✅ Loaded ${articlesData.length} published articles');
-        return articlesData.map((json) => Article.fromJson(json)).toList();
-      } else if (response.statusCode == 404) {
-        print('⚠️ No published articles found');
-        return [];
-      } else {
-        print('❌ Error loading articles: ${response.statusCode}');
-        return [];
-      }
-    } catch (e) {
-      print('❌ Exception loading published articles: $e');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      final List<dynamic> articlesData = responseData['articles'];
+      print('✅ Loaded ${articlesData.length} published articles');
+      return articlesData.map((json) => Article.fromJson(json)).toList();
+    } else if (response.statusCode == 404) {
+      print('⚠️ No published articles found');
+      return [];
+    } else {
+      print('❌ Error loading articles: ${response.statusCode}');
       return [];
     }
+  } catch (e) {
+    print('❌ Exception loading published articles: $e');
+    return [];
   }
+}
 
   Future<String> uploadArticleImage(String imagePath, String psychologistId) async {
     try {

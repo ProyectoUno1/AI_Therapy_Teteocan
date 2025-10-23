@@ -1,131 +1,151 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/bank_info_model.dart';
 import 'package:ai_therapy_teteocan/data/models/payment_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class BankInfoRepository {
-  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   BankInfoRepository();
 
-  // Método para obtener headers con token de autenticación
-  Future<Map<String, String>> _getHeaders() async {
-    final headers = <String, String>{
-      'Content-Type': 'application/json; charset=UTF-8',
-    };
-
-    final user = _auth.currentUser;
-    if (user != null) {
-      final idToken = await user.getIdToken(true);
-      if (idToken != null) {
-        headers['Authorization'] = 'Bearer $idToken';
-      } else {
-        throw Exception('No se pudo obtener el token de autenticación.');
-      }
-    } else {
-      throw Exception('Usuario no autenticado.');
-    }
-
-    return headers;
-  }
-
   // Obtener información bancaria del psicólogo
   Future<BankInfoModel?> getBankInfo(String psychologistId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/bank-info/$psychologistId'),
-        headers: await _getHeaders(),
-      );
+      final doc = await _firestore
+          .collection('bank_info')
+          .doc(psychologistId)
+          .get();
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['bankInfo'] != null) {
-          return BankInfoModel.fromJson(data['bankInfo']);
-        }
-        return null;
-      } else if (response.statusCode == 404) {
-        return null;
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Error al obtener información bancaria');
-      }
+      if (!doc.exists) return null;
+
+      final data = doc.data();
+      if (data == null) return null;
+
+      return BankInfoModel.fromJson({
+        ...data,
+        'id': doc.id,
+      });
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      print('Error obteniendo información bancaria: $e');
+      throw Exception('Error al obtener información bancaria: $e');
     }
   }
 
   // Guardar nueva información bancaria
   Future<BankInfoModel> saveBankInfo(BankInfoModel bankInfo) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/bank-info'),
-        headers: await _getHeaders(),
-        body: json.encode(bankInfo.toJson()),
-      );
+      await _firestore
+          .collection('bank_info')
+          .doc(bankInfo.psychologistId)
+          .set(bankInfo.toJson());
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return BankInfoModel.fromJson(data['bankInfo']);
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Error al guardar información bancaria');
-      }
+      return bankInfo;
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      print('Error guardando información bancaria: $e');
+      throw Exception('Error al guardar información bancaria: $e');
     }
   }
 
   // Actualizar información bancaria
   Future<BankInfoModel> updateBankInfo(BankInfoModel bankInfo) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/bank-info/${bankInfo.psychologistId}'),
-        headers: await _getHeaders(),
-        body: json.encode(bankInfo.toJson()),
-      );
+      await _firestore
+          .collection('bank_info')
+          .doc(bankInfo.psychologistId)
+          .update(bankInfo.toJson());
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return BankInfoModel.fromJson(data['bankInfo']);
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Error al actualizar información bancaria');
-      }
+      return bankInfo;
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      print('Error actualizando información bancaria: $e');
+      throw Exception('Error al actualizar información bancaria: $e');
     }
   }
 
-  // Obtener historial de pagos
+  // Obtener historial de pagos desde la colección correcta
   Future<List<PaymentModel>> getPaymentHistory(
     String psychologistId, {
     String? status,
   }) async {
     try {
-      String url = '$_baseUrl/payments/$psychologistId';
+      print('🔍 Buscando pagos para psychologistId: $psychologistId');
+      
+      // Query base
+      Query query = _firestore
+          .collection('psychologist_payments')
+          .where('psychologistId', isEqualTo: psychologistId);
+
+      // Filtrar por estado si se especifica
       if (status != null && status != 'all') {
-        url += '?status=$status';
+        query = query.where('status', isEqualTo: status);
       }
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: await _getHeaders(),
-      );
+      // Ordenar por fecha
+      query = query.orderBy('paidAt', descending: true);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> paymentsJson = data['payments'] ?? [];
-        return paymentsJson
-            .map((json) => PaymentModel.fromJson(json))
-            .toList();
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Error al obtener historial de pagos');
-      }
+      final snapshot = await query.get();
+      
+      print('📦 Documentos encontrados: ${snapshot.docs.length}');
+
+      final payments = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        print('📄 Documento: ${doc.id}');
+        print('   - Amount: ${data['amount']}');
+        print('   - Status: ${data['status']}');
+        
+        return PaymentModel.fromJson({
+          ...data,
+          'id': doc.id,
+        });
+      }).toList();
+
+      print('✅ Pagos procesados: ${payments.length}');
+      return payments;
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      print('❌ Error obteniendo historial de pagos: $e');
+      throw Exception('Error al obtener historial de pagos: $e');
+    }
+  }
+
+  // Eliminar información bancaria
+  Future<void> deleteBankInfo(String psychologistId) async {
+    try {
+      await _firestore
+          .collection('bank_info')
+          .doc(psychologistId)
+          .delete();
+    } catch (e) {
+      print('Error eliminando información bancaria: $e');
+      throw Exception('Error al eliminar información bancaria: $e');
+    }
+  }
+
+  // Obtener resumen de pagos
+  Future<Map<String, double>> getPaymentSummary(String psychologistId) async {
+    try {
+      final payments = await getPaymentHistory(psychologistId);
+
+      double totalEarned = 0;
+      double pendingAmount = 0;
+
+      for (var payment in payments) {
+        if (payment.status == 'completed') {
+          totalEarned += payment.amount;
+        } else if (payment.status == 'pending') {
+          pendingAmount += payment.amount;
+        }
+      }
+
+      return {
+        'totalEarned': totalEarned,
+        'pendingAmount': pendingAmount,
+      };
+    } catch (e) {
+      print('Error obteniendo resumen de pagos: $e');
+      return {
+        'totalEarned': 0.0,
+        'pendingAmount': 0.0,
+      };
     }
   }
 }
