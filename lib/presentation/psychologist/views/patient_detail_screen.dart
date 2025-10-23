@@ -1118,7 +1118,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
       );
       final response = await http.patch(
         Uri.parse(
-          'http://10.0.2.2:3000/api/patient-management/patients/${_patient.id}/complete',
+          '${AppConstants.baseUrl}/patient-management/patients/${_patient.id}/complete',
         ),
         headers: {
           'Content-Type': 'application/json',
