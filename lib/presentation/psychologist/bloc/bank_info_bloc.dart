@@ -102,8 +102,6 @@ class BankInfoBloc extends Bloc<BankInfoEvent, BankInfoState> {
     emit(state.copyWith(status: BankInfoStatus.loading));
     
     try {
-      print('📜 Cargando historial de pagos para: ${event.psychologistId}');
-      
       // Cargar todos los pagos
       final payments = await repository.getPaymentHistory(event.psychologistId);
       
@@ -118,10 +116,6 @@ class BankInfoBloc extends Bloc<BankInfoEvent, BankInfoState> {
           pendingAmount += payment.amount;
         }
       }
-
-      print('💰 Total ganado: \$${totalEarned.toStringAsFixed(2)}');
-      print('⏳ Pendiente: \$${pendingAmount.toStringAsFixed(2)}');
-      print('📊 Total de pagos: ${payments.length}');
       
       emit(state.copyWith(
         status: BankInfoStatus.success,
@@ -132,7 +126,6 @@ class BankInfoBloc extends Bloc<BankInfoEvent, BankInfoState> {
         currentFilter: 'all',
       ));
     } catch (e) {
-      print('❌ Error cargando historial de pagos: $e');
       emit(state.copyWith(
         status: BankInfoStatus.error,
         errorMessage: e.toString(),
@@ -144,7 +137,6 @@ class BankInfoBloc extends Bloc<BankInfoEvent, BankInfoState> {
     FilterPayments event,
     Emitter<BankInfoState> emit,
   ) {
-    print('🔍 Filtrando pagos por: ${event.status}');
     
     List<dynamic> filteredPaymentsList;
     
@@ -156,8 +148,6 @@ class BankInfoBloc extends Bloc<BankInfoEvent, BankInfoState> {
           .toList();
     }
 
-    print('✅ Pagos filtrados: ${filteredPaymentsList.length}');
-    
     emit(state.copyWith(
       filteredPayments: filteredPaymentsList.cast(),
       currentFilter: event.status,

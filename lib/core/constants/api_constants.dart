@@ -6,7 +6,7 @@ class ApiConstants {
   // URL base del backend
   static const String baseUrl =  'https://ai-therapy-teteocan.onrender.com/api'; // Producción en Render
   
-  // Endpoints específicos (si los necesitas)
+  // Endpoints específicos 
   static const String patientsEndpoint = '/patients';
   static const String psychologistsEndpoint = '/psychologists';
   static const String appointmentsEndpoint = '/appointments';

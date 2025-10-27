@@ -7,26 +7,36 @@ import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 
 class PsychologistRemoteDataSource {
-  static final String _baseUrl = '${ApiConstants.baseUrl}/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<Map<String, String>> _getHeaders() async {
-    final headers = <String, String>{
-      'Content-Type': 'application/json; charset=UTF-8',
-    };
-
-    final user = _auth.currentUser;
-    if (user != null) {
-      final idToken = await user.getIdToken(false); 
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $idToken',
-    };
+  // ✅ Construir baseUrl correctamente
+  String get _baseUrl {
+    final base = ApiConstants.baseUrl;
+    // Si ya tiene /api, no duplicar
+    if (base.endsWith('/api')) {
+      return base;
     }
-    return headers;
+    return '$base/api';
   }
 
-  // INFORMACIÓN BÁSICA
+  Future<Map<String, String>> _getHeaders() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final idToken = await user.getIdToken(false);
+    if (idToken == null) {
+      throw Exception('No se pudo obtener el token de autenticación');
+    }
+
+    return {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer $idToken',
+    };
+  }
+
+  // ================== INFORMACIÓN BÁSICA ==================
   
   Future<void> updateBasicInfo({
     required String uid,
@@ -43,18 +53,30 @@ class PsychologistRemoteDataSource {
 
     if (data.isEmpty) return;
 
+    final url = Uri.parse('$_baseUrl/psychologists/$uid/basic');
+    print('📡 PATCH $url');
+    print('📦 Body: ${jsonEncode(data)}');
+
     final response = await http.patch(
-      Uri.parse('$_baseUrl/psychologists/$uid/basic'),
+      url,
       headers: await _getHeaders(),
       body: jsonEncode(data),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw Exception('Timeout: El servidor no respondió en 30 segundos');
+      },
     );
+
+    print('📡 Status: ${response.statusCode}');
+    print('📡 Response: ${response.body}');
 
     if (response.statusCode != 200) {
       throw Exception('Error ${response.statusCode}: ${response.body}');
     }
   }
 
-  // INFORMACIÓN PROFESIONAL
+  // ================== INFORMACIÓN PROFESIONAL ==================
 
   Future<void> updateProfessionalInfo({
     required String uid,
@@ -89,12 +111,17 @@ class PsychologistRemoteDataSource {
     if (price != null) data['price'] = price;
 
     if (data.isEmpty) {
+      print('⚠️ No hay datos para actualizar');
       return;
     }
 
+    final url = Uri.parse('$_baseUrl/psychologists/$uid/professional-info');
+    print('📡 PATCH $url');
+    print('📦 Body: ${jsonEncode(data)}');
+
     try {
       final response = await http.patch(
-        Uri.parse('$_baseUrl/psychologists/$uid/professional'),
+        url,
         headers: await _getHeaders(),
         body: jsonEncode(data),
       ).timeout(
@@ -104,56 +131,118 @@ class PsychologistRemoteDataSource {
         },
       );
 
-      if (response.statusCode != 200) {
-        throw Exception('Error ${response.statusCode}: ${response.body}');
+      print('📡 Status: ${response.statusCode}');
+      print('📡 Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        print('✅ Información profesional actualizada exitosamente');
+      } else {
+        final errorBody = response.body.isNotEmpty 
+            ? jsonDecode(response.body) 
+            : {'error': 'Error desconocido'};
+        throw Exception('Error ${response.statusCode}: ${errorBody['error'] ?? errorBody}');
       }
 
     } catch (e) {
+      print('❌ Error en updateProfessionalInfo: $e');
       rethrow;
     }
   }
 
-  // OBTENER INFORMACIÓN
+  // ================== OBTENER INFORMACIÓN ==================
   
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/psychologists/$uid'),
-      headers: await _getHeaders(),
-    );
+    final url = Uri.parse('$_baseUrl/psychologists/$uid');
+    print('📡 GET $url');
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData = json.decode(response.body);
-      final psychologistData = responseData['psychologist'];
-      return PsychologistModel.fromJson(psychologistData);
-    } else if (response.statusCode == 404) {
-      return null;
-    } else {
-      throw Exception('Error ${response.statusCode}: ${response.body}');
+    try {
+      final headers = await _getHeaders();
+      print('🔑 Headers: ${headers.keys.join(", ")}');
+      
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Timeout al obtener información del psicólogo');
+        },
+      );
+
+      print('📡 Status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        print('📦 Response data keys: ${responseData.keys.join(", ")}');
+        
+        // El backend puede devolver { psychologist: {...} } o directamente {...}
+        final psychologistData = responseData.containsKey('psychologist')
+            ? responseData['psychologist']
+            : responseData;
+        
+        print('✅ Psicólogo obtenido exitosamente');
+        print('📋 Datos del psicólogo: ${psychologistData.keys.join(", ")}');
+        
+        return PsychologistModel.fromJson(psychologistData);
+        
+      } else if (response.statusCode == 403) {
+        print('⚠️ Acceso no autorizado (403)');
+        print('📄 Response: ${response.body}');
+        return null;
+      } else if (response.statusCode == 404) {
+        print('⚠️ Psicólogo no encontrado (404)');
+        print('📄 Response: ${response.body}');
+        return null;
+      } else {
+        print('❌ Error ${response.statusCode}');
+        print('📄 Response: ${response.body}');
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error obteniendo psicólogo: $e');
+      rethrow;
     }
   }
 
-  // SUBIDA DE IMAGEN 
+  // ================== SUBIDA DE IMAGEN ==================
+  
   Future<String> uploadProfilePicture(String imagePath) async {
-    final String apiUrl = '$_baseUrl/psychologists/upload-profile-picture';
+    final apiUrl = '$_baseUrl/psychologists/upload-profile-picture';
+    print('📡 POST $apiUrl');
+    print('📸 Imagen: $imagePath');
 
     final token = await _auth.currentUser?.getIdToken();
     if (token == null) {
       throw Exception('Usuario no autenticado');
     }
 
-    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-    request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(await http.MultipartFile.fromPath('imageFile', imagePath));
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('imageFile', imagePath)
+      );
 
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
+      print('📤 Enviando imagen...');
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
 
-    if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
-      return jsonResponse['profilePictureUrl'];
-    } else {
-      final errorBody = json.decode(response.body);
-      throw Exception('Error al subir imagen: ${errorBody['error']} (${response.statusCode})');
+      print('📡 Status: ${response.statusCode}');
+      print('📡 Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        final imageUrl = jsonResponse['profilePictureUrl'] as String;
+        print('✅ Imagen subida exitosamente: $imageUrl');
+        return imageUrl;
+      } else {
+        final errorBody = json.decode(response.body);
+        throw Exception('Error al subir imagen: ${errorBody['error']} (${response.statusCode})');
+      }
+    } catch (e) {
+      print('❌ Error en uploadProfilePicture: $e');
+      rethrow;
     }
   }
 }

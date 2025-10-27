@@ -9,7 +9,7 @@ class PsychologistRepositoryImpl implements PsychologistRepository {
 
   PsychologistRepositoryImpl(this._remoteDataSource);
 
-  // INFORMACIÓN BÁSICA
+  // ================== INFORMACIÓN BÁSICA ==================
 
   @override
   Future<void> updateBasicInfo({
@@ -18,16 +18,28 @@ class PsychologistRepositoryImpl implements PsychologistRepository {
     String? phoneNumber,
     String? profilePictureUrl,
   }) async {
-    await _remoteDataSource.updateBasicInfo(
-      uid: uid,
-      username: username,
-      phoneNumber: phoneNumber,
-      profilePictureUrl: profilePictureUrl,
-    );
+    try {
+      print('📝 Repository: Actualizando información básica...');
+      print('📋 UID: $uid');
+      print('👤 Username: $username');
+      print('📞 Teléfono: $phoneNumber');
+      print('📸 Imagen: $profilePictureUrl');
+      
+      await _remoteDataSource.updateBasicInfo(
+        uid: uid,
+        username: username,
+        phoneNumber: phoneNumber,
+        profilePictureUrl: profilePictureUrl,
+      );
+      
+      print('✅ Repository: Información básica actualizada exitosamente');
+    } catch (e) {
+      print('❌ Repository: Error actualizando información básica: $e');
+      rethrow;
+    }
   }
 
-
-  // INFORMACIÓN PROFESIONAL
+  // ================== INFORMACIÓN PROFESIONAL ==================
 
   @override
   Future<void> updateProfessionalInfo({
@@ -46,40 +58,98 @@ class PsychologistRepositoryImpl implements PsychologistRepository {
     bool? isAvailable,
     double? price,
   }) async {
-    await _remoteDataSource.updateProfessionalInfo(
-      uid: uid,
-      fullName: username,
-      professionalLicense: professionalLicense,
-      professionalTitle: professionalTitle,
-      yearsExperience: yearsExperience,
-      description: description,
-      education: education,
-      certifications: certifications,
-      specialty: specialty,
-      subSpecialties: subSpecialties,
-      schedule: schedule,
-      profilePictureUrl: profilePictureUrl,
-      isAvailable: isAvailable,
-      price: price,
-    );
+    try {
+      print('📝 Repository: Actualizando información profesional...');
+      print('📋 UID: $uid');
+      print('👤 Nombre completo: $username');
+      print('🎓 Título: $professionalTitle');
+      print('📄 Cédula: $professionalLicense');
+      print('⏱️ Años experiencia: $yearsExperience');
+      print('📝 Descripción: ${description?.substring(0, description.length > 50 ? 50 : description.length)}...');
+      print('🎓 Educación: $education');
+      print('📜 Certificaciones: $certifications');
+      print('🏥 Especialidad: $specialty');
+      print('🔹 Sub-especialidades: $subSpecialties');
+      print('📅 Horario: $schedule');
+      print('📸 Imagen URL: $profilePictureUrl');
+      print('✅ Disponible: $isAvailable');
+      print('💰 Precio: $price');
+      
+      await _remoteDataSource.updateProfessionalInfo(
+        uid: uid,
+        fullName: username,
+        professionalLicense: professionalLicense,
+        professionalTitle: professionalTitle,
+        yearsExperience: yearsExperience,
+        description: description,
+        education: education,
+        certifications: certifications,
+        specialty: specialty,
+        subSpecialties: subSpecialties,
+        schedule: schedule,
+        profilePictureUrl: profilePictureUrl,
+        isAvailable: isAvailable,
+        price: price,
+      );
+      
+      print('✅ Repository: Información profesional actualizada exitosamente');
+    } catch (e) {
+      print('❌ Repository: Error actualizando información profesional: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
   }
 
-  // OBTENER INFORMACIÓN
+  // ================== OBTENER INFORMACIÓN ==================
 
   @override
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
     try {
-      return await _remoteDataSource.getPsychologistInfo(uid);
+      print('🔍 Repository: Obteniendo psicólogo con UID: $uid');
+      
+      final psychologist = await _remoteDataSource.getPsychologistInfo(uid);
+      
+      if (psychologist != null) {
+        print('✅ Repository: Psicólogo obtenido exitosamente');
+        print('👤 Nombre: ${psychologist.fullName}');
+        print('📧 Email: ${psychologist.email}');
+        print('🎓 Título: ${psychologist.professionalTitle}');
+        print('📄 Cédula: ${psychologist.professionalLicense}');
+        print('⏱️ Años experiencia: ${psychologist.yearsExperience}');
+        print('🏥 Especialidad: ${psychologist.specialty}');
+        print('📸 Imagen: ${psychologist.profilePictureUrl}');
+        print('💰 Precio: ${psychologist.price}');
+        print('📅 Horario: ${psychologist.schedule}');
+      } else {
+        print('⚠️ Repository: Psicólogo no encontrado');
+      }
+      
+      return psychologist;
     } catch (e) {
+      print('❌ Repository: Error obteniendo psicólogo: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       return null;
     }
   }
 
-  // SUBIDA DE IMAGEN
+  // ================== SUBIDA DE IMAGEN ==================
+  
   @override
-  Future<String> uploadProfilePicture(String imagePath) {
-    return _remoteDataSource.uploadProfilePicture(imagePath);
+  Future<String> uploadProfilePicture(String imagePath) async {
+    try {
+      print('📤 Repository: Subiendo imagen de perfil...');
+      print('📁 Ruta de la imagen: $imagePath');
+      
+      final url = await _remoteDataSource.uploadProfilePicture(imagePath);
+      
+      print('✅ Repository: Imagen subida exitosamente');
+      print('🔗 URL de la imagen: $url');
+      
+      return url;
+    } catch (e) {
+      print('❌ Repository: Error subiendo imagen: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
   }
-
- 
 }

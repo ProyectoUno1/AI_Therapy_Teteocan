@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
+import 'package:ai_therapy_teteocan/data/models/article_limit_info.dart';
 class ArticleLimitCard extends StatelessWidget {
   final ArticleLimitInfo limitInfo;
   final VoidCallback? onTapDetails;
@@ -157,48 +158,42 @@ class ArticleLimitCard extends StatelessWidget {
   }
 }
 
-// Widget compacto para el header
+// Crea este widget en un archivo separado o en el mismo psychologist_home_content.dart
+
 class ArticleLimitBadge extends StatelessWidget {
   final ArticleLimitInfo limitInfo;
 
-  const ArticleLimitBadge({
-    Key? key,
-    required this.limitInfo,
-  }) : super(key: key);
+  const ArticleLimitBadge({super.key, required this.limitInfo});
 
   @override
   Widget build(BuildContext context) {
-    final canCreate = limitInfo.canCreateMore;
-    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: canCreate
-            ? AppConstants.secondaryColor.withOpacity(0.1)
-            : Colors.red.withOpacity(0.1),
+        color: limitInfo.canCreateMore 
+            ? Colors.green.withOpacity(0.1)
+            : Colors.orange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: canCreate
-              ? AppConstants.secondaryColor.withOpacity(0.3)
-              : Colors.red.withOpacity(0.3),
+          color: limitInfo.canCreateMore ? Colors.green : Colors.orange,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            canCreate ? Icons.check_circle : Icons.warning_amber,
-            size: 14,
-            color: canCreate ? AppConstants.secondaryColor : Colors.red,
+            limitInfo.canCreateMore ? Icons.check_circle : Icons.warning,
+            size: 12,
+            color: limitInfo.canCreateMore ? Colors.green : Colors.orange,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             '${limitInfo.currentCount}/${limitInfo.maxLimit}',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
+              color: limitInfo.canCreateMore ? Colors.green : Colors.orange,
               fontFamily: 'Poppins',
-              color: canCreate ? AppConstants.secondaryColor : Colors.red,
             ),
           ),
         ],

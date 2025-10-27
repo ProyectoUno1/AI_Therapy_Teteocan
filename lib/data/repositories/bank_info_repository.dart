@@ -62,15 +62,13 @@ class BankInfoRepository {
     }
   }
 
-  // Obtener historial de pagos desde la colección correcta
+  // Obtener historial de pagos 
   Future<List<PaymentModel>> getPaymentHistory(
     String psychologistId, {
     String? status,
   }) async {
     try {
-      print('🔍 Buscando pagos para psychologistId: $psychologistId');
-      
-      // Query base
+  
       Query query = _firestore
           .collection('psychologist_payments')
           .where('psychologistId', isEqualTo: psychologistId);
@@ -84,25 +82,18 @@ class BankInfoRepository {
       query = query.orderBy('paidAt', descending: true);
 
       final snapshot = await query.get();
-      
-      print('📦 Documentos encontrados: ${snapshot.docs.length}');
 
       final payments = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        print('📄 Documento: ${doc.id}');
-        print('   - Amount: ${data['amount']}');
-        print('   - Status: ${data['status']}');
-        
+
         return PaymentModel.fromJson({
           ...data,
           'id': doc.id,
         });
       }).toList();
 
-      print('✅ Pagos procesados: ${payments.length}');
       return payments;
     } catch (e) {
-      print('❌ Error obteniendo historial de pagos: $e');
       throw Exception('Error al obtener historial de pagos: $e');
     }
   }

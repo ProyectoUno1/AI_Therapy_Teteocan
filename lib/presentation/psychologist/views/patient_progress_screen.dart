@@ -9,6 +9,9 @@ import 'package:ai_therapy_teteocan/data/repositories/emotion_repository.dart';
 import 'package:ai_therapy_teteocan/core/services/exercise_feelings_service.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/datasources/emotion_data_source.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PatientProgressScreen extends StatefulWidget {
   final String patientId;
@@ -38,49 +41,123 @@ class _PatientProgressScreenState extends State<PatientProgressScreen> {
     _loadProgressData();
   }
 
-  Future<void> _loadProgressData() async {
-    setState(() => _isLoading = true);
+ Future<void> _loadProgressData() async {
+  setState(() => _isLoading = true);
 
+  try {
+    final days = int.parse(_selectedPeriod);
+    final endDate = DateTime.now();
+    final startDate = endDate.subtract(Duration(days: days));
+
+    print('🔍 Loading progress for patient: ${widget.patientId}');
+    print('📅 Date range: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
+
+    List<Emotion> emotions = [];
+    List<ExerciseFeelingModel> exercises = [];
+
+    // ✅ Cargar emociones usando HTTP directamente
     try {
-      final days = int.parse(_selectedPeriod);
-      final endDate = DateTime.now();
-      final startDate = endDate.subtract(Duration(days: days));
-
-      final emotionRepo = EmotionRepositoryImpl(
-        dataSource: EmotionRemoteDataSource(baseUrl: 'https://ai-therapy-teteocan.onrender.com/api'),
-      );
-      final emotions = await emotionRepo.getEmotionsByDateRange(
-        widget.patientId,
-        startDate,
-        endDate,
+      final response = await http.get(
+        Uri.parse(
+          'https://ai-therapy-teteocan.onrender.com/api/patient-management/patients/${widget.patientId}/emotions'
+          '?start=${startDate.toIso8601String()}&end=${endDate.toIso8601String()}'
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await _getAuthToken()}', // ✅ Necesitas obtener el token
+        },
       );
 
-    
+      print('📊 Emotions Response Status: ${response.statusCode}');
+      print('📊 Emotions Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> emotionsJson = json.decode(response.body);
+        emotions = emotionsJson.map((json) => Emotion.fromJson(json)).toList();
+        print('✅ Loaded ${emotions.length} emotions');
+      } else {
+        print('⚠️ Emotions request failed: ${response.statusCode}');
+      }
+    } catch (emotionError, stack) {
+      print('❌ Error loading emotions: $emotionError');
+      print('📚 Stack trace: $stack');
+    }
+
+    // ✅ Cargar ejercicios
+    try {
       final exerciseService = ExerciseFeelingsService();
-      final exercises = await exerciseService.getExerciseHistory(
+      final allExercises = await exerciseService.getExerciseHistory(
         patientId: widget.patientId,
         limit: 100,
       );
 
-      final filteredExercises = exercises.where((exercise) {
+      exercises = allExercises.where((exercise) {
         return exercise.completedAt.isAfter(startDate) &&
             exercise.completedAt.isBefore(endDate);
       }).toList();
+      
+      print('✅ Loaded ${exercises.length} exercises');
+    } catch (exerciseError, stack) {
+      print('❌ Error loading exercises: $exerciseError');
+      print('📚 Stack trace: $stack');
+    }
 
+    if (mounted) {
       setState(() {
         _emotions = emotions;
-        _exercises = filteredExercises;
+        _exercises = exercises;
         _isLoading = false;
       });
-    } catch (e) {
+    }
+  } catch (e, stackTrace) {
+    print('❌ Error general: $e');
+    print('📚 StackTrace: $stackTrace');
+    
+    if (mounted) {
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar datos: $e')),
-        );
-      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(
+                e.toString(),
+                style: const TextStyle(fontSize: 12),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Reintentar',
+            textColor: Colors.white,
+            onPressed: _loadProgressData,
+          ),
+        ),
+      );
     }
   }
+}
+
+Future<String> _getAuthToken() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await user.getIdToken();
+      return token ?? '';
+    }
+    return '';
+  } catch (e) {
+    print('❌ Error getting auth token: $e');
+    return '';
+  }
+}
 
   @override
   Widget build(BuildContext context) {

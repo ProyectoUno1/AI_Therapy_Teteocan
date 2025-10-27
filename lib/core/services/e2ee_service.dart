@@ -1,5 +1,5 @@
 // lib/services/e2ee_service.dart
-// Servicio de Cifrado de Extremo a Extremo para Flutter
+
 
 import 'dart:convert';
 import 'dart:math';
@@ -41,15 +41,7 @@ class E2EEService {
 
       // Intentar cargar claves existentes
       final hasKeys = await _loadKeysFromStorage();
-      
-      if (!hasKeys) {
-        print('🔑 Generando nuevo par de claves...');
-        await generateAndStoreKeys();
-      } else {
-        print('✅ Claves cargadas desde almacenamiento seguro');
-      }
     } catch (e) {
-      print('❌ Error inicializando E2EE: $e');
       rethrow;
     }
   }
@@ -70,10 +62,7 @@ class E2EEService {
 
       // Guardar clave pública en Firestore
       await _savePublicKeyToFirestore(userId, _publicKey!);
-
-      print('✅ Par de claves generado y almacenado');
     } catch (e) {
-      print('❌ Error generando claves: $e');
       rethrow;
     }
   }
@@ -268,7 +257,7 @@ class E2EEService {
 
       return jsonEncode(payload);
     } catch (e) {
-      print('❌ Error cifrando mensaje: $e');
+      print('Error cifrando mensaje: $e');
       rethrow;
     }
   }
@@ -297,7 +286,7 @@ class E2EEService {
       
       return encrypter.decrypt(encryptedMessage, iv: iv);
     } catch (e) {
-      print('❌ Error descifrando mensaje: $e');
+      print('Error descifrando mensaje: $e');
       return '[Mensaje cifrado - No se puede descifrar]';
     }
   }
@@ -332,7 +321,7 @@ class E2EEService {
 
       return jsonEncode(payload);
     } catch (e) {
-      print('❌ Error cifrando para IA: $e');
+      print('Error cifrando para IA: $e');
       rethrow;
     }
   }

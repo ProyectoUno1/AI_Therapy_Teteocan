@@ -84,9 +84,8 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
-/**
- * ✅ FUNCIÓN CON SOPORTE E2EE
- */
+//FUNCIÓN CON SOPORTE E2EE
+
 async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
     const startTime = Date.now();
     try {

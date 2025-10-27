@@ -20,6 +20,10 @@ class Emotion {
     this.metadata,
   });
 
+  factory Emotion.fromJson(Map<String, dynamic> json) {
+    return Emotion.fromMap(json);
+  }
+
   factory Emotion.fromMap(Map<String, dynamic> map) {
     return Emotion(
       id: map['id'],
@@ -44,14 +48,36 @@ class Emotion {
     };
   }
 
+  Map<String, dynamic> toJson() {
+    return toMap();
+  }
+
   static Feeling _stringToFeeling(String feeling) {
-    switch (feeling) {
-      case 'terrible': return Feeling.terrible;
-      case 'bad': return Feeling.bad;
-      case 'neutral': return Feeling.neutral;
-      case 'good': return Feeling.good;
-      case 'great': return Feeling.great;
-      default: return Feeling.neutral;
+    switch (feeling.toLowerCase()) {
+      case 'terrible':
+        return Feeling.terrible;
+      case 'bad':
+        return Feeling.bad;
+      case 'neutral':
+        return Feeling.neutral;
+      case 'good':
+        return Feeling.good;
+      case 'great':
+        return Feeling.great;
+      case 'happy':
+        return Feeling.great;
+      case 'sad':
+        return Feeling.bad;
+      case 'angry':
+        return Feeling.bad;
+      case 'anxious':
+        return Feeling.bad;
+      case 'calm':
+        return Feeling.good;
+      case 'excited':
+        return Feeling.great;
+      default:
+        return Feeling.neutral;
     }
   }
 
