@@ -173,7 +173,7 @@ router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) =>
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
     if (price !== undefined) updateData.price = price;
     
-    updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    updateData.updatedAt = firestore.FieldValue.serverTimestamp();
 
     await db.collection('psychologists').doc(uid).update(updateData);
 

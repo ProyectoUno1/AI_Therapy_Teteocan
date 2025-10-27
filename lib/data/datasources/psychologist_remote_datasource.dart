@@ -9,10 +9,9 @@ import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 class PsychologistRemoteDataSource {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // ✅ Construir baseUrl correctamente
+
   String get _baseUrl {
     final base = ApiConstants.baseUrl;
-    // Si ya tiene /api, no duplicar
     if (base.endsWith('/api')) {
       return base;
     }
