@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/data/models/article_model.dart';
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
+import 'package:ai_therapy_teteocan/data/models/article_limit_info.dart';
 
 part 'article_event.dart';
 part 'article_state.dart';
@@ -24,31 +25,51 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     on<LoadPublishedArticles>(_onLoadPublishedArticles);
   }
 
+  // ✅ AGREGAR ESTE MÉTODO
+  String? _getCurrentPsychologistId() {
+    print('👤 Psychologist ID para ArticleBloc: $psychologistId');
+    return psychologistId;
+  }
+
+  // El resto del código permanece igual...
   Future<void> _onLoadArticles(
     LoadArticles event,
     Emitter<ArticleState> emit,
   ) async {
-    if (psychologistId == null) {
-      emit(const ArticlesError(
-        message: 'Se requiere psychologistId para cargar artículos del psicólogo',
-      ));
-      return;
-    }
-
-    emit(ArticlesLoading());
     try {
-      final response = await articleRepository.getPsychologistArticles(
-        psychologistId!,
-        status: event.status,
-        limit: event.limit,
-        page: event.page,
+      emit(ArticlesLoading());
+      
+      final psychologistId = _getCurrentPsychologistId();
+      if (psychologistId == null) {
+        emit(const ArticlesError(message: 'No se pudo obtener el ID del psicólogo'));
+        return;
+      }
+
+      // ✅ Obtener la respuesta cruda
+      final responseData = await articleRepository.getPsychologistArticles(
+        psychologistId,
       );
 
+      // ✅ PARSEAR AQUÍ, no en el repository
+      final List<dynamic> articlesJson = responseData['articles'] ?? [];
+      final articles = articlesJson
+          .map((json) => Article.fromJson(json as Map<String, dynamic>))
+          .toList();
+      
+      // ✅ Parsear el límite
+      final ArticleLimitInfo? limitInfo = responseData['articleLimit'] != null
+          ? ArticleLimitInfo.fromJson(responseData['articleLimit'] as Map<String, dynamic>)
+          : null;
+
+      print('✅ Parsed ${articles.length} articles successfully');
+
       emit(ArticlesLoaded(
-        articles: response.articles,
-        limitInfo: response.articleLimit,
+        articles: articles,
+        limitInfo: limitInfo,
       ));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error loading articles: $e');
+      print('❌ StackTrace: $stackTrace');
       emit(ArticlesError(message: e.toString()));
     }
   }
@@ -67,7 +88,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
       if (state is ArticlesLoaded) {
         final currentState = state as ArticlesLoaded;
         emit(currentState.copyWith(limitInfo: limitInfo));
-      } else {
+      } else if (limitInfo != null) {
         emit(ArticleLimitLoaded(limitInfo: limitInfo));
       }
     } catch (e) {
@@ -127,11 +148,11 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
 
     emit(ArticleOperationInProgress());
     try {
-      final updatedArticle = await articleRepository.updateArticle(
+      final success = await articleRepository.updateArticle(
         event.article,
       );
       
-      emit(ArticleOperationSuccess(article: updatedArticle));
+      emit(ArticleOperationSuccess(article: success ? event.article : null));
       
       await Future.delayed(const Duration(milliseconds: 500));
       

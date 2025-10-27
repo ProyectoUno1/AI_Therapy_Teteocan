@@ -184,81 +184,82 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onAuthStarted(
-    AuthStarted event,
-    Emitter<AuthState> emit,
-  ) async {
-    log(
-      '🚀 AuthBloc Event: AuthStarted recibido. Verificando estado de autenticación...',
-      name: 'AuthBloc',
-    );
+  AuthStarted event,
+  Emitter<AuthState> emit,
+) async {
+  log('🚀 AuthBloc: AuthStarted - Verificando autenticación...', name: 'AuthBloc');
+  emit(const AuthState.loading());
 
-    try {
-      emit(const AuthState.loading());
+  try {
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-      final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      log('👤 AuthBloc: Usuario Firebase encontrado: ${currentUser.uid}', name: 'AuthBloc');
+      log('📧 Email verificado: ${currentUser.emailVerified}', name: 'AuthBloc');
 
-      if (currentUser != null) {
-        log(
-          '👤 AuthBloc: Usuario autenticado encontrado: ${currentUser.uid}',
-          name: 'AuthBloc',
-        );
+      // 🔐 INICIALIZAR E2EE
+      await _initializeE2EE(currentUser.uid);
 
-        // 🔐 INICIALIZAR E2EE AL INICIO
-        await _initializeE2EE(currentUser.uid);
+      // INTENTAR BUSCAR COMO PSICÓLOGO PRIMERO
+      log('🔍 Buscando psicólogo en colección "psychologists"...', name: 'AuthBloc');
+      final psychologistDoc = await _firestore
+          .collection('psychologists')
+          .doc(currentUser.uid)
+          .get();
 
-        final userDoc = await _firestore
-            .collection('patients')
-            .doc(currentUser.uid)
-            .get();
-
-        if (userDoc.exists) {
-          final userData = userDoc.data()!;
-          final userRole = userData['role'] as String?;
-
-          if (userRole == 'patient') {
-            final patient = PatientModel.fromFirestore(userDoc, null);
-            emit(
-              AuthState.authenticated(
-                userRole: UserRole.patient,
-                patient: patient,
-              ),
-            );
-            
-            add(AuthStartListeningToPatient(patient.uid));
-          } else if (userRole == 'psychologist') {
-            final psychologistDoc = await _firestore
-                .collection('users')
-                .doc(currentUser.uid)
-                .get();
-            if (psychologistDoc.exists) {
-              final psychologistData = psychologistDoc.data()!;
-              final psychologist = PsychologistModel.fromFirestore(psychologistData);
-              emit(
-                AuthState.authenticated(
-                  userRole: UserRole.psychologist,
-                  psychologist: psychologist,
-                ),
-              );
-            } else {
-              emit(const AuthState.unauthenticated());
-            }
-          } else {
-            emit(const AuthState.unauthenticated());
-          }
-        } else {
-          emit(const AuthState.unauthenticated());
-        }
-      } else {
-        log('🚫 AuthBloc: No hay usuario autenticado.', name: 'AuthBloc');
-        emit(const AuthState.unauthenticated());
+      if (psychologistDoc.exists) {
+        log('✅ Psicólogo encontrado en Firestore', name: 'AuthBloc');
+        final psychologistData = psychologistDoc.data()!;
+        final psychologist = PsychologistModel.fromFirestore(psychologistData);
+        
+        emit(AuthState.authenticated(
+          userRole: UserRole.psychologist,
+          psychologist: psychologist,
+        ));
+        log('🎯 Emitido estado: AUTHENTICATED PSYCHOLOGIST', name: 'AuthBloc');
+        return;
       }
-    } catch (e) {
-      log('❌ AuthBloc: Error verificando autenticación: $e', name: 'AuthBloc');
-      emit(
-        const AuthState.error(errorMessage: 'Error verificando autenticación'),
-      );
+
+      // SI NO ES PSICÓLOGO, BUSCAR COMO PACIENTE
+      log('🔍 Buscando paciente en colección "patients"...', name: 'AuthBloc');
+      final patientDoc = await _firestore
+          .collection('patients')
+          .doc(currentUser.uid)
+          .get();
+
+      if (patientDoc.exists) {
+        log('✅ Paciente encontrado en Firestore', name: 'AuthBloc');
+        final patient = PatientModel.fromFirestore(patientDoc, null);
+        
+        emit(AuthState.authenticated(
+          userRole: UserRole.patient,
+          patient: patient,
+        ));
+        
+        // INICIAR ESCUCHA DE DATOS DEL PACIENTE
+        add(AuthStartListeningToPatient(patient.uid));
+        log('🎯 Emitido estado: AUTHENTICATED PATIENT', name: 'AuthBloc');
+        return;
+      }
+
+      // SI NO SE ENCUENTRA EN NINGUNA COLECCIÓN
+      log('❌ Usuario no encontrado en patients ni psychologists', name: 'AuthBloc');
+      emit(const AuthState.unauthenticated(
+        errorMessage: 'Perfil de usuario no encontrado'
+      ));
+      
+    } else {
+      log('🚫 No hay usuario autenticado en Firebase', name: 'AuthBloc');
+      emit(const AuthState.unauthenticated());
     }
+  } catch (e) {
+    log('❌ Error en AuthStarted: $e', name: 'AuthBloc');
+    emit(AuthState.error(
+      errorMessage: 'Error verificando autenticación: $e'
+    ));
   }
+}
+
 
   void _onAuthStatusChanged(AuthStatusChanged event, Emitter<AuthState> emit) {
     log(

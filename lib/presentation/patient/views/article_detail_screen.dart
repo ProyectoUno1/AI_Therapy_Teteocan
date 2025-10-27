@@ -23,6 +23,7 @@ class ArticleDetailScreen extends StatefulWidget {
 class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   late Article _currentArticle;
   bool _isLiked = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -46,7 +47,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         );
 
         // 3. Actualiza el estado del widget con el artículo actualizado.
-        if (mounted) {
+        if (mounted && updatedArticle != null) {
           setState(() {
             _currentArticle = updatedArticle;
           });
@@ -66,12 +67,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       widget.patientId,
     );
 
-    setState(() {
-      _isLiked = isLiked;
-    });
+    if (mounted) {
+      setState(() {
+        _isLiked = isLiked;
+      });
+    }
   }
 
-  void _toggleLike() {
+  Future<void> _toggleLike() async {
     if (_currentArticle.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -81,31 +84,52 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       return;
     }
 
-    final articleRepo = RepositoryProvider.of<ArticleRepository>(context);
-    final userId = widget.patientId;
+    if (_isLoading) return;
 
     setState(() {
-      _isLiked = !_isLiked;
-      if (_isLiked) {
-        _currentArticle.likes++;
-      } else {
-        _currentArticle.likes--;
-      }
+      _isLoading = true;
     });
 
-    articleRepo.likeArticle(_currentArticle.id!, userId).catchError((e) {
-      setState(() {
-        _isLiked = !_isLiked;
-        if (_isLiked) {
-          _currentArticle.likes++;
-        } else {
-          _currentArticle.likes--;
-        }
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    });
+    final articleRepo = RepositoryProvider.of<ArticleRepository>(context);
+    final userId = widget.patientId;
+    final action = _isLiked ? 'unlike' : 'like';
+
+    try {
+      final success = await articleRepo.likeArticle(
+        _currentArticle.id!,
+        userId,
+        action, // ← Agregar este parámetro
+      );
+
+      if (success) {
+        setState(() {
+          _isLiked = !_isLiked;
+          if (_isLiked) {
+            _currentArticle.likes++;
+          } else {
+            _currentArticle.likes = _currentArticle.likes > 0 
+                ? _currentArticle.likes - 1 
+                : 0;
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al actualizar el "Me gusta"'),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -201,14 +225,23 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 ),
                 const SizedBox(width: 16),
                 InkWell(
-                  onTap: _toggleLike,
+                  onTap: _isLoading ? null : _toggleLike,
                   child: Row(
                     children: [
-                      Icon(
-                        _isLiked ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: _isLiked ? Colors.red : Colors.grey[600],
-                      ),
+                      _isLoading
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.grey[600],
+                              ),
+                            )
+                          : Icon(
+                              _isLiked ? Icons.favorite : Icons.favorite_border,
+                              size: 16,
+                              color: _isLiked ? Colors.red : Colors.grey[600],
+                            ),
                       const SizedBox(width: 4),
                       Text(
                         '${_currentArticle.likes}',
@@ -237,29 +270,62 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                if (_currentArticle.tags.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    children: _currentArticle.tags.map((tag) {
-                      return Chip(
-                        label: Text(
-                          tag,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        backgroundColor: AppConstants.lightAccentColor
-                            .withOpacity(0.1),
-                        labelStyle: const TextStyle(
-                          color: AppConstants.lightAccentColor,
-                        ),
-                      );
-                    }).toList(),
+                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontFamily: 'Poppins',
                   ),
+                ),
               ],
             ),
+            if (_currentArticle.tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _currentArticle.tags.map((tag) {
+                  return Chip(
+                    label: Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    backgroundColor: AppConstants.lightAccentColor
+                        .withOpacity(0.1),
+                    labelStyle: const TextStyle(
+                      color: AppConstants.lightAccentColor,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: 16),
+            if (_currentArticle.summary != null && _currentArticle.summary!.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppConstants.primaryColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  _currentArticle.summary!,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Text(
               _currentArticle.content,
               style: const TextStyle(

@@ -336,7 +336,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       if (status != null) updateData['status'] = status;
 
       final response = await http.patch(
-        Uri.parse('$_baseUrl/api/psychologists/$uid/professional'),
+        Uri.parse('$_baseUrl/psychologists/$uid/professional'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

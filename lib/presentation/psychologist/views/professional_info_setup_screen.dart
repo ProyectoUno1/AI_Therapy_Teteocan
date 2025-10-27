@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
-import 'dart:async';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
@@ -16,7 +15,6 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ai_therapy_teteocan/data/datasources/psychologist_remote_datasource.dart';
 
 class ProfessionalInfoSetupScreen extends StatefulWidget {
   final PsychologistModel? psychologist;
@@ -50,12 +48,6 @@ class _ProfessionalInfoSetupScreenState
   String? _selectedSpecialty;
   final List<String> _selectedSubSpecialties = [];
 
-  final _emailController = TextEditingController();
-  final _specialtyController = TextEditingController();
-  final List<String> _educationList = [];
-  final List<String> _certificationsList = [];
-  final Map<String, dynamic> _schedule = {};
-
   final Map<String, TimeOfDay?> _startSchedule = {
     'Lunes': null,
     'Martes': null,
@@ -78,9 +70,9 @@ class _ProfessionalInfoSetupScreenState
 
   // Variables de estado
   File? _profileImage;
-  File? _imageFile;
   String? _currentProfilePictureUrl;
   bool _isUploadingImage = false;
+  bool _isDataLoaded = false;
 
   // Listas de opciones
   final List<String> _specialties = [
@@ -131,137 +123,105 @@ class _ProfessionalInfoSetupScreenState
     ],
   };
 
-  late StreamSubscription _blocSubscription;
-
   @override
   void initState() {
     super.initState();
-    _currentProfilePictureUrl = widget.psychologist?.profilePictureUrl;
     
-    _blocSubscription = context.read<PsychologistInfoBloc>().stream.listen((state) {
-      if (state is PsychologistInfoLoaded) {
-        _fillFormWithData(state.psychologist);
-      }
-    });
-
+    print('🔄 InitState - ProfessionalInfoSetupScreen');
+    
+    // Cargar datos del widget si existen
+    if (widget.psychologist != null) {
+      print('📦 Cargando datos desde widget.psychologist');
+      _fillFormWithData(widget.psychologist!);
+      _isDataLoaded = true;
+    }
+    
+    // Cargar datos desde Firestore
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      BlocProvider.of<PsychologistInfoBloc>(context).add(
-        LoadPsychologistInfoEvent(uid: uid)
-      );
+    if (uid != null && !_isDataLoaded) {
+      print('🔍 Cargando datos desde Firestore para UID: $uid');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<PsychologistInfoBloc>().add(
+          LoadPsychologistInfoEvent(uid: uid)
+        );
+      });
     }
   }
 
   void _fillFormWithData(PsychologistModel psychologist) {
-    _fullNameController.text = psychologist.fullName ?? '';
-    _professionalTitleController.text = psychologist.professionalTitle ?? '';
-    _licenseNumberController.text = psychologist.professionalLicense ?? '';
-    _currentProfilePictureUrl = psychologist.profilePictureUrl;
-    _yearsExperienceController.text =
-        psychologist.yearsExperience?.toString() ?? '';
-    _descriptionController.text = psychologist.description ?? '';
-    _priceController.text = psychologist.price?.toString() ?? '';
+    print('📝 Llenando formulario con datos del psicólogo');
+    print('👤 Nombre: ${psychologist.fullName}');
+    print('🎓 Título: ${psychologist.professionalTitle}');
+    print('📋 Cédula: ${psychologist.professionalLicense}');
+    
+    setState(() {
+      // Información personal
+      _fullNameController.text = psychologist.fullName ?? '';
+      _professionalTitleController.text = psychologist.professionalTitle ?? '';
+      _licenseNumberController.text = psychologist.professionalLicense ?? '';
+      _currentProfilePictureUrl = psychologist.profilePictureUrl;
+      
+      // Información profesional
+      _yearsExperienceController.text = psychologist.yearsExperience?.toString() ?? '';
+      _descriptionController.text = psychologist.description ?? '';
+      _priceController.text = psychologist.price?.toString() ?? '';
 
-    if (psychologist.education != null) {
-      _educationController.text = psychologist.education!.join('\n');
-    }
-    if (psychologist.certifications != null) {
-      _certificationsController.text = psychologist.certifications!.join('\n');
-    }
-
-    _selectedSpecialty = psychologist.specialty;
-    if (psychologist.subSpecialties != null) {
-      _selectedSubSpecialties.clear();
-      _selectedSubSpecialties.addAll(psychologist.subSpecialties!);
-    }
-
-    _startSchedule.clear();
-    _endSchedule.clear();
-    if (psychologist.schedule != null && psychologist.schedule is Map) {
-      (psychologist.schedule as Map<String, dynamic>).forEach((day, times) {
-        final startTime = times['startTime'];
-        final endTime = times['endTime'];
-        if (startTime != null && endTime != null) {
-          final startParts = startTime.split(':');
-          final endParts = endTime.split(':');
-          _startSchedule[day] = TimeOfDay(
-            hour: int.parse(startParts[0]),
-            minute: int.parse(startParts[1]),
-          );
-          _endSchedule[day] = TimeOfDay(
-            hour: int.parse(endParts[0]),
-            minute: int.parse(endParts[1]),
-          );
-        }
-      });
-    }
-
-    setState(() {});
-  }
-
-  void _saveProfessionalInfo() {
-  final user = FirebaseAuth.instance.currentUser;
-
-  if (user != null && _formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
-
-    final educationList = _educationController.text
-        .split('\n')
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final certificationsList = _certificationsController.text
-        .split('\n')
-        .where((s) => s.isNotEmpty)
-        .toList();
-
-    final double? price = _priceController.text.isNotEmpty
-        ? double.tryParse(_priceController.text)
-        : null;
-
-    final Map<String, Map<String, String>> formattedSchedule = {};
-    _startSchedule.forEach((day, time) {
-      if (time != null && _endSchedule[day] != null) {
-        formattedSchedule[day] = {
-          'startTime': _formatTimeOfDay(time),
-          'endTime': _formatTimeOfDay(_endSchedule[day]!),
-        };
+      // Educación y certificaciones
+      if (psychologist.education != null && psychologist.education!.isNotEmpty) {
+        _educationController.text = psychologist.education!.join('\n');
       }
-    });
+      if (psychologist.certifications != null && psychologist.certifications!.isNotEmpty) {
+        _certificationsController.text = psychologist.certifications!.join('\n');
+      }
 
-    context.read<PsychologistInfoBloc>().add(
-      SetupProfessionalInfoEvent(
-        uid: user.uid,
-        email: user.email ?? '',
-        fullName: _fullNameController.text,
-        professionalTitle: _professionalTitleController.text,
-        licenseNumber: _licenseNumberController.text,
-        yearsExperience: int.tryParse(_yearsExperienceController.text) ?? 0,
-        description: _descriptionController.text,
-        education: educationList,
-        certifications: certificationsList,
-        profilePictureUrl: _currentProfilePictureUrl,
-        selectedSpecialty: _selectedSpecialty,
-        selectedSubSpecialties: _selectedSubSpecialties,
-        schedule: formattedSchedule,
-        isAvailable: true,
-        price: price,
-      ),
-    );
-  } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Error: No hay un usuario autenticado o faltan datos requeridos.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+      // Especialidad
+      _selectedSpecialty = psychologist.specialty;
+      if (psychologist.subSpecialties != null) {
+        _selectedSubSpecialties.clear();
+        _selectedSubSpecialties.addAll(psychologist.subSpecialties!);
+      }
+
+      // Horarios
+      _startSchedule.clear();
+      _endSchedule.clear();
+      
+      if (psychologist.schedule != null && psychologist.schedule is Map) {
+        (psychologist.schedule as Map<String, dynamic>).forEach((day, times) {
+          if (times is Map) {
+            final startTime = times['startTime'];
+            final endTime = times['endTime'];
+            
+            if (startTime != null && endTime != null) {
+              try {
+                final startParts = startTime.toString().split(':');
+                final endParts = endTime.toString().split(':');
+                
+                _startSchedule[day] = TimeOfDay(
+                  hour: int.parse(startParts[0]),
+                  minute: int.parse(startParts[1]),
+                );
+                _endSchedule[day] = TimeOfDay(
+                  hour: int.parse(endParts[0]),
+                  minute: int.parse(endParts[1]),
+                );
+                
+                print('📅 Horario cargado - $day: $startTime - $endTime');
+              } catch (e) {
+                print('⚠️ Error parseando horario de $day: $e');
+              }
+            }
+          }
+        });
+      }
+
+      _isDataLoaded = true;
+    });
+    
+    print('✅ Formulario llenado exitosamente');
   }
 
   @override
   void dispose() {
-    _blocSubscription.cancel();
     _fullNameController.dispose();
     _professionalTitleController.dispose();
     _licenseNumberController.dispose();
@@ -302,79 +262,79 @@ class _ProfessionalInfoSetupScreenState
   }
 
   Future<void> _uploadProfilePicture(File imageFile) async {
-  if (_isUploadingImage) return;
+    if (_isUploadingImage) return;
 
-  setState(() {
-    _isUploadingImage = true;
-  });
+    setState(() {
+      _isUploadingImage = true;
+    });
 
-  try {
-    final remoteDataSource = PsychologistRemoteDataSource();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+    try {
+      final remoteDataSource = PsychologistRemoteDataSource();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
                 ),
-              ),
-              SizedBox(width: 16),
-              Text('Subiendo imagen...'),
-            ],
+                SizedBox(width: 16),
+                Text('Subiendo imagen...'),
+              ],
+            ),
+            duration: Duration(minutes: 2),
           ),
-          duration: Duration(minutes: 2),
-        ),
+        );
+      }
+      
+      final uploadedUrl = await remoteDataSource.uploadProfilePicture(
+        imageFile.path,
       );
-    }
-    
-    final uploadedUrl = await remoteDataSource.uploadProfilePicture(
-      imageFile.path,
-    );
-    
-    setState(() {
-      _currentProfilePictureUrl = uploadedUrl;
-      _isUploadingImage = false;
-    });
+      
+      setState(() {
+        _currentProfilePictureUrl = uploadedUrl;
+        _isUploadingImage = false;
+      });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Imagen subida: $uploadedUrl'), 
-            ],
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Imagen subida exitosamente'), 
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-  } catch (e) {
-    setState(() {
-      _isUploadingImage = false;
-    });
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al subir imagen: $e'),
-          backgroundColor: AppConstants.errorColor,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingImage = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al subir imagen: $e'),
+            backgroundColor: AppConstants.errorColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
-}
 
   Future<void> _selectTime(String day, bool isEndTime) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -531,7 +491,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 32),
 
-        // Campos de información personal
         CustomTextField(
           controller: _fullNameController,
           hintText: 'Nombre completo',
@@ -611,7 +570,6 @@ class _ProfessionalInfoSetupScreenState
         ),
         const SizedBox(height: 32),
 
-        // Años de experiencia
         CustomTextField(
           controller: _yearsExperienceController,
           hintText: 'Años de experiencia',
@@ -631,7 +589,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 16),
 
-        // Descripción profesional
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -665,7 +622,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 16),
 
-        // Educación
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -696,7 +652,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 16),
 
-        // Certificaciones
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -749,7 +704,6 @@ class _ProfessionalInfoSetupScreenState
         ),
         const SizedBox(height: 24),
 
-        // Especialidad principal
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -799,7 +753,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 24),
 
-        // Sub-especialidades
         if (_selectedSpecialty != null &&
             _subSpecialties.containsKey(_selectedSpecialty)) ...[
           const Text(
@@ -847,7 +800,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 24),
 
-        // Campo para el precio
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
@@ -883,7 +835,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 20),
 
-        // Aviso sobre la evaluación del precio
         RichText(
           text: const TextSpan(
             style: TextStyle(color: Colors.black, fontSize: 14),
@@ -902,7 +853,6 @@ class _ProfessionalInfoSetupScreenState
 
         const SizedBox(height: 24),
 
-        // Nota informativa sobre tarifas y modalidades
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1002,7 +952,6 @@ class _ProfessionalInfoSetupScreenState
                   Expanded(
                     child: Row(
                       children: [
-                        // Hora inicio
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _selectTime(day, false),
@@ -1037,7 +986,6 @@ class _ProfessionalInfoSetupScreenState
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Hora fin
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _selectTime(day, true),
@@ -1111,9 +1059,31 @@ class _ProfessionalInfoSetupScreenState
 
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
+          final educationList = _educationController.text
+              .split('\n')
+              .where((s) => s.isNotEmpty)
+              .toList();
+          final certificationsList = _certificationsController.text
+              .split('\n')
+              .where((s) => s.isNotEmpty)
+              .toList();
+
           final double? price = _priceController.text.isNotEmpty
               ? double.tryParse(_priceController.text)
               : null;
+
+          final Map<String, Map<String, String>> formattedSchedule = {};
+          _startSchedule.forEach((day, time) {
+            if (time != null && _endSchedule[day] != null) {
+              formattedSchedule[day] = {
+                'startTime': _formatTimeOfDay(time),
+                'endTime': _formatTimeOfDay(_endSchedule[day]!),
+              };
+            }
+          });
+
+          print('💾 Guardando información profesional...');
+          print('📸 URL de imagen: $_currentProfilePictureUrl');
 
           context.read<PsychologistInfoBloc>().add(
             SetupProfessionalInfoEvent(
@@ -1122,21 +1092,14 @@ class _ProfessionalInfoSetupScreenState
               fullName: _fullNameController.text,
               professionalTitle: _professionalTitleController.text,
               licenseNumber: _licenseNumberController.text,
-              yearsExperience:
-                  int.tryParse(_yearsExperienceController.text) ?? 0,
+              yearsExperience: int.tryParse(_yearsExperienceController.text) ?? 0,
               description: _descriptionController.text,
-              education: _educationController.text
-                  .split('\n')
-                  .where((s) => s.isNotEmpty)
-                  .toList(),
-              certifications: _certificationsController.text
-                  .split('\n')
-                  .where((s) => s.isNotEmpty)
-                  .toList(),
-              profilePictureUrl: _imageFile?.path,
+              education: educationList,
+              certifications: certificationsList,
+              profilePictureUrl: _currentProfilePictureUrl,
               selectedSpecialty: _selectedSpecialty,
               selectedSubSpecialties: _selectedSubSpecialties,
-              schedule: _convertScheduleToBackendFormat(),
+              schedule: formattedSchedule,
               isAvailable: true,
               price: price,
             ),
@@ -1153,23 +1116,10 @@ class _ProfessionalInfoSetupScreenState
     }
   }
 
-  Map<String, Map<String, String>> _convertScheduleToBackendFormat() {
-    final Map<String, Map<String, String>> backendSchedule = {};
-    _startSchedule.forEach((day, time) {
-      if (time != null && _endSchedule[day] != null) {
-        backendSchedule[day] = {
-          'startTime': _formatTimeOfDay(time),
-          'endTime': _formatTimeOfDay(_endSchedule[day]!),
-        };
-      }
-    });
-    return backendSchedule;
-  }
-
   String _formatTimeOfDay(TimeOfDay time) {
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    final format = DateFormat.Hm(); // Formato de 24 horas (HH:mm)
+    final format = DateFormat.Hm();
     return format.format(dt);
   }
 
@@ -1204,7 +1154,10 @@ class _ProfessionalInfoSetupScreenState
   Widget build(BuildContext context) {
     return BlocListener<PsychologistInfoBloc, PsychologistInfoState>(
       listener: (context, state) {
-        if (state is PsychologistInfoSaved) {
+        if (state is PsychologistInfoLoaded && !_isDataLoaded) {
+          print('🔄 Datos cargados desde Bloc');
+          _fillFormWithData(state.psychologist);
+        } else if (state is PsychologistInfoSaved) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('¡Perfil profesional configurado exitosamente!'),
@@ -1246,93 +1199,111 @@ class _ProfessionalInfoSetupScreenState
           ),
           centerTitle: true,
         ),
-        body: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Indicador de progreso
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: List.generate(4, (index) {
-                    return Expanded(
-                      child: Container(
-                        margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: index <= _currentStep
-                              ? AppConstants.lightAccentColor
-                              : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
+        body: BlocBuilder<PsychologistInfoBloc, PsychologistInfoState>(
+          builder: (context, state) {
+            if (state is PsychologistInfoLoading && !_isDataLoaded) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
 
-              // Contenido del paso actual
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: _buildStepContent(),
-                ),
-              ),
-
-              // Botones de navegación
-              Container(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    if (_currentStep > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _previousStep,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: AppConstants.lightAccentColor,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+            return Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: List.generate(4, (index) {
+                        return Expanded(
+                          child: Container(
+                            margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: index <= _currentStep
+                                  ? AppConstants.lightAccentColor
+                                  : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          child: Text(
-                            'Anterior',
-                            style: TextStyle(
-                              color: AppConstants.lightAccentColor,
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (_currentStep > 0) const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _nextStep,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.lightAccentColor,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          _currentStep < 3 ? 'Siguiente' : 'Finalizar',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
-                  ],
-                ),
+                  ),
+
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: _buildStepContent(),
+                    ),
+                  ),
+
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        if (_currentStep > 0)
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _previousStep,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: AppConstants.lightAccentColor,
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Anterior',
+                                style: TextStyle(
+                                  color: AppConstants.lightAccentColor,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_currentStep > 0) const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: state is PsychologistInfoLoading 
+                                ? null 
+                                : _nextStep,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppConstants.lightAccentColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: state is PsychologistInfoLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    _currentStep < 3 ? 'Siguiente' : 'Finalizar',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

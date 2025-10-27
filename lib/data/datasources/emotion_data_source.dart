@@ -104,7 +104,6 @@ Future<Emotion?> getTodayEmotion(String patientId) async {
     );
 
     if (response.statusCode == 200) {
-      // Mejorar la validación de respuesta vacía
       final responseBody = response.body.trim();
       if (responseBody.isEmpty || responseBody == 'null' || responseBody == '{}') {
         return null;
@@ -115,17 +114,14 @@ Future<Emotion?> getTodayEmotion(String patientId) async {
         if (data.isEmpty) return null;
         return Emotion.fromMap(data);
       } catch (e) {
-        print('Error parsing emotion response: $e');
         return null;
       }
     } else if (response.statusCode == 404) {
       return _getTodayEmotionAlternative(patientId);
     } else {
-      print('Server error: ${response.statusCode} - ${response.body}');
       return _getTodayEmotionAlternative(patientId);
     }
   } catch (e) {
-    print('Error in getTodayEmotion: $e');
     return _getTodayEmotionAlternative(patientId);
   }
 }

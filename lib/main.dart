@@ -112,7 +112,6 @@ void main() async {
   final emotionRepository = EmotionRepositoryImpl(
     dataSource: EmotionRemoteDataSource(baseUrl: ApiConstants.baseUrl),
   );
-  final articleRepository = ArticleRepository(baseUrl: ApiConstants.baseUrl);
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -141,9 +140,6 @@ void main() async {
   runApp(
     MultiBlocProvider(
       providers: [
-        RepositoryProvider<ArticleRepository>(
-          create: (context) => articleRepository,
-        ),
         RepositoryProvider<EmotionRepository>(
           create: (context) => emotionRepository,
         ),
@@ -174,8 +170,8 @@ void main() async {
         BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
 
         BlocProvider<DashboardBloc>(
-        create: (context) => DashboardBloc(),
-      ),
+          create: (context) => DashboardBloc(),
+        ),
 
         BlocProvider<NotificationBloc>(
           create: (context) => NotificationBloc(
@@ -188,24 +184,70 @@ void main() async {
               EmotionBloc(emotionRepository: context.read<EmotionRepository>()),
         ),
 
+        // ✅ ARTICLE BLOC CORREGIDO - CON TOKEN DINÁMICO
         BlocProvider<ArticleBloc>(
-          create: (context) => ArticleBloc(
-            articleRepository: articleRepository,
-            psychologistId: FirebaseAuth.instance.currentUser!.uid,
-          )..add(const LoadArticles()),
+          create: (context) {
+            // Crear ArticleRepository con función para obtener token dinámicamente
+            final articleRepository = ArticleRepository(
+              baseUrl: ApiConstants.baseUrl,
+              getAuthToken: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  try {
+                    final token = await user.getIdToken();
+                    print('🔐 Token obtenido para ArticleRepository: ${token != null}');
+                    return token;
+                  } catch (e) {
+                    print('❌ Error obteniendo token: $e');
+                    return null;
+                  }
+                }
+                return null;
+              },
+            );
+
+            // Obtener psychologistId del AuthBloc si está disponible
+            String? psychologistId;
+            try {
+              final authState = context.read<AuthBloc>().state;
+              psychologistId = authState.psychologist?.uid;
+              print('👤 Psychologist ID para ArticleBloc: $psychologistId');
+            } catch (e) {
+              print('⚠️ No se pudo obtener psychologistId del AuthBloc: $e');
+            }
+
+            // Si no hay psychologistId del AuthBloc, intentar con Firebase Auth
+            if (psychologistId == null) {
+              final user = FirebaseAuth.instance.currentUser;
+              psychologistId = user?.uid;
+              print('👤 Psychologist ID de Firebase Auth: $psychologistId');
+            }
+
+            final bloc = ArticleBloc(
+              articleRepository: articleRepository,
+              psychologistId: psychologistId,
+            );
+
+            // Solo cargar artículos si hay un psychologistId
+            if (psychologistId != null) {
+              bloc.add(const LoadArticles());
+            } else {
+              print('⚠️ ArticleBloc creado sin psychologistId - no se cargarán artículos');
+            }
+
+            return bloc;
+          },
         ),
 
-    BlocProvider<PaymentHistoryBloc>(
-      create: (context) => PaymentHistoryBloc(
-        PaymentHistoryRepositoryImpl(),
-      ),
-    ),
+        BlocProvider<PaymentHistoryBloc>(
+          create: (context) => PaymentHistoryBloc(
+            PaymentHistoryRepositoryImpl(),
+          ),
+        ),
 
-    BlocProvider(
+        BlocProvider(
           create: (context) => BankInfoBloc(
-            repository: BankInfoRepository(
-              
-            ),
+            repository: BankInfoRepository(),
           ),
         ),
 
@@ -259,7 +301,6 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
 
 void _navigateToAppointments(BuildContext context, Map<String, dynamic> data) {
   print('Navegar a citas con data: $data');
-
   _navigateToNotifications(context);
 }
 
@@ -293,9 +334,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addObserver(this);
 
-    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((
-      user,
-    ) {
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         _setupUserPresence(user.uid);
         _loadUserNotifications();

@@ -68,7 +68,7 @@ app.get("/health", (req, res) => {
 
 app.use('/api/articles', articleRouter);
 
-// --- Rutas Unificadas ---
+
 app.use("/api/patients", verifyFirebaseToken, patientsRoutes);
 app.use("/api/psychologists", verifyFirebaseToken, psychologistsRoutes);
 app.use("/api/appointments", verifyFirebaseToken, appointmentsRoutes);
@@ -78,9 +78,6 @@ app.use("/api/stripe", stripeRouter);
 app.use('/api/patient-management', verifyFirebaseToken, patientManagementRoutes);
 app.use('/api/notifications', verifyFirebaseToken, notificationsRoutes);
 app.use('/api', fcmRoutes);
-
-// ⚠️ IMPORTANTE: Articles SIN middleware global de autenticación
-// El propio articleRouter maneja la autenticación en rutas específicas
 
 
 app.use("/api/support", supportRoutes);

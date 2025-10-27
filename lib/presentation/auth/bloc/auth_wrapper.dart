@@ -58,12 +58,26 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return shouldRebuild;
       },
       builder: (context, state) {
+        // 🔍 AGREGAR ESTOS LOGS DE DIAGNÓSTICO AQUÍ
+        log('🔐 AuthWrapper State: ${state.status}', name: 'AuthWrapper');
+        log('🔐 isAuthenticatedPatient: ${state.isAuthenticatedPatient}', name: 'AuthWrapper');
+        log('🔐 isAuthenticatedPsychologist: ${state.isAuthenticatedPsychologist}', name: 'AuthWrapper');
+        log('🔐 Patient: ${state.patient != null}', name: 'AuthWrapper');
+        log('🔐 Psychologist: ${state.psychologist != null}', name: 'AuthWrapper');
+        log('🔐 UserRole: ${state.userRole}', name: 'AuthWrapper');
+        log('🔐 Error: ${state.errorMessage}', name: 'AuthWrapper');
+        log('🔐 Firebase User: ${FirebaseAuth.instance.currentUser != null}', name: 'AuthWrapper');
+        if (FirebaseAuth.instance.currentUser != null) {
+          log('🔐 Email verificado: ${FirebaseAuth.instance.currentUser!.emailVerified}', name: 'AuthWrapper');
+        }
+
         if (state.isLoading) {
           log('AuthWrapper: Mostrando SplashScreen', name: 'AuthWrapper');
           return const SplashScreen();
         }
 
         if (state.isAuthenticatedPatient) {
+          log('🎯 AuthWrapper: Redirigiendo a PatientHomeScreen', name: 'AuthWrapper');
           return MultiBlocProvider(
             providers: [
               BlocProvider<HomeContentCubit>(
@@ -77,11 +91,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
         if (state.isAuthenticatedPsychologist) {
+          log('🎯 AuthWrapper: Redirigiendo a PsychologistHomeScreen', name: 'AuthWrapper');
           return const PsychologistHomeScreen();
         }
 
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null && !currentUser.emailVerified) {
+          log('📧 AuthWrapper: Mostrando EmailVerificationScreen', name: 'AuthWrapper');
           String userRole = 'patient';
           if (state.userRole == UserRole.psychologist) {
             userRole = 'psychologist';
@@ -92,6 +108,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
             userRole: userRole,
           );
         }
+        
+        log('🚪 AuthWrapper: Mostrando LoginScreen', name: 'AuthWrapper');
         return const LoginScreen();
       },
     );

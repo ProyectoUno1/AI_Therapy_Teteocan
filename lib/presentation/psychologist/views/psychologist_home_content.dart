@@ -19,6 +19,7 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/widgets/article_limit_card.dart';
+import 'package:ai_therapy_teteocan/data/models/article_limit_info.dart';
 
 class PsychologistHomeContent extends StatefulWidget {
   const PsychologistHomeContent({super.key});
@@ -665,126 +666,148 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
     );
   }
 
-  Widget _buildArticlesList() {
-    return BlocConsumer<ArticleBloc, ArticleState>(
-      listener: (context, state) {
-        if (state is ArticleOperationSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Operación exitosa'),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+ Widget _buildArticlesList() {
+  return BlocConsumer<ArticleBloc, ArticleState>(
+    listener: (context, state) {
+      // Agregar este log
+      print('📊 ArticleBloc State: ${state.runtimeType}');
+      
+      if (state is ArticleOperationSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Operación exitosa'),
+              ],
             ),
-          );
-        } else if (state is ArticleOperationError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.error, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      state.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else if (state is ArticleOperationError) {
+        print('❌ ArticleOperationError: ${state.message}'); // Agregar este log
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    state.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'Cerrar',
-                textColor: Colors.white,
-                onPressed: () {},
-              ),
+                ),
+              ],
             ),
-          );
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Cerrar',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    },
+    builder: (context, state) {
+      print('🎨 Building ArticlesList with state: ${state.runtimeType}'); // Agregar este log
+      
+      if (state is ArticlesLoading) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: CircularProgressIndicator(),
+          ),
+        );
+      } else if (state is ArticlesLoaded) {
+        print('✅ ArticlesLoaded: ${state.articles.length} articles'); // Agregar este log
+        
+        if (state.articles.isEmpty) {
+          return _buildEmptyArticlesState();
         }
-      },
-      builder: (context, state) {
-        if (state is ArticlesLoading) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        } else if (state is ArticlesLoaded) {
-          if (state.articles.isEmpty) {
-            return _buildEmptyArticlesState();
-          }
 
-          return SizedBox(
-            height: 280,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: state.articles.length,
-              itemBuilder: (context, index) {
-                final article = state.articles[index];
-                return _ArticleCard(
-                  article: article,
-                  onEdit: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => EditArticleScreen(
-                          article: article,
-                        ),
+        return SizedBox(
+          height: 280,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: state.articles.length,
+            itemBuilder: (context, index) {
+              final article = state.articles[index];
+              return _ArticleCard(
+                article: article,
+                onEdit: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => EditArticleScreen(
+                        article: article,
                       ),
-                    ).then((_) {
-                      context.read<ArticleBloc>().add(const LoadArticles());
-                    });
-                  },
-                  onDelete: () {
-                    _showDeleteConfirmation(context, article);
-                  },
-                );
-              },
-            ),
-          );
-        } else if (state is ArticlesError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error al cargar artículos',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontFamily: 'Poppins',
                     ),
+                  ).then((_) {
+                    context.read<ArticleBloc>().add(const LoadArticles());
+                  });
+                },
+                onDelete: () {
+                  _showDeleteConfirmation(context, article);
+                },
+              );
+            },
+          ),
+        );
+      } else if (state is ArticlesError) {
+        print('❌ ArticlesError: ${state.message}'); // Agregar este log
+        
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red[300],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Error al cargar artículos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    fontFamily: 'Poppins',
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      context.read<ArticleBloc>().add(const LoadArticles());
-                    },
-                    child: const Text('Reintentar'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.message ?? 'Error desconocido', // Mostrar el mensaje de error
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red[600],
+                    fontFamily: 'Poppins',
                   ),
-                ],
-              ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    context.read<ArticleBloc>().add(const LoadArticles());
+                  },
+                  child: const Text('Reintentar'),
+                ),
+              ],
             ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
-  }
+          ),
+        );
+      }
+      
+      print('⚠️ Unexpected state: ${state.runtimeType}'); // Agregar este log
+      return const SizedBox.shrink();
+    },
+  );
+}
 
   Widget _buildEmptyArticlesState() {
     return Card(

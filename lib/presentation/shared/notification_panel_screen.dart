@@ -243,91 +243,142 @@ class NotificationsPanelScreen extends StatelessWidget {
   }
 }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+ @override
+Widget build(BuildContext context) {
+  final theme = Theme.of(context);
+  final isDarkMode = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notificaciones'),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.colorScheme.primary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: theme.colorScheme.primary),
-            onPressed: () async {
-              final authState = context.read<AuthBloc>().state;
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                final userToken = await user.getIdToken();
-                if (userToken != null) {
-                  context.read<NotificationBloc>().add(
-                    DeleteReadNotifications(
-                      userToken: userToken,
-                      userId: user.uid,
-                      userType: authState.isAuthenticatedPatient
-                          ? 'patient'
-                          : 'psychologist',
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ],
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Notificaciones'),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      elevation: 0,
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: theme.colorScheme.primary),
+        onPressed: () => Navigator.of(context).pop(),
       ),
-      body: BlocBuilder<NotificationBloc, NotificationState>(
-        builder: (context, state) {
-          if (state is NotificationLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is NotificationLoaded) {
-            if (state.notifications.isEmpty) {
-              return Center(
-                child: Text(
-                  'No tienes notificaciones.',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey,
-                  ),
-                ),
-              );
-            }
-            return ListView.builder(
-              itemCount: state.notifications.length,
-              itemBuilder: (context, index) {
-                final notification = state.notifications[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: NotificationItem(
-                    notification: notification,
-                    onTap: () => _handleNotificationTap(context, notification),
-                    isDarkMode: isDarkMode,
-                    formatDate: formatDate,
+      actions: [
+        IconButton(
+          icon: Icon(Icons.delete_outline, color: theme.colorScheme.primary),
+          onPressed: () async {
+            final authState = context.read<AuthBloc>().state;
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              final userToken = await user.getIdToken();
+              if (userToken != null) {
+                context.read<NotificationBloc>().add(
+                  DeleteReadNotifications(
+                    userToken: userToken,
+                    userId: user.uid,
+                    userType: authState.isAuthenticatedPatient
+                        ? 'patient'
+                        : 'psychologist',
                   ),
                 );
-              },
-            );
-          } else if (state is NotificationError) {
+              }
+            }
+          },
+        ),
+      ],
+    ),
+    body: BlocBuilder<NotificationBloc, NotificationState>(
+      builder: (context, state) {
+        print('🔔 NotificationBloc State: ${state.runtimeType}'); // ✅ Agregar log
+        
+        if (state is NotificationLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is NotificationLoaded) {
+          print('✅ Notifications loaded: ${state.notifications.length}'); // ✅ Agregar log
+          
+          if (state.notifications.isEmpty) {
             return Center(
-              child: Text(
-                'Error: ${state.message}',
-                style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_none, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No tienes notificaciones.',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             );
           }
-          return Container();
-        },
-      ),
-    );
-  }
+          
+          // ✅ Log cada notificación
+          for (var notif in state.notifications) {
+            print('📬 Notification: ${notif.title} - ${notif.timestamp}');
+          }
+          
+          return ListView.builder(
+            itemCount: state.notifications.length,
+            itemBuilder: (context, index) {
+              final notification = state.notifications[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: NotificationItem(
+                  notification: notification,
+                  onTap: () => _handleNotificationTap(context, notification),
+                  isDarkMode: isDarkMode,
+                  formatDate: formatDate,
+                ),
+              );
+            },
+          );
+        } else if (state is NotificationError) {
+          print('❌ NotificationError: ${state.message}'); // ✅ Agregar log
+          
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: ${state.message}',
+                  style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      final token = await user.getIdToken();
+                      if (token != null) {
+                        final authState = context.read<AuthBloc>().state;
+                        context.read<NotificationBloc>().add(
+                          LoadNotifications(
+                            userId: user.uid,
+                            userToken: token,
+                            userType: authState.isAuthenticatedPatient
+                                ? 'patient'
+                                : 'psychologist',
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        print('⚠️ Unexpected state: ${state.runtimeType}'); // ✅ Agregar log
+        return Container();
+      },
+    ),
+  );
+}
 }
 
 class NotificationItem extends StatelessWidget {

@@ -7,8 +7,6 @@ import 'package:ai_therapy_teteocan/data/models/notification_model.dart';
 import 'package:ai_therapy_teteocan/data/repositories/notification_repository.dart';
 import 'notification_event.dart';
 
-
-
 class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final NotificationRepository _notificationRepository;
 
@@ -23,11 +21,33 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
 
   void _onLoadNotifications(
       LoadNotifications event, Emitter<NotificationState> emit) async {
+    print('🔔 LoadNotifications event received'); // ✅ Log
+    print('👤 UserId: ${event.userId}');
+    print('🔑 UserToken: ${event.userToken.substring(0, 20)}...');
+    print('👥 UserType: ${event.userType}');
+    
     emit(NotificationLoading());
+    
     try {
+      print('📡 Fetching notifications from repository...'); // ✅ Log
+      
       final notifications = await _notificationRepository.fetchNotificationsForUser(event.userToken);
+      
+      print('✅ Notifications fetched: ${notifications.length}'); // ✅ Log
+      
+      if (notifications.isEmpty) {
+        print('⚠️ No notifications found for user');
+      } else {
+        for (var notif in notifications) {
+          print('📬 ${notif.title} - ${notif.isRead ? "Leída" : "No leída"}');
+        }
+      }
+      
       emit(NotificationLoaded(notifications));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error loading notifications: $e'); // ✅ Log
+      print('📚 StackTrace: $stackTrace');
+      
       emit(NotificationError('No se pudieron cargar las notificaciones: ${e.toString()}'));
     }
   }
@@ -58,7 +78,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         emit(NotificationLoaded(updatedNotifications));
       }
 
-      // Hacer la llamada al servidor
       await _notificationRepository.markNotificationAsRead(
           event.userToken, event.notificationId);
 
@@ -69,6 +88,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         emit(NotificationLoaded(notifications));
       }
     } catch (e) {
+      print('❌ Error marking notification as read: $e');
       emit(NotificationError('No se pudo marcar la notificación como leída: ${e.toString()}'));
       
       if (state is NotificationError) {
@@ -84,12 +104,10 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   void _onDeleteNotification(
       DeleteNotification event, Emitter<NotificationState> emit) async {
     try {
-      // Guardar el estado actual
       List<NotificationModel> currentNotifications = [];
       if (state is NotificationLoaded) {
         currentNotifications = (state as NotificationLoaded).notifications;
         
-        // Actualizar localmente primero
         final updatedNotifications = currentNotifications
             .where((notification) => notification.id != event.notificationId)
             .toList();
@@ -97,7 +115,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         emit(NotificationLoaded(updatedNotifications));
       }
 
-      // Hacer la llamada al servidor
       await _notificationRepository.deleteNotification(
           event.userToken, event.notificationId);
 
@@ -108,6 +125,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         emit(NotificationLoaded(notifications));
       }
     } catch (e) {
+      print('❌ Error deleting notification: $e');
       emit(NotificationError('No se pudo eliminar la notificación: ${e.toString()}'));
       
       final user = FirebaseAuth.instance.currentUser;
@@ -117,31 +135,33 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       }
     }
   }
-void _onDeleteReadNotifications(
-    DeleteReadNotifications event, Emitter<NotificationState> emit) async {
-  final currentState = state;
-  
-  try {
-    emit(NotificationLoading());
-    await _notificationRepository.deleteReadNotifications(event.userToken);
+
+  void _onDeleteReadNotifications(
+      DeleteReadNotifications event, Emitter<NotificationState> emit) async {
+    final currentState = state;
     
-    // Recargar las notificaciones después de eliminar
-    final notifications = await _notificationRepository.fetchNotificationsForUser(event.userToken);
-    emit(NotificationLoaded(notifications));
-    
-  } catch (e) {
-    if (currentState is NotificationLoaded) {
-      emit(currentState);
+    try {
+      emit(NotificationLoading());
+      await _notificationRepository.deleteReadNotifications(event.userToken);
+      
+      final notifications = await _notificationRepository.fetchNotificationsForUser(event.userToken);
+      emit(NotificationLoaded(notifications));
+      
+    } catch (e) {
+      print('❌ Error deleting read notifications: $e');
+      
+      if (currentState is NotificationLoaded) {
+        emit(currentState);
+      }
+      
+      String errorMessage = 'No se pudieron eliminar las notificaciones leídas';
+      if (e.toString().contains('404')) {
+        errorMessage = 'Error: Endpoint no encontrado. Contacta al soporte técnico.';
+      } else if (e.toString().contains('Connection')) {
+        errorMessage = 'Error de conexión. Verifica tu internet.';
+      }
+      
+      emit(NotificationError('$errorMessage: ${e.toString()}'));
     }
-    
-    String errorMessage = 'No se pudieron eliminar las notificaciones leídas';
-    if (e.toString().contains('404')) {
-      errorMessage = 'Error: Endpoint no encontrado. Contacta al soporte técnico.';
-    } else if (e.toString().contains('Connection')) {
-      errorMessage = 'Error de conexión. Verifica tu internet.';
-    }
-    
-    emit(NotificationError('$errorMessage: ${e.toString()}'));
   }
-}
 }

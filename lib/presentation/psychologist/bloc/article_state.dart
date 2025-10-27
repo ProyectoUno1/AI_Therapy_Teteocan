@@ -1,5 +1,7 @@
 // lib/presentation/psychologist/bloc/article_state.dart
+
 part of 'article_bloc.dart';
+
 
 abstract class ArticleState extends Equatable {
   const ArticleState();
@@ -66,7 +68,7 @@ class ArticleOperationError extends ArticleState {
 class ArticlesError extends ArticleState {
   final String message;
 
-  const ArticlesError({required this.message});
+    const ArticlesError({required this.message});
 
   @override
   List<Object> get props => [message];

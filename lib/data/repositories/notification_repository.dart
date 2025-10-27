@@ -6,61 +6,67 @@ import 'package:ai_therapy_teteocan/data/models/notification_model.dart';
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 
 class NotificationRepository {
-  final String _apiBaseUrl = '${ApiConstants.baseUrl}/api';
+  final String _apiBaseUrl = ApiConstants.baseUrl; 
 
   NotificationRepository();
 
- 
   Future<List<NotificationModel>> fetchNotificationsForUser(String token) async {
-  try {
-    final response = await http.get(
-      Uri.parse('$_apiBaseUrl/notifications'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(response.body);
-      return jsonList
-          .map((json) => NotificationModel.fromMap(json, json['id']))
-          .toList();
-    } else {
-      throw Exception(
-        'Error al obtener notificaciones: ${response.statusCode}',
+    try {
+      final url = '$_apiBaseUrl/notifications';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+
+        final notifications = jsonList
+            .map((json) {
+              try {
+                return NotificationModel.fromMap(json, json['id']);
+              } catch (e) {
+                rethrow;
+              }
+            })
+            .toList();
+        return notifications;
+      } else {
+        throw Exception(
+          'Error al obtener notificaciones: ${response.statusCode}',
+        );
+      }
+    } catch (e, stackTrace) {
+      throw Exception('Error de conexión al servidor: $e');
     }
-  } catch (e) {
-    throw Exception('Error de conexión al servidor: $e');
   }
-}
 
   Future<void> markNotificationAsRead(String token, dynamic notificationId) async {
-  try {
-   
-    final response = await http.patch(
-      Uri.parse('$_apiBaseUrl/notifications/$notificationId/read'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    try {
+      final url = '$_apiBaseUrl/api/notifications/$notificationId/read';
+      final response = await http.patch(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Error al marcar notificación como leída: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Error al marcar notificación como leída: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión al servidor: $e');
     }
-  } catch (e) {
-    throw Exception('Error de conexión al servidor: $e');
   }
-}
-
-  
 
   Future<void> deleteNotification(String token, String notificationId) async {
     try {
       final response = await http.delete(
-        Uri.parse('$_apiBaseUrl/notifications/$notificationId'),
+        Uri.parse('$_apiBaseUrl/api/notifications/$notificationId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -77,23 +83,21 @@ class NotificationRepository {
   }
 
   Future<void> deleteReadNotifications(String token) async {
-  try {
-    final response = await http.delete(
-      Uri.parse('$_apiBaseUrl/notifications/clear-read'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    try {
+      final response = await http.delete(
+        Uri.parse('$_apiBaseUrl/api/notifications/clear-read'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(
-          'Error al eliminar notificaciones leídas: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(
+            'Error al eliminar notificaciones leídas: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión al servidor: $e');
     }
-  } catch (e) {
-    throw Exception('Error de conexión al servidor: $e');
   }
-}
-
-
 }

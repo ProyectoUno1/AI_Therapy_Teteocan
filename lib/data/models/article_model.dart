@@ -97,6 +97,28 @@ class Article {
     return article;
   }
 
+   Map<String, dynamic> toJson() {
+    return {
+      if (id != null) 'id': id,
+      'psychologistId': psychologistId,
+      'title': title,
+      'content': content,
+      if (summary != null) 'summary': summary,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+      'tags': tags,
+      if (category != null) 'category': category,
+      'readingTimeMinutes': readingTimeMinutes,
+      'isPublished': isPublished,
+      if (status != null) 'status': status,
+      if (fullName != null) 'fullName': fullName,
+      'views': views,
+      'likes': likes,
+      'createdAt': createdAt?.millisecondsSinceEpoch,
+      'updatedAt': updatedAt?.millisecondsSinceEpoch,
+      'publishedAt': publishedAt?.millisecondsSinceEpoch,
+    };
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'psychologistId': psychologistId,
