@@ -172,8 +172,6 @@ router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) =>
     if (profilePictureUrl !== undefined) updateData.profilePictureUrl = profilePictureUrl;
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
     if (price !== undefined) updateData.price = price;
-    
-    updateData.updatedAt = firestore.FieldValue.serverTimestamp();
 
     await db.collection('psychologists').doc(uid).update(updateData);
 
