@@ -73,56 +73,28 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// Obtener perfil completo - MEJORADO CON LOGS
+// Obtener informacion completa del psicologo
 router.get('/:uid', verifyFirebaseToken, async (req, res) => {
     try {
         const { uid } = req.params;
-        
-        console.log('🔍 [GET /:uid] Solicitud recibida');
-        console.log('📋 UID solicitado:', uid);
-        console.log('👤 UID del token:', req.firebaseUser?.uid);
-        console.log('📧 Email del token:', req.firebaseUser?.email);
 
-        // Verificar que el usuario autenticado coincida con el UID solicitado
         if (req.firebaseUser.uid !== uid) {
-            console.log('❌ UIDs no coinciden');
-            console.log('   - Solicitado:', uid);
-            console.log('   - Token:', req.firebaseUser.uid);
             return res.status(403).json({ error: 'Acceso no autorizado.' });
         }
 
-        console.log('✅ Autenticación correcta, consultando Firestore...');
-
         const psychologistRef = db.collection('psychologists').doc(uid);
         const doc = await psychologistRef.get();
-
-        if (!doc.exists) {
-            console.log('⚠️ Documento no existe en Firestore');
-            console.log('📁 Colección: psychologists');
-            console.log('📄 Documento ID:', uid);
-            return res.status(404).json({ error: 'Psicólogo no encontrado' });
-        }
-
         const data = doc.data();
-        console.log('✅ Psicólogo encontrado');
-        console.log('👤 Nombre:', data.fullName || data.username);
-        console.log('📧 Email:', data.email);
-        console.log('🎓 Título:', data.professionalTitle);
-        console.log('📄 Cédula:', data.professionalLicense);
-
         const response = { 
             psychologist: { 
-                uid: doc.id, // ✅ Agregar uid explícitamente
+                uid: doc.id, 
                 ...data 
             } 
         };
 
-        console.log('📤 Enviando respuesta...');
         res.status(200).json(response);
 
     } catch (error) {
-        console.error('❌ Error al obtener perfil del psicólogo:', error);
-        console.error('Stack trace:', error.stack);
         res.status(500).json({ 
             error: 'Error interno del servidor',
             details: error.message 
@@ -130,8 +102,7 @@ router.get('/:uid', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// backend/routes/psychologistRoutes.js
-
+// Actualizar informacion profesional
 router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) => {
   try {
     const { uid } = req.params;
@@ -156,7 +127,6 @@ router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) =>
       price,
     } = req.body;
 
-    console.log('📝 Actualizando psicólogo:', uid);
 
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName;
@@ -181,7 +151,7 @@ router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) =>
     });
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: 'Error al actualizar información profesional' });
   }
 });
@@ -220,62 +190,67 @@ router.patch('/:uid/basic', verifyFirebaseToken, async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
-//Actualizar informacion profesional
-router.patch('/:uid/professional', verifyFirebaseToken, async (req, res) => {
-    try {
-        const { uid } = req.params;
 
-        if (req.firebaseUser.uid !== uid) {
-            return res.status(403).json({ error: 'Acceso no autorizado.' });
-        }
-
-        const {
-            fullName,
-            professionalTitle,
-            professionalLicense,
-            yearsExperience,
-            description,
-            education,
-            certifications,
-            specialty,
-            subSpecialties,
-            schedule,
-            isAvailable,
-            price,
-            profilePictureUrl,
-        } = req.body;
-
-        const updateData = { updatedAt: FieldValue.serverTimestamp() };
-
-        if (typeof fullName === 'string') updateData.fullName = fullName;
-        if (typeof professionalTitle === 'string') updateData.professionalTitle = professionalTitle;
-        if (typeof professionalLicense === 'string') updateData.professionalLicense = professionalLicense;
-        if (typeof yearsExperience === 'number') updateData.yearsExperience = yearsExperience;
-        if (typeof description === 'string') updateData.description = description;
-        if (Array.isArray(education)) updateData.education = education;
-        if (Array.isArray(certifications)) updateData.certifications = certifications;
-        if (typeof specialty === 'string') updateData.specialty = specialty;
-        if (Array.isArray(subSpecialties)) updateData.subSpecialties = subSpecialties;
-        if (typeof schedule === 'object' && schedule !== null) updateData.schedule = schedule;
-        if (typeof isAvailable === 'boolean') updateData.isAvailable = isAvailable;
-        if (typeof price === 'number' && price > 0) {
-            updateData.price = price;
-        }
-        
-        if (typeof profilePictureUrl === 'string') {
-            updateData.profilePictureUrl = profilePictureUrl;
-        }
-
-        if (fullName && professionalTitle && specialty) {
-            updateData.professionalInfoCompleted = true;
-        }
-        await db.collection('psychologists').doc(uid).set(updateData, { merge: true });
-
-        res.json({ message: 'Información profesional actualizada exitosamente' });
-    } catch (error) {
-        console.error('Error al actualizar información profesional:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+router.patch('/:uid/professional-info', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    
+    if (req.firebaseUser.uid !== uid) {
+      return res.status(403).json({ error: 'No autorizado' });
     }
+
+    const {
+      fullName,
+      professionalLicense,
+      professionalTitle,
+      yearsExperience,
+      description,
+      education,
+      certifications,
+      specialty,
+      subSpecialties,
+      schedule,
+      profilePictureUrl,
+      isAvailable,
+      price,
+    } = req.body;
+
+    console.log('📝 Actualizando psicólogo:', uid);
+    console.log('📦 Datos recibidos:', req.body);
+
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (professionalLicense !== undefined) updateData.professionalLicense = professionalLicense;
+    if (professionalTitle !== undefined) updateData.professionalTitle = professionalTitle;
+    if (yearsExperience !== undefined) updateData.yearsExperience = yearsExperience;
+    if (description !== undefined) updateData.description = description;
+    if (education !== undefined) updateData.education = education;
+    if (certifications !== undefined) updateData.certifications = certifications;
+    if (specialty !== undefined) updateData.specialty = specialty;
+    if (subSpecialties !== undefined) updateData.subSpecialties = subSpecialties;
+    if (schedule !== undefined) updateData.schedule = schedule;
+    if (profilePictureUrl !== undefined) updateData.profilePictureUrl = profilePictureUrl;
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (price !== undefined) updateData.price = price;
+    
+    updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    await db.collection('psychologists').doc(uid).update(updateData);
+
+    console.log('✅ Psicólogo actualizado exitosamente');
+
+    res.status(200).json({ 
+      message: 'Información profesional actualizada exitosamente',
+      uid: uid 
+    });
+
+  } catch (error) {
+    console.error('❌ Error actualizando:', error);
+    res.status(500).json({ 
+      error: 'Error al actualizar información profesional',
+      details: error.message 
+    });
+  }
 });
 
 // Actualizar disponibilidad
@@ -417,6 +392,7 @@ router.post('/upload-profile-picture', verifyFirebaseToken, async (req, res) => 
     });
 });
 
+// Aceptar terminos y condiciones
 router.patch('/accept-terms', verifyFirebaseToken, async (req, res) => {
     try {
         const uid = req.firebaseUser.uid; 
@@ -443,6 +419,7 @@ router.patch('/accept-terms', verifyFirebaseToken, async (req, res) => {
     }
 });
 
+// Stream de actualizaciones en tiempo real
 router.get('/stream', verifyFirebaseToken, async (req, res) => {
     try {
   

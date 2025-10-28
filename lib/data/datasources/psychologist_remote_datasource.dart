@@ -152,12 +152,9 @@ class PsychologistRemoteDataSource {
   
   Future<PsychologistModel?> getPsychologistInfo(String uid) async {
     final url = Uri.parse('$_baseUrl/psychologists/$uid');
-    print('📡 GET $url');
 
     try {
       final headers = await _getHeaders();
-      print('🔑 Headers: ${headers.keys.join(", ")}');
-      
       final response = await http.get(
         url,
         headers: headers,
@@ -168,38 +165,23 @@ class PsychologistRemoteDataSource {
         },
       );
 
-      print('📡 Status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
-        print('📦 Response data keys: ${responseData.keys.join(", ")}');
-        
-        // El backend puede devolver { psychologist: {...} } o directamente {...}
         final psychologistData = responseData.containsKey('psychologist')
             ? responseData['psychologist']
             : responseData;
         
-        print('✅ Psicólogo obtenido exitosamente');
-        print('📋 Datos del psicólogo: ${psychologistData.keys.join(", ")}');
-        
         return PsychologistModel.fromJson(psychologistData);
         
       } else if (response.statusCode == 403) {
-        print('⚠️ Acceso no autorizado (403)');
-        print('📄 Response: ${response.body}');
         return null;
       } else if (response.statusCode == 404) {
-        print('⚠️ Psicólogo no encontrado (404)');
-        print('📄 Response: ${response.body}');
         return null;
       } else {
-        print('❌ Error ${response.statusCode}');
-        print('📄 Response: ${response.body}');
         throw Exception('Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('❌ Error obteniendo psicólogo: $e');
+      print('Error obteniendo psicólogo: $e');
       rethrow;
     }
   }
