@@ -12,7 +12,9 @@ abstract class PsychologistChatEvent extends Equatable {
 class LoadChatMessages extends PsychologistChatEvent {
   final String chatId;
   final String senderId; 
+  
   const LoadChatMessages(this.chatId, this.senderId);
+  
   @override
   List<Object?> get props => [chatId, senderId];
 }
@@ -21,14 +23,24 @@ class SendMessage extends PsychologistChatEvent {
   final String chatId;
   final String content;
   final String senderId;
-  const SendMessage({required this.chatId, required this.content, required this.senderId});
+  final String? receiverId; // ✅ AGREGADO
+  
+  const SendMessage({
+    required this.chatId,
+    required this.content,
+    required this.senderId,
+    this.receiverId, // ✅ AGREGADO
+  });
+  
   @override
-  List<Object?> get props => [chatId, content, senderId];
+  List<Object?> get props => [chatId, content, senderId, receiverId];
 }
 
 class MessagesUpdated extends PsychologistChatEvent {
   final List<MessageModel> messages;
+  
   const MessagesUpdated(this.messages);
+  
   @override
   List<Object?> get props => [messages];
 }

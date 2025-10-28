@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
@@ -539,6 +541,8 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
   final Color accentColor = AppConstants.accentColor;
   final Color lightAccentColor = AppConstants.lightAccentColor;
 
+  const PersonalInfoScreenPsychologist({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -555,118 +559,141 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
           },
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, authState) {
-                      String? profileImageUrl;
+      body: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, authState) {
+          String fullName = 'Cargando...';
+          String email = '';
+          String phoneNumber = '';
+          String dateOfBirth = '00/00/0000';
+          String? profileImageUrl;
 
-                      if (authState.status == AuthStatus.authenticated &&
-                          authState.psychologist != null) {
-                        profileImageUrl =
-                            authState.psychologist!.profilePictureUrl;
-                      }
+          if (authState.status == AuthStatus.authenticated &&
+              authState.psychologist != null) {
+            final psychologist = authState.psychologist!;
+            
+            fullName = psychologist.fullName ?? psychologist.username;
+            email = psychologist.email;
+            phoneNumber = psychologist.phoneNumber ?? 'No registrado';
+            profileImageUrl = psychologist.profilePictureUrl;
 
-                      return CircleAvatar(
+            if (psychologist.dateOfBirth != null) {
+              try {
+                final date = psychologist.dateOfBirth is Timestamp
+                    ? (psychologist.dateOfBirth as Timestamp).toDate()
+                    : DateTime.parse(psychologist.dateOfBirth.toString());
+                dateOfBirth = DateFormat('dd/MM/yyyy').format(date);
+              } catch (e) {
+                dateOfBirth = 'No registrado';
+              }
+            }
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
                         radius: 50,
                         backgroundColor: lightAccentColor,
-                        backgroundImage:
-                            profileImageUrl != null &&
+                        backgroundImage: profileImageUrl != null &&
                                 profileImageUrl.isNotEmpty
                             ? NetworkImage(profileImageUrl)
                             : null,
-                        child:
-                            profileImageUrl == null || profileImageUrl.isEmpty
+                        child: profileImageUrl == null ||
+                                profileImageUrl.isEmpty
                             ? const Icon(
                                 Icons.person,
                                 size: 60,
                                 color: Colors.white,
                               )
                             : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Foto de perfil',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  'INFORMACIÓN PERSONAL',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                    letterSpacing: 0.8,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                
+                // ✅ Usar datos reales
+                _buildInfoField(
+                  'Nombre completo',
+                  fullName,
+                  isEditable: false,
+                  context: context,
+                ),
+                _buildInfoField(
+                  'Correo electrónico',
+                  email,
+                  isEditable: false,
+                  context: context,
+                ),
+                _buildInfoField(
+                  'Número de teléfono',
+                  phoneNumber,
+                  isEditable: true,
+                  context: context,
+                ),
+                _buildInfoField(
+                  'Fecha de nacimiento',
+                  dateOfBirth,
+                  isEditable: false,
+                  context: context,
+                ),
+                
+                const SizedBox(height: 40),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Funcionalidad en desarrollo'),
+                        ),
                       );
                     },
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Foto de perfil',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontFamily: 'Poppins',
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
+                    ),
+                    child: const Text(
+                      'Guardar Cambios',
+                      style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'INFORMACIÓN PERSONAL',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                letterSpacing: 0.8,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildInfoField(
-              'Nombre',
-              'Psicólogo',
-              isEditable: true,
-              context: context,
-            ),
-            _buildInfoField(
-              'Fecha de nacimiento',
-              '00/00/0000',
-              isEditable: true,
-              context: context,
-            ),
-            _buildInfoField(
-              'Género',
-              'Femenino/Masculino',
-              isEditable: true,
-              context: context,
-            ),
-            _buildInfoField(
-              'Número de teléfono',
-              '1234567890',
-              isEditable: true,
-              context: context,
-            ),
-            const SizedBox(height: 40),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Guardando cambios...')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
                 ),
-                child: const Text(
-                  'Guardar Cambios',
-                  style: TextStyle(fontSize: 16, fontFamily: 'Poppins'),
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
       bottomNavigationBar: BottomAppBar(
         color: accentColor,
@@ -692,7 +719,7 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
                 _showHelpDialog(
                   context,
                   'información personal',
-                  'En la sección de información personal puedes cambiar tus datos personales.',
+                  'En esta sección puedes ver tu información personal registrada.',
                 );
               },
               icon: const Icon(Icons.help_outline, color: Colors.white),
@@ -721,8 +748,10 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
               fontSize: 12,
               color: Colors.grey[600],
               fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 4),
           TextField(
             controller: TextEditingController(text: value),
             readOnly: !isEditable,
@@ -734,7 +763,7 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
             ),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
               border: UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
