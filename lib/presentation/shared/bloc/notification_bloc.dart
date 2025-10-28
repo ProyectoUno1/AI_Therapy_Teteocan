@@ -21,19 +21,24 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
 
   void _onLoadNotifications(
       LoadNotifications event, Emitter<NotificationState> emit) async {
-    print('🔔 LoadNotifications event received'); // ✅ Log
+    print('🔔 LoadNotifications event received');
     print('👤 UserId: ${event.userId}');
-    print('🔑 UserToken: ${event.userToken.substring(0, 20)}...');
+    
+    // ✅ FIX: Verificar longitud antes de substring
+    final tokenPreview = event.userToken.length > 20 
+        ? '${event.userToken.substring(0, 20)}...' 
+        : event.userToken;
+    print('🔑 UserToken: $tokenPreview');
     print('👥 UserType: ${event.userType}');
     
     emit(NotificationLoading());
     
     try {
-      print('📡 Fetching notifications from repository...'); // ✅ Log
+      print('📡 Fetching notifications from repository...');
       
       final notifications = await _notificationRepository.fetchNotificationsForUser(event.userToken);
       
-      print('✅ Notifications fetched: ${notifications.length}'); // ✅ Log
+      print('✅ Notifications fetched: ${notifications.length}');
       
       if (notifications.isEmpty) {
         print('⚠️ No notifications found for user');
@@ -45,7 +50,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       
       emit(NotificationLoaded(notifications));
     } catch (e, stackTrace) {
-      print('❌ Error loading notifications: $e'); // ✅ Log
+      print('❌ Error loading notifications: $e');
       print('📚 StackTrace: $stackTrace');
       
       emit(NotificationError('No se pudieron cargar las notificaciones: ${e.toString()}'));

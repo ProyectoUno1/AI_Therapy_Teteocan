@@ -42,6 +42,9 @@ class CustomTextField extends StatelessWidget {
   // Radio de borde para esquinas redondeadas
   final double borderRadius;
 
+  // Texto de ayuda que aparece debajo del campo
+  final String? helperText;
+
   const CustomTextField({
     Key? key,
     required this.controller,
@@ -57,6 +60,7 @@ class CustomTextField extends StatelessWidget {
     this.placeholderColor,
     this.readOnly,
     this.onTap,
+    this.helperText, // ← Nuevo parámetro agregado
   }) : super(key: key);
 
   @override
@@ -135,6 +139,12 @@ class CustomTextField extends StatelessWidget {
             fontSize: 12,
             color: Colors.red,
           ), // estilo para texto de error
+          helperText: helperText, // ← Texto de ayuda agregado aquí
+          helperStyle: TextStyle(
+            fontSize: 12,
+            color: Colors.black54, // Color sutil para el texto de ayuda
+            fontFamily: 'Poppins',
+          ),
         ),
       ),
     );

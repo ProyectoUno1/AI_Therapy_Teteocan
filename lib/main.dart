@@ -138,131 +138,138 @@ void main() async {
   });
 
   runApp(
-    MultiBlocProvider(
-      providers: [
-        RepositoryProvider<EmotionRepository>(
-          create: (context) => emotionRepository,
-        ),
+  MultiBlocProvider(
+    providers: [
+      // 1️⃣ REPOSITORIES PRIMERO
+      RepositoryProvider<EmotionRepository>(
+        create: (context) => emotionRepository,
+      ),
 
-        BlocProvider<AuthBloc>(
-          create: (context) => AuthBloc(
-            authRepository: authRepository,
-            signInUseCase: signInUseCase,
-            registerUserUseCase: registerUserUseCase,
-            firestore: FirebaseFirestore.instance,
-          )..add(const AuthStarted()),
-        ),
-
-        BlocProvider<ChatBloc>(
-          create: (context) => ChatBloc(chatRepository, AiChatApiService()),
-        ),
-
-        BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
-
-        BlocProvider<PsychologistInfoBloc>(
-          create: (context) => PsychologistInfoBloc(
-            psychologistRepository: PsychologistRepositoryImpl(
-              psychologistRemoteDataSource,
-            ),
-          ),
-        ),
-
-        BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
-
-        BlocProvider<DashboardBloc>(
-          create: (context) => DashboardBloc(),
-        ),
-
-        BlocProvider<NotificationBloc>(
-          create: (context) => NotificationBloc(
-            notificationRepository: NotificationRepository(),
-          ),
-        ),
-
-        BlocProvider<EmotionBloc>(
-          create: (context) =>
-              EmotionBloc(emotionRepository: context.read<EmotionRepository>()),
-        ),
-
-        // ✅ ARTICLE BLOC CORREGIDO - CON TOKEN DINÁMICO
-        BlocProvider<ArticleBloc>(
-          create: (context) {
-            // Crear ArticleRepository con función para obtener token dinámicamente
-            final articleRepository = ArticleRepository(
-              baseUrl: ApiConstants.baseUrl,
-              getAuthToken: () async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  try {
-                    final token = await user.getIdToken();
-                    print('🔐 Token obtenido para ArticleRepository: ${token != null}');
-                    return token;
-                  } catch (e) {
-                    print('❌ Error obteniendo token: $e');
-                    return null;
-                  }
-                }
+      // ✅ AGREGAR ArticleRepository como Provider
+      RepositoryProvider<ArticleRepository>(
+        create: (context) => ArticleRepository(
+          baseUrl: ApiConstants.baseUrl,
+          getAuthToken: () async {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              try {
+                final token = await user.getIdToken();
+                print('🔑 Token obtenido para ArticleRepository: ${token != null}');
+                return token;
+              } catch (e) {
+                print('❌ Error obteniendo token: $e');
                 return null;
-              },
-            );
-
-            // Obtener psychologistId del AuthBloc si está disponible
-            String? psychologistId;
-            try {
-              final authState = context.read<AuthBloc>().state;
-              psychologistId = authState.psychologist?.uid;
-              print('👤 Psychologist ID para ArticleBloc: $psychologistId');
-            } catch (e) {
-              print('⚠️ No se pudo obtener psychologistId del AuthBloc: $e');
+              }
             }
-
-            // Si no hay psychologistId del AuthBloc, intentar con Firebase Auth
-            if (psychologistId == null) {
-              final user = FirebaseAuth.instance.currentUser;
-              psychologistId = user?.uid;
-              print('👤 Psychologist ID de Firebase Auth: $psychologistId');
-            }
-
-            final bloc = ArticleBloc(
-              articleRepository: articleRepository,
-              psychologistId: psychologistId,
-            );
-
-            // Solo cargar artículos si hay un psychologistId
-            if (psychologistId != null) {
-              bloc.add(const LoadArticles());
-            } else {
-              print('⚠️ ArticleBloc creado sin psychologistId - no se cargarán artículos');
-            }
-
-            return bloc;
+            return null;
           },
         ),
+      ),
 
-        BlocProvider<PaymentHistoryBloc>(
-          create: (context) => PaymentHistoryBloc(
-            PaymentHistoryRepositoryImpl(),
+      // 2️⃣ BLOCS DESPUÉS
+      BlocProvider<AuthBloc>(
+        create: (context) => AuthBloc(
+          authRepository: authRepository,
+          signInUseCase: signInUseCase,
+          registerUserUseCase: registerUserUseCase,
+          firestore: FirebaseFirestore.instance,
+        )..add(const AuthStarted()),
+      ),
+
+      BlocProvider<ChatBloc>(
+        create: (context) => ChatBloc(chatRepository, AiChatApiService()),
+      ),
+
+      BlocProvider<ThemeCubit>(create: (context) => ThemeCubit(themeService)),
+
+      BlocProvider<PsychologistInfoBloc>(
+        create: (context) => PsychologistInfoBloc(
+          psychologistRepository: PsychologistRepositoryImpl(
+            psychologistRemoteDataSource,
           ),
         ),
+      ),
 
-        BlocProvider(
-          create: (context) => BankInfoBloc(
-            repository: BankInfoRepository(),
-          ),
-        ),
+      BlocProvider<AppointmentBloc>(create: (context) => AppointmentBloc()),
 
-        BlocProvider<ProfileBloc>(
-          create: (context) => ProfileBloc(PatientProfileRepository()),
-        ),
+      BlocProvider<DashboardBloc>(
+        create: (context) => DashboardBloc(),
+      ),
 
-        BlocProvider<PatientNotesBloc>(
-          create: (context) =>
-              PatientNotesBloc(notesService: PatientNotesService()),
+      BlocProvider<NotificationBloc>(
+        create: (context) => NotificationBloc(
+          notificationRepository: NotificationRepository(),
         ),
-      ],
-      child: const MyApp(),
-    ),
-  );
+      ),
+
+      BlocProvider<EmotionBloc>(
+        create: (context) =>
+            EmotionBloc(emotionRepository: context.read<EmotionRepository>()),
+      ),
+
+      // ✅ ARTICLE BLOC - Ahora puede leer ArticleRepository
+      BlocProvider<ArticleBloc>(
+        create: (context) {
+          // Obtener el repository del contexto
+          final articleRepository = context.read<ArticleRepository>();
+
+          // Obtener psychologistId del AuthBloc si está disponible
+          String? psychologistId;
+          try {
+            final authState = context.read<AuthBloc>().state;
+            psychologistId = authState.psychologist?.uid;
+            print('👤 Psychologist ID para ArticleBloc: $psychologistId');
+          } catch (e) {
+            print('⚠️ No se pudo obtener psychologistId del AuthBloc: $e');
+          }
+
+          // Si no hay psychologistId del AuthBloc, intentar con Firebase Auth
+          if (psychologistId == null) {
+            final user = FirebaseAuth.instance.currentUser;
+            psychologistId = user?.uid;
+            print('👤 Psychologist ID de Firebase Auth: $psychologistId');
+          }
+
+          final bloc = ArticleBloc(
+            articleRepository: articleRepository,
+            psychologistId: psychologistId,
+          );
+
+          // Solo cargar artículos si hay un psychologistId
+          if (psychologistId != null) {
+            bloc.add(const LoadArticles());
+          } else {
+            print('⚠️ ArticleBloc creado sin psychologistId - no se cargarán artículos');
+          }
+
+          return bloc;
+        },
+      ),
+
+      BlocProvider<PaymentHistoryBloc>(
+        create: (context) => PaymentHistoryBloc(
+          PaymentHistoryRepositoryImpl(),
+        ),
+      ),
+
+      BlocProvider(
+        create: (context) => BankInfoBloc(
+          repository: BankInfoRepository(),
+        ),
+      ),
+
+      BlocProvider<ProfileBloc>(
+        create: (context) => ProfileBloc(PatientProfileRepository()),
+      ),
+
+      BlocProvider<PatientNotesBloc>(
+        create: (context) =>
+            PatientNotesBloc(notesService: PatientNotesService()),
+      ),
+    ],
+    child: const MyApp(),
+  ),
+);
 }
 
 void _handleNotificationNavigation(Map<String, dynamic> data) {
@@ -386,19 +393,47 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }, SetOptions(merge: true));
   }
 
-  void _loadUserNotifications() {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      context.read<NotificationBloc>().add(
-        LoadNotifications(
-          userId: FirebaseAuth.instance.currentUser!.uid,
-          userToken: String.fromCharCode(0),
-          userType: String.fromCharCode(0),
-        ),
-      );
+void _loadUserNotifications() async {
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        // ✅ Obtener token real
+        final token = await user.getIdToken();
+        
+        if (token != null) {
+          // ✅ Determinar tipo de usuario
+          String userType = 'patient'; // Default
+          
+          try {
+            final authState = context.read<AuthBloc>().state;
+            if (authState.isAuthenticatedPsychologist) {
+              userType = 'psychologist';
+            } else if (authState.isAuthenticatedPatient) {
+              userType = 'patient';
+            }
+          } catch (e) {
+            print('⚠️ No se pudo determinar userType del AuthBloc: $e');
+          }
+          
+          print('📲 Cargando notificaciones con token válido');
+          context.read<NotificationBloc>().add(
+            LoadNotifications(
+              userId: user.uid,
+              userToken: token,
+              userType: userType,
+            ),
+          );
+        } else {
+          print('⚠️ No se pudo obtener token de autenticación');
+        }
+      } catch (e) {
+        print('❌ Error obteniendo token para notificaciones: $e');
+      }
     }
   }
-
+}
   void _setupUserPresence(String userId) async {
     final userRealtimeRef = FirebaseDatabase.instance.ref('status/$userId');
 
