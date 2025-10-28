@@ -222,12 +222,13 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             obscureText: _obscurePassword,
             toggleVisibility: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
-            validator:
-                InputValidators.validatePassword, // Validación contraseña
+            validator: InputValidators.validatePassword,
             filled: true,
             fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
             placeholderColor: Colors.white,
+            helperText:
+                'Mínimo 8 caracteres. Incluye mayúsculas, minúsculas y números.',
           ),
           const SizedBox(height: 16),
 

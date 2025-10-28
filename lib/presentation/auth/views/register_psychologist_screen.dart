@@ -227,17 +227,15 @@ class _RegisterPsychologistScreenState
             hintText: 'Password',
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
-            toggleVisibility: () {
-              setState(() {
-                _obscurePassword = !_obscurePassword;
-              });
-            },
-            validator:
-                InputValidators.validatePassword, // Validación contraseña
+            toggleVisibility: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+            validator: InputValidators.validatePassword,
             filled: true,
             fillColor: Color(0xFF82c4c3),
             borderRadius: 16,
-            placeholderColor: const Color.fromARGB(255, 255, 255, 255),
+            placeholderColor: Colors.white,
+            helperText:
+                'Mínimo 8 caracteres. Incluye mayúsculas, minúsculas y números.',
           ),
           const SizedBox(height: 16),
 
@@ -479,86 +477,90 @@ class _RegisterPsychologistScreenState
 
           // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
           BlocConsumer<AuthBloc, AuthState>(
-  listener: (context, state) {
-    if (state.status == AuthStatus.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage ?? 'Error desconocido'),
-          backgroundColor: AppConstants.errorColor,
-        ),
-      );
-    }
-    if (state.status == AuthStatus.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registro exitoso! Por favor verifica tu correo.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      if (!context.mounted) return;
-
-      // 🔥 REDIRIGIR A EMAIL VERIFICATION SCREEN
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => EmailVerificationScreen(
-            userEmail: _emailController.text,
-            userRole: 'psychologist',
-          ),
-        ),
-      );
-    }
-  },
-  builder: (context, state) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: state.status == AuthStatus.loading
-            ? null
-            : () {
-                if (_formKeyStep3.currentState?.validate() ?? false) {
-                  context.read<AuthBloc>().add(
-                    AuthRegisterPsychologistRequested(
-                      username: _usernameController.text.trim(),
-                      email: _emailController.text.trim(),
-                      phoneNumber: _phoneController.text.trim(),
-                      professionalLicense: _professionalIdController.text.trim(),
-                      password: _passwordController.text.trim(),
-                      dateOfBirth: _birthDate!,
+            listener: (context, state) {
+              if (state.status == AuthStatus.error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.errorMessage ?? 'Error desconocido'),
+                    backgroundColor: AppConstants.errorColor,
+                  ),
+                );
+              }
+              if (state.status == AuthStatus.success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Registro exitoso! Por favor verifica tu correo.',
                     ),
-                  );
-                }
-              },
-        style: ElevatedButton.styleFrom(
-          elevation: 4,
-          backgroundColor: null,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          padding: EdgeInsets.zero,
-        ),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF82c4c3), Color(0xFF5ca0ac)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Center(
-            child: state.status == AuthStatus.loading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    'Crear cuenta',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      fontFamily: 'Poppins',
+                    backgroundColor: Colors.green,
+                  ),
+                );
+
+                if (!context.mounted) return;
+
+                // 🔥 REDIRIGIR A EMAIL VERIFICATION SCREEN
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => EmailVerificationScreen(
+                      userEmail: _emailController.text,
+                      userRole: 'psychologist',
                     ),
                   ),
+                );
+              }
+            },
+            builder: (context, state) {
+              return SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: state.status == AuthStatus.loading
+                      ? null
+                      : () {
+                          if (_formKeyStep3.currentState?.validate() ?? false) {
+                            context.read<AuthBloc>().add(
+                              AuthRegisterPsychologistRequested(
+                                username: _usernameController.text.trim(),
+                                email: _emailController.text.trim(),
+                                phoneNumber: _phoneController.text.trim(),
+                                professionalLicense: _professionalIdController
+                                    .text
+                                    .trim(),
+                                password: _passwordController.text.trim(),
+                                dateOfBirth: _birthDate!,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    elevation: 4,
+                    backgroundColor: null,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF82c4c3), Color(0xFF5ca0ac)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Center(
+                      child: state.status == AuthStatus.loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Crear cuenta',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
                     ),
                   ),
                 ),

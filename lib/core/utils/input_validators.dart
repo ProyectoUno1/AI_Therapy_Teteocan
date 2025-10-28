@@ -14,13 +14,27 @@ class InputValidators {
   if (password == null || password.isEmpty) {
     return 'La contraseña es obligatoria.';
   }
-  if (password.length < 6) {
-    return 'La contraseña debe tener al menos 6 caracteres.';
+  
+  if (password.length < 8) {
+    return 'La contraseña debe tener al menos 8 caracteres.';
   }
-  final validCharacters = RegExp(r'^[a-zA-Z0-9]+$');
-  if (!validCharacters.hasMatch(password)) {
-    return 'La contraseña solo puede contener letras y números.';
+  
+  // Validaciones de seguridad balanceadas
+  final hasUpperCase = RegExp(r'[A-Z]').hasMatch(password);
+  final hasLowerCase = RegExp(r'[a-z]').hasMatch(password);
+  final hasNumbers = RegExp(r'[0-9]').hasMatch(password);
+  
+  // Contar tipos de caracteres para mayor seguridad
+  int complexityCount = 0;
+  if (hasUpperCase) complexityCount++;
+  if (hasLowerCase) complexityCount++;
+  if (hasNumbers) complexityCount++;
+  
+  // Requerir al menos 2 de los 3 tipos de caracteres
+  if (complexityCount < 2) {
+    return 'Incluye al menos dos tipos de: mayúsculas, minúsculas o números';
   }
+  
   return null;
 }
 
@@ -66,3 +80,4 @@ class InputValidators {
     return null;
   }
 }
+
