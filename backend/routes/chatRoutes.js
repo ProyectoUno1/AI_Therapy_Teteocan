@@ -9,27 +9,39 @@ import { encrypt, decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
 
+// backend/routes/chatRoutes.js
+
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content } = req.body;
+        const { chatId, senderId, receiverId, content, isE2EE } = req.body;
         
         if (req.firebaseUser.uid !== senderId) {
-            return res.status(403).json({ error: 'ID de remitente no coincide con el usuario autenticado.' });
+            return res.status(403).json({ 
+                error: 'ID de remitente no coincide con el usuario autenticado.' 
+            });
         }
 
-        // 🟢 Encriptación del contenido
-        const encryptedContent = encrypt(content);
+        console.log('📨 Recibiendo mensaje');
+        console.log('🔐 Es E2EE:', isE2EE);
+        console.log('📝 Content (primeros 100 chars):', content.substring(0, 100));
 
-        // Guardar el mensaje ENCRIPTADO
+        // ✅ NO REENCRIPTAR - Guardar tal cual viene
+        const contentToStore = content; // Ya viene cifrado si isE2EE = true
+
+        // Guardar el mensaje TAL CUAL
         const messageRef = db.collection('chats').doc(chatId).collection('messages');
         await messageRef.add({
             senderId,
             receiverId,
-            content: encryptedContent, // Usar contenido encriptado
-            isRead: false, 
+            content: contentToStore, // ✅ Sin modificar
+            isRead: false,
+            isE2EE: isE2EE || false, // ✅ Marcar si es E2EE
             timestamp: FieldValue.serverTimestamp(), 
         });
 
+        console.log('✅ Mensaje guardado correctamente');
+
+        // Crear notificación (con preview genérico para E2EE)
         if (receiverId !== 'aurora' && receiverId !== senderId) {
             try {
                 let senderName = 'Usuario';
@@ -40,16 +52,17 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                 } else {
                     const psychologistDoc = await db.collection('psychologists').doc(senderId).get();
                     if (psychologistDoc.exists) {
-                        const profDoc = await db.collection('psychologists').doc(senderId).get();
-                        senderName = profDoc.exists ? profDoc.data().fullName : psychologistDoc.data().username || 'Psicólogo';
+                        senderName = psychologistDoc.data().fullName || 
+                                     psychologistDoc.data().username || 'Psicólogo';
                     }
                 }
 
-                // Crear Notificación
-                const encryptedMessagePreview = encrypt(content);
-                const notificationBody = `${senderName}: ${content.length > 50 ? content.substring(0, 50) + '...' : content}`;
-                const notificationRef = db.collection('notifications').doc();
-                await notificationRef.set({
+                // ✅ Preview genérico para mensajes E2EE
+                const notificationBody = isE2EE 
+                    ? `${senderName} te envió un mensaje cifrado` 
+                    : `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`;
+
+                await db.collection('notifications').doc().set({
                     userId: receiverId,
                     title: 'Nuevo mensaje',
                     body: notificationBody,
@@ -60,16 +73,15 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                         chatId: chatId,
                         senderId: senderId,
                         senderName: senderName,
-                        messagePreview: encryptedMessagePreview, // Guardar encriptado
+                        messagePreview: isE2EE ? '[Mensaje cifrado]' : content.substring(0, 100),
                         timestamp: new Date().toISOString()
                     }
                 });
 
+                console.log('✅ Notificación creada');
             } catch (notificationError) {
                 console.error('Error creando notificación:', notificationError);
             }
-        } else {
-            console.log('ℹNo se crea notificación (chat con IA o mensaje)');
         }
 
         res.status(200).json({ 
@@ -78,7 +90,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('❌ Error sending message:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
