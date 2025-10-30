@@ -158,5 +158,49 @@ router.delete('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const { userId } = req.body; 
+
+        // 1. Verificación de seguridad: Asegura que el usuario sea el dueño de la petición
+        if (req.firebaseUser.uid !== userId) {
+            return res.status(403).json({ 
+                error: 'ID de usuario no coincide con el token autenticado.' 
+            });
+        }
+
+        // 2. Referencia a la subcolección de mensajes
+        const messagesRef = db.collection('chats').doc(chatId).collection('messages');
+
+        // 3. Obtener mensajes no leídos dirigidos a este usuario
+        const messagesSnapshot = await messagesRef
+            .where('receiverId', '==', userId)
+            .where('isRead', '==', false)
+            .get();
+
+        if (messagesSnapshot.empty) {
+            // No hay mensajes, pero la llamada fue exitosa (200)
+            return res.status(200).json({ message: 'No hay mensajes no leídos para marcar.' });
+        }
+
+        // 4. Actualizar todos los mensajes a leídos usando un batch
+        const batch = db.batch();
+        messagesSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { 'isRead': true });
+        });
+        
+        await batch.commit();
+
+        res.status(200).json({ 
+            message: `Marcados ${messagesSnapshot.size} mensajes como leídos.`,
+            count: messagesSnapshot.size
+        });
+
+    } catch (error) {
+        console.error('❌ Error marcando mensajes como leídos:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 export default router;
