@@ -11,18 +11,16 @@ const router = express.Router();
 // ==================== ENVIAR MENSAJE (CORREGIDO) ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content, senderContent, isE2EE } = req.body;
+        const { chatId, senderId, receiverId, content, senderContent, isE2EE, plainTextForSender } = req.body;
         
-        // Validación de seguridad
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
                 error: 'ID de remitente no coincide con el usuario autenticado.' 
             });
         }
 
-        // ✅ Verificar que ambos contenidos estén cifrados
+        // ✅ Verificar que ambos contenidos estén cifrados si es E2EE
         if (isE2EE) {
-            // Validar formato JSON cifrado
             try {
                 const receiverPayload = JSON.parse(content);
                 const senderPayload = JSON.parse(senderContent);
@@ -47,7 +45,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
 
-        // ✅ Guardar AMBAS versiones cifradas
+        // ✅ Guardar AMBAS versiones cifradas en la subcolección
         const messageData = {
             senderId,
             receiverId,
@@ -65,18 +63,26 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             senderId,
             receiverId,
             isE2EE,
-            contentLength: content.length,
-            senderContentLength: senderContent.length
         });
 
-        // Actualizar documento principal del chat
-        await chatDocRef.set({
+        // ✅ Actualizar documento principal del chat CON EL MENSAJE EN TEXTO PLANO
+        // (solo para preview en la lista de chats)
+        const chatUpdateData = {
             participants: [senderId, receiverId].sort(),
-            lastMessage: '[Mensaje cifrado]', // ✅ No mostrar contenido
+            lastMessage: plainTextForSender || '[Mensaje]', // ✅ Texto plano para preview
             lastTimestamp: FieldValue.serverTimestamp(),
             lastSenderId: senderId,
             isE2EE: isE2EE || false,
-        }, { merge: true }); 
+        };
+        
+        // Si es el primer mensaje, asignar roles
+        const chatDocSnapshot = await chatDocRef.get();
+        if (!chatDocSnapshot.exists) {
+            chatUpdateData.patientId = senderId;
+            chatUpdateData.psychologistId = receiverId;
+        }
+
+        await chatDocRef.set(chatUpdateData, { merge: true }); 
 
         res.status(201).json({ 
             message: 'Mensaje E2EE enviado correctamente', 

@@ -164,8 +164,9 @@ class ChatRepository {
         'chatId': chatId,
         'senderId': senderId,
         'receiverId': receiverId,
-        'content': encryptedForReceiver, // ✅ Cifrado para destinatario
-        'senderContent': encryptedForSender, // ✅ Cifrado para remitente
+        'content': encryptedForReceiver, // Cifrado para destinatario
+        'senderContent': encryptedForSender, // Cifrado para remitente
+        'plainTextForSender': content, // ✅ Texto plano para el preview
         'isE2EE': true,
       }),
     );
@@ -188,7 +189,6 @@ class ChatRepository {
     rethrow;
   }
 }
-
   /// ✅ VERSIÓN CORREGIDA: Procesar correctamente isE2EE del backend
   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
