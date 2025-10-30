@@ -1,5 +1,5 @@
 // lib/data/repositories/chat_repository.dart
-// Repositorio actualizado con E2EE
+// ✅ VERSIÓN CON DEBUG MEJORADO
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -38,39 +38,35 @@ class ChatRepository {
 
   // ============== CHAT CON IA (AURORA) - CON E2EE ==============
 
-  /// Envía mensaje cifrado a Aurora AI
   Future<String> sendAIMessage(String message) async {
     try {
-      // 🔐 Cifrar mensaje antes de enviar
       final encryptedMessage = await _e2eeService.encryptForAI(message);
 
       final response = await http.post(
         Uri.parse('$_baseUrl/chats/ai-chat/messages'),
         headers: await _getHeaders(),
         body: jsonEncode({
-          'message': message, // Texto plano para Gemini
-          'encryptedForStorage': encryptedMessage, // Cifrado para BD
+          'message': message,
+          'encryptedForStorage': encryptedMessage,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // La respuesta puede venir cifrada o en texto plano
         if (data['aiMessage'] != null) {
           final aiMessage = data['aiMessage'];
           
-          // Intentar descifrar si viene en formato E2EE
           if (aiMessage.toString().startsWith('{')) {
             try {
               return await _e2eeService.decryptFromAI(aiMessage);
             } catch (e) {
               print('⚠️ Error descifrando respuesta IA: $e');
-              return aiMessage; // Retornar texto plano si falla
+              return aiMessage;
             }
           }
           
-          return aiMessage; // Ya está en texto plano
+          return aiMessage;
         }
         
         throw Exception('Respuesta inválida del servidor');
@@ -86,7 +82,6 @@ class ChatRepository {
     }
   }
 
-  /// Carga mensajes cifrados del chat con IA
   Future<List<MessageModel>> loadAIChatMessages() async {
     try {
       final response = await http.get(
@@ -105,11 +100,9 @@ class ChatRepository {
           try {
             final text = json['text'] ?? '';
             
-            // Intentar descifrar si viene en formato E2EE
             if (text.startsWith('{') && text.contains('encryptedMessage')) {
               decryptedContent = await _e2eeService.decryptFromAI(text);
             } else {
-              // Mensaje en texto plano (legacy o sistema)
               decryptedContent = text;
             }
           } catch (e) {
@@ -139,7 +132,6 @@ class ChatRepository {
 
   // ============== CHAT CON HUMANOS - CON E2EE ==============
 
-  /// Envía mensaje cifrado entre humanos
   Future<void> sendHumanMessage({
     required String chatId,
     required String senderId,
@@ -147,11 +139,14 @@ class ChatRepository {
     required String content,
   }) async {
     try {
-      // 🔐 Cifrar mensaje para el destinatario
+      print('🔐 Cifrando mensaje para: $receiverId');
+      
       final encryptedContent = await _e2eeService.encryptMessage(
         content,
         receiverId,
       );
+
+      print('✅ Mensaje cifrado, enviando al backend...');
 
       final url = Uri.parse('$_baseUrl/chats/messages');
       
@@ -162,8 +157,8 @@ class ChatRepository {
           'chatId': chatId,
           'senderId': senderId,
           'receiverId': receiverId,
-          'content': encryptedContent, // Enviar cifrado
-          'isE2EE': true, // Flag para indicar E2EE
+          'content': encryptedContent,
+          'isE2EE': true,
         }),
       );
 
@@ -171,18 +166,22 @@ class ChatRepository {
         final body = jsonDecode(response.body);
         throw Exception(body['error'] ?? 'Error al enviar el mensaje');
       }
+      
+      print('✅ Mensaje enviado correctamente');
     } catch (e) {
       print('❌ Error enviando mensaje humano: $e');
       rethrow;
     }
   }
 
-  /// Carga mensajes (descifrando en tiempo real desde Firestore)
+  /// ✅ VERSIÓN CORREGIDA: Procesar correctamente isE2EE del backend
   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
       if (chatId == _auth.currentUser?.uid || chatId.contains('ai')) {
         return await loadAIChatMessages();
       }
+
+      print('🔥 Cargando mensajes del chat: $chatId');
 
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
@@ -191,25 +190,57 @@ class ChatRepository {
       
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
+        print('✅ ${jsonList.length} mensajes recibidos del backend');
         
         final messages = <MessageModel>[];
         
         for (var json in jsonList) {
           String decryptedContent;
+          final content = json['content'] ?? '';
+          final isE2EE = json['isE2EE'] ?? false;
+          
+          print('📦 Mensaje ID: ${json['id']}');
+          print('   - isE2EE: $isE2EE');
+          print('   - Primeros 30 chars: ${content.substring(0, content.length > 30 ? 30 : content.length)}');
           
           try {
-            final content = json['content'] ?? '';
-            
-            // Intentar descifrar si viene en formato E2EE
-            if (content.startsWith('{') && content.contains('encryptedMessage')) {
-              decryptedContent = await _e2eeService.decryptMessage(content);
+            // ✅ Verificar si es JSON cifrado
+            if (content.trim().startsWith('{')) {
+              try {
+                final parsed = jsonDecode(content);
+                if (parsed['encryptedMessage'] != null) {
+                  print('🔓 Descifrando mensaje...');
+                  decryptedContent = await _e2eeService.decryptMessage(content);
+                  print('✅ Descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
+                } else {
+                  decryptedContent = content;
+                }
+              } catch (jsonError) {
+                // No es JSON válido, es texto plano
+                decryptedContent = content;
+              }
+            } else if (isE2EE) {
+              // Flag E2EE pero no parece JSON
+              print('⚠️ Flag isE2EE=true pero contenido no parece cifrado');
+              try {
+                decryptedContent = await _e2eeService.decryptMessage(content);
+              } catch (e) {
+                print('❌ Error descifrando: $e');
+                decryptedContent = '[Mensaje cifrado - Error al descifrar]';
+              }
             } else {
-              // Mensaje en texto plano (legacy)
+              // Mensaje en texto plano
+              print('📄 Mensaje en texto plano');
               decryptedContent = content;
             }
           } catch (e) {
-            print('⚠️ Error descifrando mensaje: $e');
-            decryptedContent = '[Mensaje cifrado]';
+            print('❌ Error procesando mensaje: $e');
+            
+            if (e.toString().contains('Unsupported block type')) {
+              decryptedContent = '🔒 [Mensaje cifrado con clave anterior]';
+            } else {
+              decryptedContent = '[Error al descifrar mensaje]';
+            }
           }
           
           messages.add(MessageModel.fromJson({
@@ -223,6 +254,7 @@ class ChatRepository {
           }));
         }
         
+        print('✅ Total mensajes procesados: ${messages.length}');
         return messages;
       } else {
         throw Exception('Error al cargar mensajes: ${response.statusCode}');
@@ -249,11 +281,13 @@ class ChatRepository {
           'userId': currentUserId,
         }),
       );
+      
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body);
         throw Exception(body['error'] ?? 'Error al marcar mensajes como leídos');
       }
     } catch (e) {
+      print('❌ Error marcando mensajes como leídos: $e');
       rethrow;
     }
   }
@@ -281,7 +315,7 @@ class ChatRepository {
         await batch.commit();
       }
     } catch (e) {
-      print('Error en markMessagesAsReadFirestore: $e');
+      print('❌ Error en markMessagesAsReadFirestore: $e');
     }
   }
 
@@ -302,7 +336,6 @@ class ChatRepository {
     }
   }
 
-  /// Verifica que el usuario tenga claves E2EE configuradas
   Future<bool> ensureKeysExist() async {
     final hasKeys = await _e2eeService.hasKeys();
     if (!hasKeys) {

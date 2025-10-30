@@ -1,13 +1,14 @@
 // lib/presentation/chat/views/psychologist_chat_screen.dart
+// ✅ VERSIÓN CON E2EE CORREGIDA
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -31,10 +32,14 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final _e2eeService = E2EEService(); // ✅ Agregar servicio E2EE
+  
   late final String _chatId;
   late final ChatRepository _chatRepository;
   late final Stream<DocumentSnapshot> _psychologistStatusStream;
+  
   String? _currentUserImageUrl;
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -49,13 +54,36 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         .collection('users')
         .doc(widget.psychologistUid)
         .snapshots();
+    
+    _initializeE2EE();
     _loadCurrentUserImage();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _chatRepository.markMessagesAsRead(
         chatId: _chatId,
         currentUserId: currentUserUid,
       );
     });
+  }
+
+  // ✅ Inicializar E2EE
+  Future<void> _initializeE2EE() async {
+    try {
+      await _e2eeService.initialize();
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      print('❌ Error inicializando E2EE: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error inicializando cifrado. Reinicia la app.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _loadCurrentUserImage() async {
@@ -79,8 +107,9 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     super.dispose();
   }
 
+  // ✅ Enviar mensaje CIFRADO
   void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || !_isInitialized) return;
 
     final messageContent = _messageController.text.trim();
     _messageController.clear();
@@ -88,6 +117,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     _scrollToBottom();
 
     try {
+      // ✅ Cifrar mensaje antes de enviar
       await _chatRepository.sendHumanMessage(
         chatId: _chatId,
         senderId: _auth.currentUser!.uid,
@@ -115,9 +145,46 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     });
   }
 
+  // ✅ Descifrar mensaje individual
+  Future<String> _decryptMessageContent(Map<String, dynamic> data) async {
+    try {
+      final content = data['content'] as String? ?? '';
+      final isE2EE = data['isE2EE'] as bool? ?? false;
+
+      // Si está marcado como E2EE, intentar descifrar
+      if (isE2EE && content.startsWith('{') && content.contains('encryptedMessage')) {
+        return await _e2eeService.decryptMessage(content);
+      }
+      
+      // Si no está marcado, retornar texto plano
+      return content;
+    } catch (e) {
+      print('⚠️ Error descifrando: $e');
+      return '[Mensaje cifrado - Error al descifrar]';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // ✅ Mostrar indicador si E2EE no está listo
+    if (!_isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.psychologistName)),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Inicializando cifrado seguro...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.appBarTheme.backgroundColor,
@@ -163,8 +230,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                       } else {
                         lastSeenText = 'El ${DateFormat('dd MMM').format(lastSeenDate)}';
                       }
-                    } else {
-                      lastSeenText = 'Última vez visto: N/A';
                     }
                   }
 
@@ -181,15 +246,22 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        isOnline ? 'En línea' : lastSeenText,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isOnline
-                              ? Colors.green
-                              : theme.textTheme.bodySmall?.color,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          // ✅ Indicador de cifrado
+                          const Icon(Icons.lock, size: 12, color: Colors.green),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              isOnline ? 'En línea' : lastSeenText,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isOnline ? Colors.green : theme.textTheme.bodySmall?.color,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      )
                     ],
                   );
                 },
@@ -200,9 +272,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
-            onPressed: () {
-              // Mostrar opciones adicionales
-            },
+            onPressed: () {},
           ),
         ],
       ),
@@ -229,35 +299,50 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                     );
                   }
 
-                  final messages = snapshot.data!.docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final timestamp = data['timestamp'] as Timestamp?;
-                    final senderId = data['senderId'] as String? ?? '';
-                    
-                    return MessageModel(
-                      id: doc.id,
-                      content: data['content'],
-                      timestamp: timestamp?.toDate() ?? DateTime.now(),
-                      isUser: senderId == _auth.currentUser!.uid,
-                      senderId: senderId,
-                      receiverId: data['receiverId'] as String?,
-                      isRead: data['isRead'] as bool? ?? false,
-                    );
-                  }).toList();
-
+                  // ✅ Construir lista con FutureBuilder para descifrar
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(top: 16, bottom: 16),
-                    itemCount: messages.length,
+                    itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
-                      final message = messages[index];
-                      return MessageBubble(
-                        message: message,
-                        isMe: message.isUser,
-                        profilePictureUrl: message.isUser 
-                            ? _currentUserImageUrl
-                            : widget.profilePictureUrl, 
-                        isRead: message.isRead,
+                      final doc = snapshot.data!.docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      
+                      return FutureBuilder<String>(
+                        future: _decryptMessageContent(data),
+                        builder: (context, decryptSnapshot) {
+                          String displayContent;
+                          
+                          if (decryptSnapshot.connectionState == ConnectionState.waiting) {
+                            displayContent = '🔓 Descifrando...';
+                          } else if (decryptSnapshot.hasError) {
+                            displayContent = '[Error al descifrar]';
+                          } else {
+                            displayContent = decryptSnapshot.data ?? '[Sin contenido]';
+                          }
+
+                          final timestamp = data['timestamp'] as Timestamp?;
+                          final senderId = data['senderId'] as String? ?? '';
+                          
+                          final message = MessageModel(
+                            id: doc.id,
+                            content: displayContent,
+                            timestamp: timestamp?.toDate() ?? DateTime.now(),
+                            isUser: senderId == _auth.currentUser!.uid,
+                            senderId: senderId,
+                            receiverId: data['receiverId'] as String?,
+                            isRead: data['isRead'] as bool? ?? false,
+                          );
+
+                          return MessageBubble(
+                            message: message,
+                            isMe: message.isUser,
+                            profilePictureUrl: message.isUser 
+                                ? _currentUserImageUrl
+                                : widget.profilePictureUrl, 
+                            isRead: message.isRead,
+                          );
+                        },
                       );
                     },
                   );
@@ -279,15 +364,16 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   IconButton(
                     icon: const Icon(Icons.attach_file),
                     color: Colors.grey[600],
-                    onPressed: () {
-                      // Mostrar opciones de adjuntos
-                    },
+                    onPressed: () {},
                   ),
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      enabled: _isInitialized,
                       decoration: InputDecoration(
-                        hintText: 'Escribe un mensaje...',
+                        hintText: _isInitialized 
+                            ? 'Escribe un mensaje...' 
+                            : 'Inicializando cifrado...',
                         hintStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -319,15 +405,17 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
+                      color: _isInitialized 
+                          ? theme.colorScheme.primary 
+                          : Colors.grey,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                       icon: Icon(
+                      icon: Icon(
                         Icons.send_rounded,
                         color: theme.colorScheme.onPrimary,
                       ),
-                      onPressed: _sendMessage,
+                      onPressed: _isInitialized ? _sendMessage : null,
                     ),
                   ),
                 ],

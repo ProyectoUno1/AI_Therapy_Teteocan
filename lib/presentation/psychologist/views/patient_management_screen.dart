@@ -1,4 +1,5 @@
 // lib/presentation/psychologist/views/patient_management_screen.dart
+// ✅ CON BOTÓN DE CHAT AGREGADO
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,10 +13,9 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.da
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/patient_management_state.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/schedule_appointment_form.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_chat_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_metrics_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
-import 'dart:developer';
 
 class PatientManagementScreen extends StatefulWidget {
   const PatientManagementScreen({super.key});
@@ -548,6 +548,46 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ✅ BOTÓN DE CHAT AGREGADO
+          IconButton(
+            icon: Stack(
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  color: AppConstants.primaryColor,
+                  size: 20,
+                ),
+                // Badge opcional para mensajes no leídos (puedes agregar lógica después)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            onPressed: () {
+              // Navegar a la pantalla de chat
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PatientChatScreen(
+                    patientId: patient.id,
+                    patientName: patient.name,
+                    patientImageUrl: patient.profilePictureUrl ?? '',
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Chatear con ${patient.name}',
+          ),
+          
           IconButton(
             icon: Icon(
               Icons.calendar_today,
@@ -570,6 +610,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
             },
             tooltip: 'Ver citas del paciente',
           ),
+          
           IconButton(
             icon: Icon(
               Icons.arrow_forward_ios,

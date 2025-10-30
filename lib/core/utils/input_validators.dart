@@ -19,7 +19,7 @@ class InputValidators {
     return 'La contraseña debe tener al menos 8 caracteres.';
   }
   
-  // Validaciones de seguridad balanceadas
+  // Validaciones de seguridad 
   final hasUpperCase = RegExp(r'[A-Z]').hasMatch(password);
   final hasLowerCase = RegExp(r'[a-z]').hasMatch(password);
   final hasNumbers = RegExp(r'[0-9]').hasMatch(password);
@@ -77,7 +77,7 @@ class InputValidators {
     if (!RegExp(r'^[0-9]{7,10}$').hasMatch(id)) {
       return 'Cédula profesional inválida (solo números, 7-10 dígitos).';
     }
-    return null;
+  return null;
   }
 }
 
