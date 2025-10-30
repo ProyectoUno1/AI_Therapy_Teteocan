@@ -124,45 +124,46 @@ class PsychologistChatBloc
     add(MessagesUpdated(messages));
   }
 
-  Future<void> _onSendMessage(
-    SendMessage event,
-    Emitter<PsychologistChatState> emit,
-  ) async {
-    try {
-      print('📤 Enviando mensaje...');
-      print('📋 Chat ID: ${event.chatId}');
-      print('👤 Sender: ${event.senderId}');
-      print('👥 Receiver: ${event.receiverId}');
-      print('💬 Contenido: ${event.content}');
+ Future<void> _onSendMessage(
+  SendMessage event,
+  Emitter<PsychologistChatState> emit,
+) async {
+  try {
+    print('📤 Enviando mensaje...');
+    print('📋 Chat ID: ${event.chatId}');
+    print('👤 Sender: ${event.senderId}');
+    print('👥 Receiver: ${event.receiverId}');
+    print('💬 Contenido: ${event.content}');
 
-      if (event.receiverId == null) {
-        print('❌ Error: receiverId es null');
-        emit(PsychologistChatError('Error: ID del destinatario no disponible'));
-        return;
-      }
-
-      // ✅ Usar ChatRepository que cifra automáticamente
-      await _chatRepository.sendHumanMessage(
-        chatId: event.chatId,
-        senderId: event.senderId,
-        receiverId: event.receiverId!,
-        content: event.content,
-      );
-
-      print('✅ Mensaje enviado y cifrado exitosamente');
-
-      // Actualizar último mensaje del chat
-      await _firestore.collection('chats').doc(event.chatId).set({
-        'lastMessage': '[Mensaje cifrado]',
-        'lastTimestamp': FieldValue.serverTimestamp(),
-        'participants': [event.senderId, event.receiverId],
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('❌ Error al enviar el mensaje: $e');
-      print('Stack trace: ${StackTrace.current}');
-      emit(PsychologistChatError('Error al enviar el mensaje: $e'));
+    if (event.receiverId == null) {
+      print('❌ Error: receiverId es null');
+      emit(PsychologistChatError('Error: ID del destinatario no disponible'));
+      return;
     }
+
+    // ✅ Usar ChatRepository que cifra automáticamente
+    await _chatRepository.sendHumanMessage(
+      chatId: event.chatId,
+      senderId: event.senderId,
+      receiverId: event.receiverId!,
+      content: event.content,
+    );
+
+    print('✅ Mensaje enviado y cifrado exitosamente');
+
+    // ✅ ELIMINAR estas líneas que sobrescribían lastMessage
+    // await _firestore.collection('chats').doc(event.chatId).set({
+    //   'lastMessage': '[Mensaje cifrado]',
+    //   'lastTimestamp': FieldValue.serverTimestamp(),
+    //   'participants': [event.senderId, event.receiverId],
+    // }, SetOptions(merge: true));
+    
+  } catch (e) {
+    print('❌ Error al enviar el mensaje: $e');
+    print('Stack trace: ${StackTrace.current}');
+    emit(PsychologistChatError('Error al enviar el mensaje: $e'));
   }
+}
 
   void _onMessagesUpdated(
     MessagesUpdated event,

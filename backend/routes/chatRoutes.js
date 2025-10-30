@@ -19,7 +19,14 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        // ✅ Verificar que ambos contenidos estén cifrados si es E2EE
+        // ✅ Log para debug
+        console.log('📥 Mensaje recibido en backend:');
+        console.log('   - chatId:', chatId);
+        console.log('   - senderId:', senderId);
+        console.log('   - receiverId:', receiverId);
+        console.log('   - plainTextForSender:', plainTextForSender); // ✅ Debe aparecer aquí
+        console.log('   - isE2EE:', isE2EE);
+
         if (isE2EE) {
             try {
                 const receiverPayload = JSON.parse(content);
@@ -45,12 +52,11 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
 
-        // ✅ Guardar AMBAS versiones cifradas en la subcolección
         const messageData = {
             senderId,
             receiverId,
-            content: content, // Cifrado para receiverId
-            senderContent: senderContent, // Cifrado para senderId
+            content: content,
+            senderContent: senderContent,
             isRead: false,
             isE2EE: isE2EE || false,
             timestamp: FieldValue.serverTimestamp(), 
@@ -58,24 +64,19 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
 
         await messageRef.add(messageData);
         
-        console.log('✅ Mensaje E2EE guardado:', {
-            chatId,
-            senderId,
-            receiverId,
-            isE2EE,
-        });
+        console.log('✅ Mensaje guardado en subcolección');
 
-        // ✅ Actualizar documento principal del chat CON EL MENSAJE EN TEXTO PLANO
-        // (solo para preview en la lista de chats)
+        // ✅ CRÍTICO: Actualizar documento principal con texto plano
         const chatUpdateData = {
             participants: [senderId, receiverId].sort(),
-            lastMessage: plainTextForSender || '[Mensaje]', // ✅ Texto plano para preview
+            lastMessage: plainTextForSender || '[Sin contenido]', // ✅ Texto plano
             lastTimestamp: FieldValue.serverTimestamp(),
             lastSenderId: senderId,
             isE2EE: isE2EE || false,
         };
         
-        // Si es el primer mensaje, asignar roles
+        console.log('📝 Actualizando documento principal con lastMessage:', plainTextForSender);
+        
         const chatDocSnapshot = await chatDocRef.get();
         if (!chatDocSnapshot.exists) {
             chatUpdateData.patientId = senderId;
@@ -83,6 +84,8 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         }
 
         await chatDocRef.set(chatUpdateData, { merge: true }); 
+        
+        console.log('✅ Documento principal actualizado correctamente');
 
         res.status(201).json({ 
             message: 'Mensaje E2EE enviado correctamente', 
