@@ -482,188 +482,214 @@ class _PsychologistChatListScreenState
   }
 
   Widget _buildPatientChatTile(PatientChatItem patient, int index) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 300 + (index * 50)),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  return TweenAnimationBuilder<double>(
+    duration: Duration(milliseconds: 300 + (index * 50)),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Transform.translate(
+        offset: Offset(0, 20 * (1 - value)),
+        child: Opacity(
+          opacity: value,
+          child: child,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => BlocProvider<PsychologistChatBloc>(
-                    create: (context) => PsychologistChatBloc(),
-                    child: PatientChatScreen(
-                      patientId: patient.id,
-                      patientName: patient.name,
-                      patientImageUrl: patient.profileImageUrl,
-                    ),
+      );
+    },
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => BlocProvider<PsychologistChatBloc>(
+                  create: (context) => PsychologistChatBloc(),
+                  child: PatientChatScreen(
+                    patientId: patient.id,
+                    patientName: patient.name,
+                    patientImageUrl: patient.profileImageUrl,
                   ),
                 ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildAvatar(patient),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                patient.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                  fontFamily: 'Poppins',
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.color,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatTime(patient.lastMessageTime),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildAvatar(patient),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              patient.name,
                               style: TextStyle(
-                                fontSize: 12,
-                                color: patient.unreadCount > 0
-                                    ? AppConstants.secondaryColor
-                                    : Colors.grey[500],
-                                fontWeight: patient.unreadCount > 0
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
                                 fontFamily: 'Poppins',
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: patient.isTyping
-                                  ? Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              AppConstants.secondaryColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatTime(patient.lastMessageTime),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: patient.unreadCount > 0
+                                  ? AppConstants.secondaryColor
+                                  : Colors.grey[500],
+                              fontWeight: patient.unreadCount > 0
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      
+                      // ✅ SOLUCIÓN: Leer lastMessage directamente de Firestore
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('chats')
+                            .doc(_getChatId(patient.id))
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          String displayMessage = patient.lastMessage;
+                          
+                          if (snapshot.hasData && snapshot.data!.exists) {
+                            final data = snapshot.data!.data() as Map<String, dynamic>?;
+                            if (data != null && data['lastMessage'] != null) {
+                              displayMessage = data['lastMessage'] as String;
+                              print('🔍 LastMessage desde Firestore: "$displayMessage"');
+                            }
+                          }
+                          
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: patient.isTyping
+                                    ? Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                AppConstants.secondaryColor,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Escribiendo...',
-                                          style: TextStyle(
-                                            color: AppConstants.secondaryColor,
-                                            fontStyle: FontStyle.italic,
-                                            fontSize: 13,
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w500,
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Escribiendo...',
+                                            style: TextStyle(
+                                              color: AppConstants.secondaryColor,
+                                              fontStyle: FontStyle.italic,
+                                              fontSize: 13,
+                                              fontFamily: 'Poppins',
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
+                                        ],
+                                      )
+                                    : Text(
+                                        displayMessage, // ✅ Usar el mensaje de Firestore
+                                        style: TextStyle(
+                                          color: patient.unreadCount > 0
+                                              ? Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.color
+                                              : Colors.grey[600],
+                                          fontSize: 14,
+                                          fontFamily: 'Poppins',
+                                          fontWeight: patient.unreadCount > 0
+                                              ? FontWeight.w500
+                                              : FontWeight.normal,
                                         ),
-                                      ],
-                                    )
-                                  : Text(
-                                      patient.lastMessage,
-                                      style: TextStyle(
-                                        color: patient.unreadCount > 0
-                                            ? Theme.of(context)
-                                                .textTheme
-                                                .bodyLarge
-                                                ?.color
-                                            : Colors.grey[600],
-                                        fontSize: 14,
-                                        fontFamily: 'Poppins',
-                                        fontWeight: patient.unreadCount > 0
-                                            ? FontWeight.w500
-                                            : FontWeight.normal,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
+                              ),
+                              if (patient.unreadCount > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppConstants.primaryColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppConstants.primaryColor
+                                            .withOpacity(0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    patient.unreadCount > 99
+                                        ? '99+'
+                                        : patient.unreadCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Poppins',
                                     ),
-                            ),
-                            if (patient.unreadCount > 0) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppConstants.primaryColor,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppConstants.primaryColor
-                                          .withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  patient.unreadCount > 99
-                                      ? '99+'
-                                      : patient.unreadCount.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Poppins',
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                      ],
-                    ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
+// ✅ Método helper para construir el chatId
+String _getChatId(String patientId) {
+  if (_currentUserId == null) return '';
+  final ids = [_currentUserId!, patientId]..sort();
+  return '${ids[0]}_${ids[1]}';
+}
   Widget _buildAvatar(PatientChatItem patient) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
