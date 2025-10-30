@@ -152,12 +152,6 @@ router.post('/emotions', verifyFirebaseToken, async (req, res) => {
     const endOfDay = new Date(emotionDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    console.log('🔍 Buscando emociones existentes para:', {
-      patientId,
-      startOfDay,
-      endOfDay
-    });
-
     // Verificar si ya existe una emoción para este día
     const existingEmotion = await db.collection('emotions')
       .where('patientId', '==', patientId)
