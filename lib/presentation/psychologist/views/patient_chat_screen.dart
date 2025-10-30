@@ -129,43 +129,38 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       final messages = <MessageModel>[];
       
       for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final content = data['content'] as String? ?? '';
-        final isE2EE = data['isE2EE'] as bool? ?? false;
-        final senderId = data['senderId'] as String? ?? '';
-        
-        String decryptedContent;
-        
-        // ✅ CORRECCIÓN CRÍTICA: Si YO envié el mensaje, NO intentar descifrarlo
-        if (senderId == _currentUserId) {
-          print('📤 Mensaje propio (ID: ${doc.id}) - Mostrando indicador');
-          decryptedContent = '🔒 [Mensaje cifrado enviado]';
-        } else {
-          // Solo descifrar mensajes que YO recibí
-          try {
-            // Verificar si es JSON cifrado
-            if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
-              print('🔓 Descifrando mensaje recibido ID: ${doc.id}');
-              decryptedContent = await _e2eeService.decryptMessage(content);
-              print('✅ Descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}...');
-            } else if (isE2EE) {
-              try {
-                decryptedContent = await _e2eeService.decryptMessage(content);
-              } catch (e) {
-                print('⚠️ Error descifrando: $e');
-                decryptedContent = '🔒 [Mensaje cifrado - No disponible]';
-              }
-            } else {
-              decryptedContent = content;
-            }
-          } catch (e) {
-            print('❌ Error procesando mensaje ${doc.id}: $e');
-            decryptedContent = '[Error al descifrar]';
-          }
-        }
+  final data = doc.data();
+  final content = data['content'] as String? ?? '';
+  final plainTextForSender = data['plainTextForSender'] as String?;
+  final isE2EE = data['isE2EE'] as bool? ?? false;
+  final senderId = data['senderId'] as String? ?? '';
+  
+  String decryptedContent;
+  
+  // ✅ Si YO envié el mensaje, usar plainTextForSender
+  if (senderId == _currentUserId) {
+    if (plainTextForSender != null) {
+      decryptedContent = plainTextForSender;
+    } else {
+      decryptedContent = '🔒 [Tu mensaje cifrado]';
+    }
+  } else {
+    // Descifrar mensajes recibidos
+    if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
+      decryptedContent = await _e2eeService.decryptMessage(content);
+    } else if (isE2EE) {
+      try {
+        decryptedContent = await _e2eeService.decryptMessage(content);
+      } catch (e) {
+        decryptedContent = '🔒 [Mensaje cifrado - No disponible]';
+      }
+    } else {
+      decryptedContent = content;
+    }
+  
+         
         
         final timestamp = data['timestamp'] as Timestamp?;
-        
         
         messages.add(MessageModel(
           id: doc.id,
@@ -186,6 +181,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
         });
+      }
       }
     });
   }

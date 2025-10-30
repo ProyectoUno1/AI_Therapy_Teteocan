@@ -11,7 +11,7 @@ const router = express.Router();
 // ==================== ENVIAR MENSAJE ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content, isE2EE } = req.body;
+        const { chatId, senderId, receiverId, content, isE2EE, plainTextForSender } = req.body;
         
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
@@ -19,19 +19,20 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        // ✅ Guardar contenido TAL CUAL (cifrado o plano)
-        const contentToStore = content;
+        // ✅ Guardar contenido cifrado + texto plano para el remitente
+        const messageData = {
+            senderId,
+            receiverId,
+            content: content, // Cifrado para el destinatario
+            plainTextForSender: plainTextForSender || null, // ✅ Texto plano para el remitente
+            isRead: false,
+            isE2EE: isE2EE || false,
+            timestamp: FieldValue.serverTimestamp(), 
+        };
 
         // Guardar el mensaje 
         const messageRef = db.collection('chats').doc(chatId).collection('messages');
-        await messageRef.add({
-            senderId,
-            receiverId,
-            content: contentToStore, 
-            isRead: false,
-            isE2EE: isE2EE || false, // ✅ Mantener flag E2EE
-            timestamp: FieldValue.serverTimestamp(), 
-        });
+        await messageRef.add(messageData);
 
         // Crear notificación 
         if (receiverId !== 'aurora' && receiverId !== senderId) {
@@ -51,7 +52,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
 
                 const notificationBody = isE2EE 
                     ? `${senderName} te envió un mensaje cifrado` 
-                    : `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`;
+                    : `${senderName}: ${plainTextForSender?.substring(0, 50) || content.substring(0, 50)}`;
 
                 await db.collection('notifications').doc().set({
                     userId: receiverId,
@@ -64,7 +65,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
                         chatId: chatId,
                         senderId: senderId,
                         senderName: senderName,
-                        messagePreview: isE2EE ? '[Mensaje cifrado]' : content.substring(0, 100),
+                        messagePreview: isE2EE ? '[Mensaje cifrado]' : plainTextForSender?.substring(0, 100) || content.substring(0, 100),
                         timestamp: new Date().toISOString()
                     }
                 });
@@ -122,7 +123,7 @@ router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
 });
 
 // ==================== OBTENER MENSAJES ====================
-// ✅ CORRECCIÓN CRÍTICA: NO DESCIFRAR EN BACKEND
+// ✅ CORRECCIÓN CRÍTICA: NO DESCIFRAR EN BACKEND + Retornar plainTextForSender
 router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -142,17 +143,18 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
 
         console.log(`✅ ${querySnapshot.size} mensajes encontrados en chat ${chatId}`);
 
-        // ✅ NO DESCIFRAR - Retornar contenido RAW con flag isE2EE
+        // ✅ NO DESCIFRAR - Retornar contenido RAW con plainTextForSender
         const messages = querySnapshot.docs.map(doc => {
             const data = doc.data();
             
             return {
                 id: doc.id,
-                content: data.content, // ← CONTENIDO SIN DESCIFRAR
+                content: data.content, // ← Cifrado
+                plainTextForSender: data.plainTextForSender || null, // ✅ Texto plano
                 senderId: data.senderId,
                 receiverId: data.receiverId,
                 isRead: data.isRead || false, 
-                isE2EE: data.isE2EE || false, // ✅ INCLUIR FLAG
+                isE2EE: data.isE2EE || false,
                 timestamp: data.timestamp?.toDate() || new Date(),
             };
         });
