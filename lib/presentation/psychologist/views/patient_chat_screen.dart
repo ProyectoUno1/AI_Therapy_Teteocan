@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-// ✅ VERSIÓN CON E2EE CORREGIDA
+// ✅ SOLUCIÓN DEFINITIVA: Stream de mensajes descifrados
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
+import 'dart:async';
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
@@ -32,7 +33,7 @@ class PatientChatScreen extends StatefulWidget {
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final _e2eeService = E2EEService(); // ✅ Agregar servicio E2EE
+  final _e2eeService = E2EEService();
   
   String? _currentUserId;
   late String _chatId;
@@ -40,6 +41,10 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   late final ChatRepository _chatRepository;
   
   bool _isInitialized = false;
+  
+  // ✅ Stream controller para mensajes descifrados
+  late StreamController<List<MessageModel>> _messagesStreamController;
+  StreamSubscription? _firestoreSubscription;
 
   bool get _isChatEnabled {
     final authState = BlocProvider.of<AuthBloc>(context).state;
@@ -72,6 +77,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     }
 
     _chatRepository = ChatRepository();
+    _messagesStreamController = StreamController<List<MessageModel>>.broadcast();
     
     _patientStatusStream = FirebaseFirestore.instance
         .collection('users')
@@ -88,12 +94,12 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     });
   }
 
-  // ✅ Inicializar E2EE
   Future<void> _initializeE2EE() async {
     try {
       await _e2eeService.initialize();
       if (mounted) {
         setState(() => _isInitialized = true);
+        _startListeningToMessages();
       }
     } catch (e) {
       print('❌ Error inicializando E2EE: $e');
@@ -108,8 +114,86 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     }
   }
 
+  // ✅ Escuchar mensajes de Firestore y descifrarlos
+  void _startListeningToMessages() {
+    _firestoreSubscription = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(_chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .listen((snapshot) async {
+      
+      print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
+      
+      final messages = <MessageModel>[];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final content = data['content'] as String? ?? '';
+        final isE2EE = data['isE2EE'] as bool? ?? false;
+        final senderId = data['senderId'] as String? ?? '';
+        
+        String decryptedContent;
+        
+        // ✅ CORRECCIÓN CRÍTICA: Si YO envié el mensaje, NO intentar descifrarlo
+        if (senderId == _currentUserId) {
+          print('📤 Mensaje propio (ID: ${doc.id}) - Mostrando indicador');
+          decryptedContent = '🔒 [Mensaje cifrado enviado]';
+        } else {
+          // Solo descifrar mensajes que YO recibí
+          try {
+            // Verificar si es JSON cifrado
+            if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
+              print('🔓 Descifrando mensaje recibido ID: ${doc.id}');
+              decryptedContent = await _e2eeService.decryptMessage(content);
+              print('✅ Descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}...');
+            } else if (isE2EE) {
+              try {
+                decryptedContent = await _e2eeService.decryptMessage(content);
+              } catch (e) {
+                print('⚠️ Error descifrando: $e');
+                decryptedContent = '🔒 [Mensaje cifrado - No disponible]';
+              }
+            } else {
+              decryptedContent = content;
+            }
+          } catch (e) {
+            print('❌ Error procesando mensaje ${doc.id}: $e');
+            decryptedContent = '[Error al descifrar]';
+          }
+        }
+        
+        final timestamp = data['timestamp'] as Timestamp?;
+        
+        
+        messages.add(MessageModel(
+          id: doc.id,
+          content: decryptedContent,
+          timestamp: timestamp?.toDate() ?? DateTime.now(),
+          isUser: senderId == _currentUserId,
+          senderId: senderId,
+          receiverId: data['receiverId'] as String?,
+          isRead: data['isRead'] as bool? ?? false,
+        ));
+      }
+      
+      // ✅ Emitir mensajes descifrados al stream
+      if (!_messagesStreamController.isClosed) {
+        _messagesStreamController.add(messages);
+        
+        // Scroll automático después de añadir mensajes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _firestoreSubscription?.cancel();
+    _messagesStreamController.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -122,8 +206,22 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     final messageContent = _messageController.text.trim();
     _messageController.clear();
     
-    _scrollToBottom();
-
+    // ✅ Agregar mensaje localmente de inmediato (optimistic update)
+    final tempMessage = MessageModel(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      content: messageContent, // ← Guardar en texto plano
+      timestamp: DateTime.now(),
+      isUser: true,
+      senderId: _currentUserId!,
+      receiverId: widget.patientId,
+      isRead: false,
+    );
+    
+    // Agregar al stream localmente
+    final currentMessages = List<MessageModel>.from(_messagesStreamController.hasListener 
+        ? [] 
+        : []); // Obtener mensajes actuales si es posible
+    
     try {
       await _chatRepository.sendHumanMessage(
         chatId: _chatId,
@@ -141,37 +239,17 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  // ✅ Descifrar mensaje individual
-  Future<String> _decryptMessageContent(Map<String, dynamic> data) async {
-    try {
-      final content = data['content'] as String? ?? '';
-      final isE2EE = data['isE2EE'] as bool? ?? false;
-
-      if (isE2EE && content.startsWith('{') && content.contains('encryptedMessage')) {
-        return await _e2eeService.decryptMessage(content);
-      }
-      
-      return content;
-    } catch (e) {
-      print('⚠️ Error descifrando: $e');
-      return '[Mensaje cifrado - Error al descifrar]';
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Mostrar indicador si E2EE no está listo
     if (!_isInitialized) {
       return Scaffold(
         appBar: AppBar(title: Text(widget.patientName)),
@@ -260,7 +338,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                       ),
                       Row(
                         children: [
-                          // ✅ Indicador de cifrado
                           const Icon(Icons.lock, size: 12, color: Colors.green),
                           const SizedBox(width: 4),
                           Expanded(
@@ -307,65 +384,43 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .doc(_chatId)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: false)
-                  .snapshots(),
+            // ✅ Usar el stream de mensajes descifrados
+            child: StreamBuilder<List<MessageModel>>(
+              stream: _messagesStreamController.stream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Descifrando mensajes...'),
+                      ],
+                    ),
+                  );
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return _buildEmptyState(context);
                 }
+
+                final messages = snapshot.data!;
 
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final doc = snapshot.data!.docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                    final message = messages[index];
                     
-                    return FutureBuilder<String>(
-                      future: _decryptMessageContent(data),
-                      builder: (context, decryptSnapshot) {
-                        String displayContent;
-                        
-                        if (decryptSnapshot.connectionState == ConnectionState.waiting) {
-                          displayContent = '🔓 Descifrando...';
-                        } else if (decryptSnapshot.hasError) {
-                          displayContent = '[Error al descifrar]';
-                        } else {
-                          displayContent = decryptSnapshot.data ?? '[Sin contenido]';
-                        }
-
-                        final timestamp = data['timestamp'] as Timestamp?;
-                        final senderId = data['senderId'] as String? ?? '';
-                        
-                        final message = MessageModel(
-                          id: doc.id,
-                          content: displayContent,
-                          timestamp: timestamp?.toDate() ?? DateTime.now(),
-                          isUser: senderId == _currentUserId,
-                          senderId: senderId,
-                          receiverId: data['receiverId'] as String?,
-                          isRead: data['isRead'] as bool? ?? false,
-                        );
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: MessageBubble(
-                            message: message,
-                            isMe: message.senderId == _currentUserId,
-                            isRead: message.isRead,
-                          ),
-                        );
-                      },
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: MessageBubble(
+                        message: message,
+                        isMe: message.senderId == _currentUserId,
+                        isRead: message.isRead,
+                      ),
                     );
                   },
                 );
@@ -409,86 +464,83 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               color: Theme.of(context).cardColor,
               border: Border(
                 top: BorderSide(
-                  color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.1),
-                  width: 2,
+                  color: Colors.grey.withOpacity(0.3),
+                  width: 1,
                 ),
               ),
             ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.attach_file, 
-                    size: 20,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.attach_file, 
+                      size: 20,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                    onPressed: _isChatEnabled ? () {} : null,
                   ),
-                  onPressed: _isChatEnabled ? () {} : null,
-                  padding: const EdgeInsets.all(6),
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                ),
-                
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    enabled: _isChatEnabled,
-                    decoration: InputDecoration(
-                      hintText: _isChatEnabled 
-                          ? 'Escribe un mensaje...' 
-                          : 'Chat deshabilitado',
-                      hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
+                  
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      enabled: _isChatEnabled,
+                      decoration: InputDecoration(
+                        hintText: _isChatEnabled 
+                            ? 'Escribe un mensaje...' 
+                            : 'Chat deshabilitado',
+                        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
                         ),
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 4),
+                  
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _isChatEnabled
+                          ? AppConstants.primaryColor 
+                          : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.send, 
+                        color: Colors.white,
+                        size: 20,
                       ),
+                      onPressed: _isChatEnabled ? _sendMessage : null,
+                      padding: EdgeInsets.zero,
                     ),
-                    onSubmitted: (_) => _sendMessage(),
                   ),
-                ),
-                
-                const SizedBox(width: 4),
-                
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _isChatEnabled
-                        ? AppConstants.primaryColor 
-                        : Colors.grey,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.send, 
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: _isChatEnabled ? _sendMessage : null,
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

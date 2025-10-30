@@ -157,7 +157,8 @@ class ChatRepository {
           'chatId': chatId,
           'senderId': senderId,
           'receiverId': receiverId,
-          'content': encryptedContent,
+          'content': encryptedContent, // Cifrado para destinatario
+          'plainTextForSender': content, // ✅ Texto plano para remitente
           'isE2EE': true,
         }),
       );
