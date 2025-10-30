@@ -1,5 +1,5 @@
 // lib/presentation/chat/views/psychologist_chat_screen.dart
-// ✅ VERSIÓN CON E2EE CORREGIDA
+// ✅ VERSIÓN CORREGIDA COMPLETA
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +9,7 @@ import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dar
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
+import 'dart:async';
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -32,28 +33,42 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  final _e2eeService = E2EEService(); // ✅ Agregar servicio E2EE
+  final _e2eeService = E2EEService();
   
+  // ✅ Declarar _currentUserId
+  late String _currentUserId;
   late final String _chatId;
   late final ChatRepository _chatRepository;
   late final Stream<DocumentSnapshot> _psychologistStatusStream;
   
   String? _currentUserImageUrl;
   bool _isInitialized = false;
+  
+  // ✅ Stream controller para mensajes descifrados
+  late StreamController<List<MessageModel>> _messagesStreamController;
+  StreamSubscription? _firestoreSubscription;
 
   @override
   void initState() {
     super.initState();
-    final currentUserUid = _auth.currentUser!.uid;
-    final uids = [currentUserUid, widget.psychologistUid]..sort();
+    
+    // ✅ Inicializar _currentUserId
+    _currentUserId = _auth.currentUser!.uid;
+    
+    final uids = [_currentUserId, widget.psychologistUid]..sort();
     _chatId = uids.join('_');
 
     _chatRepository = ChatRepository();
+    _messagesStreamController = StreamController<List<MessageModel>>.broadcast();
 
     _psychologistStatusStream = _firestore
         .collection('users')
         .doc(widget.psychologistUid)
         .snapshots();
+    
+    print('🔍 DEBUG: Chat ID: $_chatId');
+    print('🔍 DEBUG: Current User ID: $_currentUserId');
+    print('🔍 DEBUG: Psychologist ID: ${widget.psychologistUid}');
     
     _initializeE2EE();
     _loadCurrentUserImage();
@@ -61,7 +76,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _chatRepository.markMessagesAsRead(
         chatId: _chatId,
-        currentUserId: currentUserUid,
+        currentUserId: _currentUserId,
       );
     });
   }
@@ -72,6 +87,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
       await _e2eeService.initialize();
       if (mounted) {
         setState(() => _isInitialized = true);
+        _startListeningToMessages();
       }
     } catch (e) {
       print('❌ Error inicializando E2EE: $e');
@@ -86,10 +102,97 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     }
   }
 
+  // ✅ Escuchar mensajes de Firestore y descifrarlos
+  void _startListeningToMessages() {
+    _firestoreSubscription = _firestore
+        .collection('chats')
+        .doc(_chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .listen((snapshot) async {
+      
+      print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
+      
+      final messages = <MessageModel>[];
+      
+      // ✅ Procesar TODOS los documentos primero
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final content = data['content'] as String? ?? '';
+        final senderContent = data['senderContent'] as String? ?? '';
+        final isE2EE = data['isE2EE'] as bool? ?? false;
+        final senderId = data['senderId'] as String? ?? '';
+        
+        String decryptedContent;
+        
+        // ✅ SIEMPRE descifrar, sin importar quién lo envió
+        if (senderId == _currentUserId) {
+          // Descifrar MI versión cifrada
+          print('🔓 Descifrando MI mensaje cifrado...');
+          try {
+            if (senderContent.isEmpty) {
+              // Compatibilidad: Si no hay senderContent, intentar content
+              decryptedContent = content;
+            } else {
+              decryptedContent = await _e2eeService.decryptMessage(senderContent);
+            }
+            print('✅ Mi mensaje descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
+          } catch (e) {
+            print('❌ Error descifrando mi mensaje: $e');
+            decryptedContent = '🔐 [Error al descifrar mi mensaje]';
+          }
+        } else {
+          // Descifrar mensaje del OTRO usuario
+          print('🔓 Descifrando mensaje recibido...');
+          try {
+            if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
+              decryptedContent = await _e2eeService.decryptMessage(content);
+              print('✅ Mensaje recibido descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
+            } else if (isE2EE) {
+              try {
+                decryptedContent = await _e2eeService.decryptMessage(content);
+              } catch (e) {
+                decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
+              }
+            } else {
+              decryptedContent = content;
+            }
+          } catch (e) {
+            print('❌ Error descifrando mensaje recibido: $e');
+            decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
+          }
+        }
+        
+        final timestamp = data['timestamp'] as Timestamp?;
+        
+        messages.add(MessageModel(
+          id: doc.id,
+          content: decryptedContent,
+          timestamp: timestamp?.toDate() ?? DateTime.now(),
+          isUser: senderId == _currentUserId,
+          senderId: senderId,
+          receiverId: data['receiverId'] as String?,
+          isRead: data['isRead'] as bool? ?? false,
+        ));
+      } // ✅ CERRAR EL FOR AQUÍ
+      
+      // ✅ Emitir TODOS los mensajes procesados al stream
+      if (!_messagesStreamController.isClosed) {
+        _messagesStreamController.add(messages);
+        print('✅ ${messages.length} mensajes emitidos al stream');
+        
+        // Scroll automático después de añadir mensajes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    });
+  }
+
   void _loadCurrentUserImage() async {
-    final currentUserUid = _auth.currentUser!.uid;
     try {
-      final userDoc = await _firestore.collection('patients').doc(currentUserUid).get();
+      final userDoc = await _firestore.collection('patients').doc(_currentUserId).get();
       if (userDoc.exists && mounted) {
         setState(() {
           _currentUserImageUrl = userDoc.data()?['profilePictureUrl'];
@@ -102,6 +205,8 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   @override
   void dispose() {
+    _firestoreSubscription?.cancel();
+    _messagesStreamController.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -114,17 +219,22 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
     final messageContent = _messageController.text.trim();
     _messageController.clear();
 
-    _scrollToBottom();
+    print('📤 Enviando mensaje: $messageContent');
 
     try {
-      // ✅ Cifrar mensaje antes de enviar
       await _chatRepository.sendHumanMessage(
         chatId: _chatId,
-        senderId: _auth.currentUser!.uid,
+        senderId: _currentUserId,
         receiverId: widget.psychologistUid,
         content: messageContent,
       );
+      
+      print('✅ Mensaje enviado correctamente');
+      
+      // ✅ El stream de Firestore actualizará automáticamente la UI
+      
     } catch (e) {
+      print('❌ Error enviando mensaje: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al enviar el mensaje: $e')),
@@ -134,33 +244,12 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   }
 
   void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  // ✅ Descifrar mensaje individual
-  Future<String> _decryptMessageContent(Map<String, dynamic> data) async {
-    try {
-      final content = data['content'] as String? ?? '';
-      final isE2EE = data['isE2EE'] as bool? ?? false;
-
-      // Si está marcado como E2EE, intentar descifrar
-      if (isE2EE && content.startsWith('{') && content.contains('encryptedMessage')) {
-        return await _e2eeService.decryptMessage(content);
-      }
-      
-      // Si no está marcado, retornar texto plano
-      return content;
-    } catch (e) {
-      print('⚠️ Error descifrando: $e');
-      return '[Mensaje cifrado - Error al descifrar]';
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -248,7 +337,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                       ),
                       Row(
                         children: [
-                          // ✅ Indicador de cifrado
                           const Icon(Icons.lock, size: 12, color: Colors.green),
                           const SizedBox(width: 4),
                           Expanded(
@@ -281,68 +369,48 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
           Expanded(
             child: Container(
               color: theme.scaffoldBackgroundColor,
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore
-                    .collection('chats')
-                    .doc(_chatId)
-                    .collection('messages')
-                    .orderBy('timestamp', descending: false)
-                    .snapshots(),
+              // ✅ Usar el stream de mensajes descifrados
+              child: StreamBuilder<List<MessageModel>>(
+                stream: _messagesStreamController.stream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Descifrando mensajes...'),
+                        ],
+                      ),
+                    );
                   }
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
                       child: Text('Inicia una conversación...'),
                     );
                   }
 
-                  // ✅ Construir lista con FutureBuilder para descifrar
+                  final messages = snapshot.data!;
+
                   return ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(top: 16, bottom: 16),
-                    itemCount: snapshot.data!.docs.length,
+                    itemCount: messages.length,
                     itemBuilder: (context, index) {
-                      final doc = snapshot.data!.docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
+                      final message = messages[index];
                       
-                      return FutureBuilder<String>(
-                        future: _decryptMessageContent(data),
-                        builder: (context, decryptSnapshot) {
-                          String displayContent;
-                          
-                          if (decryptSnapshot.connectionState == ConnectionState.waiting) {
-                            displayContent = '🔓 Descifrando...';
-                          } else if (decryptSnapshot.hasError) {
-                            displayContent = '[Error al descifrar]';
-                          } else {
-                            displayContent = decryptSnapshot.data ?? '[Sin contenido]';
-                          }
-
-                          final timestamp = data['timestamp'] as Timestamp?;
-                          final senderId = data['senderId'] as String? ?? '';
-                          
-                          final message = MessageModel(
-                            id: doc.id,
-                            content: displayContent,
-                            timestamp: timestamp?.toDate() ?? DateTime.now(),
-                            isUser: senderId == _auth.currentUser!.uid,
-                            senderId: senderId,
-                            receiverId: data['receiverId'] as String?,
-                            isRead: data['isRead'] as bool? ?? false,
-                          );
-
-                          return MessageBubble(
-                            message: message,
-                            isMe: message.isUser,
-                            profilePictureUrl: message.isUser 
-                                ? _currentUserImageUrl
-                                : widget.profilePictureUrl, 
-                            isRead: message.isRead,
-                          );
-                        },
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: MessageBubble(
+                          message: message,
+                          isMe: message.isUser,
+                          profilePictureUrl: message.isUser 
+                              ? _currentUserImageUrl
+                              : widget.profilePictureUrl, 
+                          isRead: message.isRead,
+                        ),
                       );
                     },
                   );
