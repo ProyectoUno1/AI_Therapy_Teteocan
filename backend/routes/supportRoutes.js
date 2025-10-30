@@ -6,7 +6,6 @@ import { db } from "../firebase-admin.js";
 const router = express.Router();
 
 //Crear un nuevo ticket de soporte
- 
 router.post("/tickets", async (req, res) => {
   try {
     const {
