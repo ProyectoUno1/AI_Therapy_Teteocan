@@ -158,14 +158,23 @@ class ChatRepository {
           'senderId': senderId,
           'receiverId': receiverId,
           'content': encryptedContent, // Cifrado para destinatario
-          'plainTextForSender': content, // ✅ Texto plano para remitente
+          'plainTextForSender': content, // Texto plano para remitente
           'isE2EE': true,
         }),
       );
 
-      if (response.statusCode != 200) {
-        final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Error al enviar el mensaje');
+      if (response.statusCode != 200 && response.statusCode != 201) { // 201 es la respuesta esperada del backend
+        String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
+        
+        // Manejo robusto: Intenta decodificar JSON, si falla (e.g., HTML), usa el mensaje de error por defecto
+        try {
+          final body = jsonDecode(response.body);
+          errorMessage = body['error'] ?? errorMessage;
+        } catch (_) {
+          // Captura el FormatException (HTML) o cualquier otro error de decodificación
+          // y usa el mensaje de error por defecto que incluye el status code.
+        }
+        throw Exception(errorMessage);
       }
       
       print('✅ Mensaje enviado correctamente');
@@ -284,8 +293,18 @@ class ChatRepository {
       );
       
       if (response.statusCode != 200) {
-        final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Error al marcar mensajes como leídos');
+        String errorMessage = 'Error al marcar mensajes como leídos. Código: ${response.statusCode}';
+
+        // Manejo robusto para evitar el FormatException por respuesta HTML
+        try {
+          final body = jsonDecode(response.body);
+          errorMessage = body['error'] ?? errorMessage;
+        } catch (_) {
+          // Captura el FormatException (HTML) o cualquier otro error de decodificación
+          // y usa el mensaje de error por defecto.
+        }
+        
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('❌ Error marcando mensajes como leídos: $e');
