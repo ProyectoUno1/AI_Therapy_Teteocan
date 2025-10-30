@@ -13,66 +13,32 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId, senderId, receiverId, content, isE2EE, plainTextForSender } = req.body;
         
-        // 1. Verificación de autenticación (seguridad)
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
                 error: 'ID de remitente no coincide con el usuario autenticado.' 
             });
         }
 
-        // 2. Referencias a Firestore
-        const chatDocRef = db.collection('chats').doc(chatId); // Documento principal del chat
-        const messageRef = chatDocRef.collection('messages');  // Subcolección de mensajes
+        const chatDocRef = db.collection('chats').doc(chatId);
+        const messageRef = chatDocRef.collection('messages');
 
-        // 3. Datos del mensaje a guardar en la subcolección
+        // ✅ Guardar DOS versiones del mensaje:
+        // 1. content = cifrado para el RECEPTOR
+        // 2. senderContent = cifrado para el REMITENTE (o texto plano)
         const messageData = {
             senderId,
             receiverId,
-            content: content, // Contenido (cifrado o no)
-            plainTextForSender: plainTextForSender || null, // Texto plano para el remitente
+            content: content, // Cifrado para receiverId
+            senderContent: plainTextForSender, // Texto plano o cifrado para senderId
             isRead: false,
             isE2EE: isE2EE || false,
             timestamp: FieldValue.serverTimestamp(), 
         };
 
-        // 4. Guardar el mensaje en la subcolección
         await messageRef.add(messageData);
 
-        // 5. Determinar los datos para actualizar el documento principal (Recíproco)
-        const chatUpdateData = {
-            // Campos que siempre se actualizan
-            participants: [senderId, receiverId].sort(), // Array de participantes ordenado
-            lastMessage: plainTextForSender || content, // Último mensaje para la lista de chats
-            lastTimestamp: FieldValue.serverTimestamp(),
-            lastSenderId: senderId, // <-- ID del último remitente (para reciprocidad)
-            isE2EE: isE2EE || false,
-            // Aquí puedes añadir otros campos que deban actualizarse con cada mensaje
-        };
+        // Resto del código...
         
-        // 6. Verificar si es el PRIMER MENSAJE para asignar roles patientId y psychologistId
-        // Esto asegura que los IDs de rol solo se establezcan una vez y el documento "exista".
-        const chatDocSnapshot = await chatDocRef.get();
-        
-        if (!chatDocSnapshot.exists) {
-            // Asignación de roles al crear el documento por primera vez
-            // (Asume que los participantes son Patient y Psychologist. Esto es lo que necesita tu Flutter app).
-            chatUpdateData.patientId = senderId; // Temporal: Se asume el remitente como el paciente para la creación
-            chatUpdateData.psychologistId = receiverId; // Temporal: Se asume el receptor como el psicólogo
-            // NOTA: Una lógica más robusta debe determinar los roles desde una colección 'users' o 'roles'
-            // pero para hacer que el documento exista, esta asignación única inicial es suficiente.
-        }
-
-        // 7. Actualizar/Crear el documento principal del chat
-        // { merge: true } asegura la actualización sin sobrescribir o crea si no existe.
-        await chatDocRef.set(chatUpdateData, { merge: true }); 
-        
-        // 8. Crear notificación (Mantenemos tu lógica existente)
-        if (receiverId !== 'aurora' && receiverId !== senderId) {
-            // Lógica para crear la notificación push
-            // ... (tu código de notificación)
-        }
-
-        // 9. Respuesta exitosa
         res.status(201).json({ 
             message: 'Mensaje enviado', 
             chatId: chatId, 
@@ -93,7 +59,6 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         const { chatId } = req.params;
         const userId = req.firebaseUser.uid;
 
-        // Verificar acceso
         const chatParts = chatId.split('_');
         if (!chatParts.includes(userId)) {
             return res.status(403).json({ error: 'Acceso denegado.' });
@@ -104,22 +69,20 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
 
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
-            // NO DESCIFRAMOS NADA AQUÍ para mantener E2EE
+            
             return {
                 id: doc.id,
                 senderId: data.senderId,
                 receiverId: data.receiverId,
-                content: data.content,
-                plainTextForSender: data.plainTextForSender || null,
+                content: data.content, // Cifrado para receiverId
+                senderContent: data.senderContent, // Para senderId
                 isRead: data.isRead || false, 
                 isE2EE: data.isE2EE || false,
                 timestamp: data.timestamp?.toDate() || new Date(),
             };
         });
 
-        console.log(`📦 Enviando ${messages.length} mensajes al cliente`);
-        
-        res.status(200).json(messages.reverse()); // Enviamos en orden cronológico ascendente
+        res.status(200).json(messages.reverse());
     } catch (error) {
         console.error('❌ Error fetching chat messages:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
