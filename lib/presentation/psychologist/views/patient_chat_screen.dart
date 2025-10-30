@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-// Vista del psicólogo
+// ✅ VERSIÓN CON E2EE CORREGIDA
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,12 +8,10 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_bloc.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_event.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
@@ -34,15 +32,19 @@ class PatientChatScreen extends StatefulWidget {
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final _e2eeService = E2EEService(); // ✅ Agregar servicio E2EE
+  
   String? _currentUserId;
   late String _chatId;
   late Stream<DocumentSnapshot> _patientStatusStream;
   late final ChatRepository _chatRepository;
+  
+  bool _isInitialized = false;
 
   bool get _isChatEnabled {
     final authState = BlocProvider.of<AuthBloc>(context).state;
     final status = authState.psychologist?.status;
-    return status == 'ACTIVE';
+    return status == 'ACTIVE' && _isInitialized;
   }
 
   String _getStatusBasedBlockingMessage() {
@@ -58,20 +60,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         return 'No puedes acceder al chat hasta que tu perfil profesional esté activo.';
     }
   }
-  
-  String _getChatDisabledHintText() {
-    final authState = BlocProvider.of<AuthBloc>(context).state;
-    final status = authState.psychologist?.status;
-
-    switch (status) {
-      case 'PENDING':
-        return 'Chat bloqueado. Perfil en revisión.';
-      case 'REJECTED':
-        return 'Chat bloqueado. Perfil rechazado.';
-      default:
-        return 'Chat bloqueado. Perfil no activo.';
-    }
-  }
 
   @override
   void initState() {
@@ -84,24 +72,40 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     }
 
     _chatRepository = ChatRepository();
-
-    BlocProvider.of<PsychologistChatBloc>(context).add(
-      LoadChatMessages(
-        _chatId,
-        _currentUserId!,
-      ),
-    );
     
     _patientStatusStream = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.patientId)
         .snapshots();
+    
+    _initializeE2EE();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _chatRepository.markMessagesAsRead(
         chatId: _chatId,
         currentUserId: _currentUserId!,
       );
     });
+  }
+
+  // ✅ Inicializar E2EE
+  Future<void> _initializeE2EE() async {
+    try {
+      await _e2eeService.initialize();
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      print('❌ Error inicializando E2EE: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error inicializando cifrado. Reinicia la app.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -148,8 +152,42 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     });
   }
 
+  // ✅ Descifrar mensaje individual
+  Future<String> _decryptMessageContent(Map<String, dynamic> data) async {
+    try {
+      final content = data['content'] as String? ?? '';
+      final isE2EE = data['isE2EE'] as bool? ?? false;
+
+      if (isE2EE && content.startsWith('{') && content.contains('encryptedMessage')) {
+        return await _e2eeService.decryptMessage(content);
+      }
+      
+      return content;
+    } catch (e) {
+      print('⚠️ Error descifrando: $e');
+      return '[Mensaje cifrado - Error al descifrar]';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ✅ Mostrar indicador si E2EE no está listo
+    if (!_isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.patientName)),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Inicializando cifrado seguro...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -174,7 +212,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               final lastSeenTimestamp = data['lastSeen'] as Timestamp?;
               statusText = isOnline
                   ? 'En línea'
-                  : '${_formatTimestamp(lastSeenTimestamp)}';
+                  : _formatTimestamp(lastSeenTimestamp);
             }
 
             return Row(
@@ -220,14 +258,22 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          color: isOnline ? Colors.green : Colors.grey,
-                          fontSize: 12,
-                          fontFamily: 'Poppins',
-                          fontStyle: FontStyle.normal,
-                        ),
+                      Row(
+                        children: [
+                          // ✅ Indicador de cifrado
+                          const Icon(Icons.lock, size: 12, color: Colors.green),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              statusText,
+                              style: TextStyle(
+                                color: isOnline ? Colors.green : Colors.grey,
+                                fontSize: 12,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -254,26 +300,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
-                value: 'notes',
-                child: Row(
-                  children: [
-                    Icon(Icons.note),
-                    SizedBox(width: 8),
-                    Text('Notas de sesión'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history),
-                    SizedBox(width: 8),
-                    Text('Historial'),
-                  ],
-                ),
-              ),
             ],
           ),
         ],
@@ -281,42 +307,68 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: BlocConsumer<PsychologistChatBloc, PsychologistChatState>(
-              listener: (context, state) {
-                if (state is PsychologistChatLoaded) {
-                  _scrollToBottom();
-                }
-              },
-              builder: (context, state) {
-                if (state is PsychologistChatLoading) {
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(_chatId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (state is PsychologistChatError) {
-                  return Center(child: Text(state.message));
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState(context);
                 }
-                if (state is PsychologistChatLoaded) {
-                  if (state.messages.isEmpty) {
-                    return _buildEmptyState(context);
-                  }
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: state.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = state.messages[index];
-                      final isMe = message.senderId == _currentUserId;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: MessageBubble(
-                          message: message,
-                          isMe: isMe,
-                          isRead: message.isRead,
-                        ),
-                      );
-                    },
-                  );
-                }
-                return const SizedBox.shrink();
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = snapshot.data!.docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    
+                    return FutureBuilder<String>(
+                      future: _decryptMessageContent(data),
+                      builder: (context, decryptSnapshot) {
+                        String displayContent;
+                        
+                        if (decryptSnapshot.connectionState == ConnectionState.waiting) {
+                          displayContent = '🔓 Descifrando...';
+                        } else if (decryptSnapshot.hasError) {
+                          displayContent = '[Error al descifrar]';
+                        } else {
+                          displayContent = decryptSnapshot.data ?? '[Sin contenido]';
+                        }
+
+                        final timestamp = data['timestamp'] as Timestamp?;
+                        final senderId = data['senderId'] as String? ?? '';
+                        
+                        final message = MessageModel(
+                          id: doc.id,
+                          content: displayContent,
+                          timestamp: timestamp?.toDate() ?? DateTime.now(),
+                          isUser: senderId == _currentUserId,
+                          senderId: senderId,
+                          receiverId: data['receiverId'] as String?,
+                          isRead: data['isRead'] as bool? ?? false,
+                        );
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: MessageBubble(
+                            message: message,
+                            isMe: message.senderId == _currentUserId,
+                            isRead: message.isRead,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -370,9 +422,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     size: 20,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                  onPressed: _isChatEnabled ? () {
-                    // Mostrar opciones de adjuntos
-                  } : null,
+                  onPressed: _isChatEnabled ? () {} : null,
                   padding: const EdgeInsets.all(6),
                   constraints: const BoxConstraints(
                     minWidth: 36,
@@ -381,38 +431,41 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 ),
                 
                 Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Escribe un mensaje...',
-                        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+                  child: TextField(
+                    controller: _messageController,
+                    enabled: _isChatEnabled,
+                    decoration: InputDecoration(
+                      hintText: _isChatEnabled 
+                          ? 'Escribe un mensaje...' 
+                          : 'Chat deshabilitado',
+                      hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
                         ),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
+                ),
                 
                 const SizedBox(width: 4),
                 

@@ -181,7 +181,7 @@ async function loadChatMessages(chatId) {
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                isE2EE: data.isE2EE || false,
+                isE2EE: data.isE2EE || false, // ← IMPORTANTE: Incluir este flag
             };
         });
 
