@@ -116,75 +116,73 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   // ✅ Escuchar mensajes de Firestore y descifrarlos
   void _startListeningToMessages() {
-    _firestoreSubscription = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(_chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .listen((snapshot) async {
+  _firestoreSubscription = FirebaseFirestore.instance
+      .collection('chats')
+      .doc(_chatId)
+      .collection('messages')
+      .orderBy('timestamp', descending: false)
+      .snapshots()
+      .listen((snapshot) async {
+    
+    print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
+    
+    final messages = <MessageModel>[];
+    
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final content = data['content'] as String? ?? '';
+      final senderContent = data['senderContent'] as String? ?? '';
+      final isE2EE = data['isE2EE'] as bool? ?? false;
+      final senderId = data['senderId'] as String? ?? '';
       
-      print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
+      String decryptedContent;
       
-      final messages = <MessageModel>[];
+      // ✅ SIEMPRE descifrar, sin importar quién lo envió
+      if (senderId == _currentUserId) {
+        // Descifrar MI versión cifrada
+        print('🔓 Descifrando MI mensaje cifrado...');
+        try {
+          decryptedContent = await _e2eeService.decryptMessage(senderContent);
+          print('✅ Mi mensaje descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
+        } catch (e) {
+          print('❌ Error descifrando mi mensaje: $e');
+          decryptedContent = '🔐 [Error al descifrar mi mensaje]';
+        }
+      } else {
+        // Descifrar mensaje del OTRO usuario
+        print('🔓 Descifrando mensaje recibido...');
+        try {
+          decryptedContent = await _e2eeService.decryptMessage(content);
+          print('✅ Mensaje recibido descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
+        } catch (e) {
+          print('❌ Error descifrando mensaje recibido: $e');
+          decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
+        }
+      }
       
-      for (var doc in snapshot.docs) {
-  final data = doc.data();
-  final content = data['content'] as String? ?? '';
-  final plainTextForSender = data['plainTextForSender'] as String?;
-  final isE2EE = data['isE2EE'] as bool? ?? false;
-  final senderId = data['senderId'] as String? ?? '';
-  
-  String decryptedContent;
-  
-  // ✅ Si YO envié el mensaje, usar plainTextForSender
-  if (senderId == _currentUserId) {
-    if (plainTextForSender != null) {
-      decryptedContent = plainTextForSender;
-    } else {
-      decryptedContent = '🔒 [Tu mensaje cifrado]';
+      final timestamp = data['timestamp'] as Timestamp?;
+      
+      messages.add(MessageModel(
+        id: doc.id,
+        content: decryptedContent,
+        timestamp: timestamp?.toDate() ?? DateTime.now(),
+        isUser: senderId == _currentUserId,
+        senderId: senderId,
+        receiverId: data['receiverId'] as String?,
+        isRead: data['isRead'] as bool? ?? false,
+      ));
     }
-  } else {
-    // Descifrar mensajes recibidos
-    if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
-      decryptedContent = await _e2eeService.decryptMessage(content);
-    } else if (isE2EE) {
-      try {
-        decryptedContent = await _e2eeService.decryptMessage(content);
-      } catch (e) {
-        decryptedContent = '🔒 [Mensaje cifrado - No disponible]';
-      }
-    } else {
-      decryptedContent = content;
-    }
-  
-         
-        
-        final timestamp = data['timestamp'] as Timestamp?;
-        
-        messages.add(MessageModel(
-          id: doc.id,
-          content: decryptedContent,
-          timestamp: timestamp?.toDate() ?? DateTime.now(),
-          isUser: senderId == _currentUserId,
-          senderId: senderId,
-          receiverId: data['receiverId'] as String?,
-          isRead: data['isRead'] as bool? ?? false,
-        ));
-      }
+    
+    if (!_messagesStreamController.isClosed) {
+      _messagesStreamController.add(messages);
+      print('✅ ${messages.length} mensajes emitidos al stream');
       
-      // ✅ Emitir mensajes descifrados al stream
-      if (!_messagesStreamController.isClosed) {
-        _messagesStreamController.add(messages);
-        
-        // Scroll automático después de añadir mensajes
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
-      }
-      }
-    });
-  }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
+    }
+  });
+}
 
   @override
   void dispose() {
@@ -196,43 +194,35 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
-    if (!_isChatEnabled) return;
+  if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
+  if (!_isChatEnabled) return;
 
-    final messageContent = _messageController.text.trim();
-    _messageController.clear();
-    
-    // ✅ Agregar mensaje localmente de inmediato (optimistic update)
-    final tempMessage = MessageModel(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      content: messageContent, // ← Guardar en texto plano
-      timestamp: DateTime.now(),
-      isUser: true,
+  final messageContent = _messageController.text.trim();
+  _messageController.clear();
+  
+  print('📤 Enviando mensaje: $messageContent');
+  
+  try {
+    await _chatRepository.sendHumanMessage(
+      chatId: _chatId,
       senderId: _currentUserId!,
       receiverId: widget.patientId,
-      isRead: false,
+      content: messageContent,
     );
     
-    // Agregar al stream localmente
-    final currentMessages = List<MessageModel>.from(_messagesStreamController.hasListener 
-        ? [] 
-        : []); // Obtener mensajes actuales si es posible
+    print('✅ Mensaje enviado correctamente');
     
-    try {
-      await _chatRepository.sendHumanMessage(
-        chatId: _chatId,
-        senderId: _currentUserId!,
-        receiverId: widget.patientId,
-        content: messageContent,
+    // ✅ El stream de Firestore actualizará automáticamente la UI
+    
+  } catch (e) {
+    print('❌ Error enviando mensaje: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar el mensaje: $e')),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al enviar el mensaje: $e')),
-        );
-      }
     }
   }
+}
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {

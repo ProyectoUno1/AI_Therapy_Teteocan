@@ -133,56 +133,61 @@ class ChatRepository {
   // ============== CHAT CON HUMANOS - CON E2EE ==============
 
   Future<void> sendHumanMessage({
-    required String chatId,
-    required String senderId,
-    required String receiverId,
-    required String content,
-  }) async {
-    try {
-      print('🔐 Cifrando mensaje para: $receiverId');
+  required String chatId,
+  required String senderId,
+  required String receiverId,
+  required String content,
+}) async {
+  try {
+    print('🔐 Cifrando mensaje para: $receiverId');
+    
+    // ✅ Cifrar para el RECEPTOR
+    final encryptedForReceiver = await _e2eeService.encryptMessage(
+      content,
+      receiverId,
+    );
+
+    // ✅ Cifrar para el REMITENTE (yo mismo)
+    final encryptedForSender = await _e2eeService.encryptMessage(
+      content,
+      senderId,
+    );
+
+    print('✅ Mensaje doblemente cifrado, enviando al backend...');
+
+    final url = Uri.parse('$_baseUrl/chats/messages');
+    
+    final response = await http.post(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'chatId': chatId,
+        'senderId': senderId,
+        'receiverId': receiverId,
+        'content': encryptedForReceiver, // ✅ Cifrado para destinatario
+        'senderContent': encryptedForSender, // ✅ Cifrado para remitente
+        'isE2EE': true,
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
       
-      final encryptedContent = await _e2eeService.encryptMessage(
-        content,
-        receiverId,
-      );
-
-      print('✅ Mensaje cifrado, enviando al backend...');
-
-      final url = Uri.parse('$_baseUrl/chats/messages');
-      
-      final response = await http.post(
-        url,
-        headers: await _getHeaders(),
-        body: jsonEncode({
-          'chatId': chatId,
-          'senderId': senderId,
-          'receiverId': receiverId,
-          'content': encryptedContent, // Cifrado para destinatario
-          'plainTextForSender': content, // Texto plano para remitente
-          'isE2EE': true,
-        }),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) { // 201 es la respuesta esperada del backend
-        String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
-        
-        // Manejo robusto: Intenta decodificar JSON, si falla (e.g., HTML), usa el mensaje de error por defecto
-        try {
-          final body = jsonDecode(response.body);
-          errorMessage = body['error'] ?? errorMessage;
-        } catch (_) {
-          // Captura el FormatException (HTML) o cualquier otro error de decodificación
-          // y usa el mensaje de error por defecto que incluye el status code.
-        }
-        throw Exception(errorMessage);
+      try {
+        final body = jsonDecode(response.body);
+        errorMessage = body['error'] ?? errorMessage;
+      } catch (_) {
+        // HTML response, usar mensaje por defecto
       }
-      
-      print('✅ Mensaje enviado correctamente');
-    } catch (e) {
-      print('❌ Error enviando mensaje humano: $e');
-      rethrow;
+      throw Exception(errorMessage);
     }
+    
+    print('✅ Mensaje enviado correctamente');
+  } catch (e) {
+    print('❌ Error enviando mensaje humano: $e');
+    rethrow;
   }
+}
 
   /// ✅ VERSIÓN CORREGIDA: Procesar correctamente isE2EE del backend
   Future<List<MessageModel>> loadMessages(String chatId) async {

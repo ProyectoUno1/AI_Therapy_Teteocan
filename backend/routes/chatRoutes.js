@@ -11,38 +11,76 @@ const router = express.Router();
 // ==================== ENVIAR MENSAJE (CORREGIDO) ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content, isE2EE, plainTextForSender } = req.body;
+        const { chatId, senderId, receiverId, content, senderContent, isE2EE } = req.body;
         
+        // Validación de seguridad
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
                 error: 'ID de remitente no coincide con el usuario autenticado.' 
             });
         }
 
+        // ✅ Verificar que ambos contenidos estén cifrados
+        if (isE2EE) {
+            // Validar formato JSON cifrado
+            try {
+                const receiverPayload = JSON.parse(content);
+                const senderPayload = JSON.parse(senderContent);
+                
+                if (!receiverPayload.encryptedMessage || !senderPayload.encryptedMessage) {
+                    console.error('❌ Contenido no cifrado correctamente');
+                    return res.status(400).json({ 
+                        error: 'Los mensajes E2EE deben estar cifrados' 
+                    });
+                }
+                
+                console.log('✅ Mensajes validados como E2EE');
+                
+            } catch (parseError) {
+                console.error('❌ Error validando cifrado:', parseError);
+                return res.status(400).json({ 
+                    error: 'Formato de cifrado inválido' 
+                });
+            }
+        }
+
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
 
-        // ✅ Guardar DOS versiones del mensaje:
-        // 1. content = cifrado para el RECEPTOR
-        // 2. senderContent = cifrado para el REMITENTE (o texto plano)
+        // ✅ Guardar AMBAS versiones cifradas
         const messageData = {
             senderId,
             receiverId,
             content: content, // Cifrado para receiverId
-            senderContent: plainTextForSender, // Texto plano o cifrado para senderId
+            senderContent: senderContent, // Cifrado para senderId
             isRead: false,
             isE2EE: isE2EE || false,
             timestamp: FieldValue.serverTimestamp(), 
         };
 
         await messageRef.add(messageData);
-
-        // Resto del código...
         
+        console.log('✅ Mensaje E2EE guardado:', {
+            chatId,
+            senderId,
+            receiverId,
+            isE2EE,
+            contentLength: content.length,
+            senderContentLength: senderContent.length
+        });
+
+        // Actualizar documento principal del chat
+        await chatDocRef.set({
+            participants: [senderId, receiverId].sort(),
+            lastMessage: '[Mensaje cifrado]', // ✅ No mostrar contenido
+            lastTimestamp: FieldValue.serverTimestamp(),
+            lastSenderId: senderId,
+            isE2EE: isE2EE || false,
+        }, { merge: true }); 
+
         res.status(201).json({ 
-            message: 'Mensaje enviado', 
-            chatId: chatId, 
-            messageData: messageData 
+            message: 'Mensaje E2EE enviado correctamente', 
+            chatId: chatId,
         });
 
     } catch (error) {
