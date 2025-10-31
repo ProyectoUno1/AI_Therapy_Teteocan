@@ -46,7 +46,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         // ✅ Actualizar documento principal con preview (texto plano para vista rápida)
         const chatUpdateData = {
             participants: [senderId, receiverId].sort(),
-            lastMessage: '[Mensaje cifrado]', // ✅ Preview genérico para mensajes cifrados
+            lastMessage: lastMessage, // ✅ Preview genérico para mensajes cifrados
             lastTimestamp: FieldValue.serverTimestamp(),
             lastSenderId: senderId,
             isEncrypted: isEncrypted || false,
@@ -177,7 +177,7 @@ router.delete('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error deleting messages:', error);
+        console.error('Error deleting messages:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
