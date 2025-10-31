@@ -293,66 +293,6 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
               ),
               const SizedBox(height: 24),
 
-              // Sección de Notificaciones
-              Text(
-                'Notificaciones',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).dividerColor.withOpacity(0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    _buildNotificationToggle(
-                      'Notificaciones Pop-up',
-                      Icons.notifications_none,
-                      _isPopupNotificationsActive,
-                      (value) {
-                        setState(() {
-                          _isPopupNotificationsActive = value;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Pop-up Notificaciones activadas'),
-                          ),
-                        );
-                      },
-                    ),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Theme.of(context).dividerColor.withOpacity(0.5),
-                    ),
-                    _buildNotificationToggle(
-                      'Notificaciones por Email',
-                      Icons.mail_outline,
-                      _isEmailNotificationsActive,
-                      (value) {
-                        setState(() {
-                          _isEmailNotificationsActive = value;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Notificaciones por Email activadas'),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Sección de Configuración
               Text(
                 'Configuración y Ayuda',

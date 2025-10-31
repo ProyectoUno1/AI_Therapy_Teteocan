@@ -1,102 +1,96 @@
-// backend/routes/aiChatRoutes.js - CORREGIDO
+// backend/routes/aiChatRoutes.js
+// ✅ VERSIÓN SIN E2EE - ENCRIPTACIÓN BACKEND
 
 import express from 'express';
-const router = express.Router();
-import { db } from '../firebase-admin.js';
-import { FieldValue } from 'firebase-admin/firestore';
-import { processUserMessageE2EE, loadChatMessages } from '../routes/services/chatService.js';
-import { getOrCreateAIChatId } from '../routes/services/chatService.js';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
+import {
+    getOrCreateAIChatId,
+    processUserMessage,
+    loadChatMessages,
+    validateMessageLimit,
+} from './services/chatService.js';
+import { decrypt } from '../utils/encryptionUtils.js';
 
-// ✅ RUTA PARA ENVIAR MENSAJE A IA CON E2EE
+const router = express.Router();
+
+// ==================== OBTENER/CREAR CHAT ID ====================
+router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
+    try {
+        const userId = req.firebaseUser.uid;
+        const chatId = await getOrCreateAIChatId(userId);
+        res.status(200).json({ chatId });
+    } catch (error) {
+        console.error('❌ Error obteniendo chat ID:', error);
+        res.status(500).json({ error: 'Error al obtener chat ID' });
+    }
+});
+
+// ==================== ENVIAR MENSAJE A IA ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
-        const { message, encryptedForStorage } = req.body;
-
-        console.log('📨 Recibiendo mensaje para IA');
-        console.log('👤 UserId:', userId);
-        console.log('📝 Mensaje (plano):', message?.substring(0, 50));
-        console.log('🔐 Tiene versión cifrada:', !!encryptedForStorage);
+        const { message } = req.body;
 
         if (!message || message.trim() === '') {
             return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
         }
 
-        // Procesar mensaje con IA (texto plano para Gemini, cifrado para storage)
-        const aiResponse = await processUserMessageE2EE(
-            userId,
-            message,                // Texto plano para Gemini
-            encryptedForStorage     // Cifrado para guardar (opcional)
-        );
+        console.log('📨 Mensaje recibido de usuario:', userId);
 
-        console.log('✅ Respuesta generada por IA');
+        // Validar límite de mensajes
+        const isLimitReached = await validateMessageLimit(userId);
+        if (isLimitReached) {
+            return res.status(403).json({
+                error: 'Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.',
+                limitReached: true,
+            });
+        }
+
+        // Procesar mensaje (se encripta dentro del servicio)
+        const aiResponse = await processUserMessage(userId, message);
 
         res.status(200).json({
-            aiMessage: aiResponse,  // Respuesta en texto plano
-            success: true
+            aiMessage: aiResponse,
+            success: true,
         });
 
     } catch (error) {
-        console.error('❌ Error en /ai-chat/messages:', error);
-
-        if (error.message === 'LIMIT_REACHED') {
+        console.error('❌ Error procesando mensaje:', error);
+        
+        if (error.message.includes('límite')) {
             return res.status(403).json({
-                error: 'Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.',
-                limitReached: true
+                error: error.message,
+                limitReached: true,
             });
         }
 
         res.status(500).json({
-            error: 'Error al procesar el mensaje',
-            details: error.message
+            error: 'Error procesando tu mensaje. Por favor, intenta de nuevo.',
         });
     }
 });
 
-// ✅ RUTA PARA OBTENER MENSAJES DE IA (CORREGIDA)
+// ==================== OBTENER MENSAJES ====================
 router.get('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
-        
-        console.log('📥 Cargando mensajes de IA para usuario:', userId);
+        const chatId = userId;
 
-        // Cargar mensajes desde Firestore
-        const messages = await loadChatMessages(userId);
+        console.log('📥 Cargando mensajes para:', userId);
 
-        console.log(`✅ Mensajes cargados: ${messages.length}`);
+        const messages = await loadChatMessages(chatId);
 
-        // Transformar al formato esperado por el frontend
-        const formattedMessages = messages.map(msg => ({
-            id: msg.id,
-            text: msg.content,           // ✅ Contenido (puede estar cifrado)
-            isUser: !msg.isAI,           // ✅ true si es del usuario
-            senderId: msg.senderId,
-            timestamp: msg.timestamp,
-            isE2EE: msg.isE2EE || false, // ✅ Indicar si está cifrado
+        // ✅ Desencriptar mensajes antes de enviar
+        const decryptedMessages = messages.map(msg => ({
+            ...msg,
+            text: decrypt(msg.content),
         }));
 
-        res.status(200).json(formattedMessages);
+        res.status(200).json(decryptedMessages);
 
     } catch (error) {
-        console.error('❌ Error cargando mensajes de IA:', error);
-        res.status(500).json({
-            error: 'Error al cargar mensajes',
-            details: error.message
-        });
-    }
-});
-
-// ✅ RUTA PARA OBTENER/CREAR CHAT ID
-router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
-    try {
-        const userId = req.firebaseUser.uid;
-        const chatId = await getOrCreateAIChatId(userId);
-        
-        res.status(200).json({ chatId });
-    } catch (error) {
-        console.error('Error obteniendo chat ID:', error);
-        res.status(500).json({ error: 'Error al obtener ID del chat' });
+        console.error('❌ Error cargando mensajes:', error);
+        res.status(500).json({ error: 'Error al cargar mensajes' });
     }
 });
 

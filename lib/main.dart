@@ -61,7 +61,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
-import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -115,27 +115,7 @@ void main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 🔐 ESCUCHAR CAMBIOS DE AUTENTICACIÓN PARA E2EE
-  FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-    final e2eeService = E2EEService();
-    
-    if (user != null) {
-      try {
-        print('🔐 Inicializando E2EE para usuario: ${user.uid}');
-        await e2eeService.initialize();
-        print('✅ E2EE listo');
-      } catch (e) {
-        print('❌ Error inicializando E2EE: $e');
-      }
-    } else {
-      try {
-        await e2eeService.clearKeys();
-        print('🗑️ Claves E2EE eliminadas');
-      } catch (e) {
-        print('Error limpiando claves: $e');
-      }
-    }
-  });
+ 
 
   runApp(
   MultiBlocProvider(

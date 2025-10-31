@@ -1,5 +1,5 @@
 // lib/presentation/chat/views/psychologist_chat_screen.dart
-// ✅ VERSIÓN CORREGIDA COMPLETA
+// ✅ VERSIÓN SIN E2EE - SOLO ENCRIPTACIÓN BACKEND
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,8 +8,6 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
-import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
-import 'dart:async';
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -33,44 +31,30 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-  final _e2eeService = E2EEService();
   
-  // ✅ Declarar _currentUserId
   late String _currentUserId;
   late final String _chatId;
   late final ChatRepository _chatRepository;
   late final Stream<DocumentSnapshot> _psychologistStatusStream;
   
   String? _currentUserImageUrl;
-  bool _isInitialized = false;
-  
-  // ✅ Stream controller para mensajes descifrados
-  late StreamController<List<MessageModel>> _messagesStreamController;
-  StreamSubscription? _firestoreSubscription;
 
   @override
   void initState() {
     super.initState();
     
-    // ✅ Inicializar _currentUserId
     _currentUserId = _auth.currentUser!.uid;
     
     final uids = [_currentUserId, widget.psychologistUid]..sort();
     _chatId = uids.join('_');
 
     _chatRepository = ChatRepository();
-    _messagesStreamController = StreamController<List<MessageModel>>.broadcast();
 
     _psychologistStatusStream = _firestore
         .collection('users')
         .doc(widget.psychologistUid)
         .snapshots();
     
-    print('🔍 DEBUG: Chat ID: $_chatId');
-    print('🔍 DEBUG: Current User ID: $_currentUserId');
-    print('🔍 DEBUG: Psychologist ID: ${widget.psychologistUid}');
-    
-    _initializeE2EE();
     _loadCurrentUserImage();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,115 +62,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         chatId: _chatId,
         currentUserId: _currentUserId,
       );
-    });
-  }
-
-  // ✅ Inicializar E2EE
-  Future<void> _initializeE2EE() async {
-    try {
-      await _e2eeService.initialize();
-      if (mounted) {
-        setState(() => _isInitialized = true);
-        _startListeningToMessages();
-      }
-    } catch (e) {
-      print('❌ Error inicializando E2EE: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error inicializando cifrado. Reinicia la app.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // ✅ Escuchar mensajes de Firestore y descifrarlos
-  void _startListeningToMessages() {
-    _firestoreSubscription = _firestore
-        .collection('chats')
-        .doc(_chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .listen((snapshot) async {
-      
-      print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
-      
-      final messages = <MessageModel>[];
-      
-      // ✅ Procesar TODOS los documentos primero
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final content = data['content'] as String? ?? '';
-        final senderContent = data['senderContent'] as String? ?? '';
-        final isE2EE = data['isE2EE'] as bool? ?? false;
-        final senderId = data['senderId'] as String? ?? '';
-        
-        String decryptedContent;
-        
-        // ✅ SIEMPRE descifrar, sin importar quién lo envió
-        if (senderId == _currentUserId) {
-          // Descifrar MI versión cifrada
-          print('🔓 Descifrando MI mensaje cifrado...');
-          try {
-            if (senderContent.isEmpty) {
-              // Compatibilidad: Si no hay senderContent, intentar content
-              decryptedContent = content;
-            } else {
-              decryptedContent = await _e2eeService.decryptMessage(senderContent);
-            }
-            print('✅ Mi mensaje descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
-          } catch (e) {
-            print('❌ Error descifrando mi mensaje: $e');
-            decryptedContent = '🔐 [Error al descifrar mi mensaje]';
-          }
-        } else {
-          // Descifrar mensaje del OTRO usuario
-          print('🔓 Descifrando mensaje recibido...');
-          try {
-            if (content.trim().startsWith('{') && content.contains('encryptedMessage')) {
-              decryptedContent = await _e2eeService.decryptMessage(content);
-              print('✅ Mensaje recibido descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
-            } else if (isE2EE) {
-              try {
-                decryptedContent = await _e2eeService.decryptMessage(content);
-              } catch (e) {
-                decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
-              }
-            } else {
-              decryptedContent = content;
-            }
-          } catch (e) {
-            print('❌ Error descifrando mensaje recibido: $e');
-            decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
-          }
-        }
-        
-        final timestamp = data['timestamp'] as Timestamp?;
-        
-        messages.add(MessageModel(
-          id: doc.id,
-          content: decryptedContent,
-          timestamp: timestamp?.toDate() ?? DateTime.now(),
-          isUser: senderId == _currentUserId,
-          senderId: senderId,
-          receiverId: data['receiverId'] as String?,
-          isRead: data['isRead'] as bool? ?? false,
-        ));
-      } // ✅ CERRAR EL FOR AQUÍ
-      
-      // ✅ Emitir TODOS los mensajes procesados al stream
-      if (!_messagesStreamController.isClosed) {
-        _messagesStreamController.add(messages);
-        print('✅ ${messages.length} mensajes emitidos al stream');
-        
-        // Scroll automático después de añadir mensajes
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
-      }
     });
   }
 
@@ -205,21 +80,16 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   @override
   void dispose() {
-    _firestoreSubscription?.cancel();
-    _messagesStreamController.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // ✅ Enviar mensaje CIFRADO
   void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || !_isInitialized) return;
+    if (_messageController.text.trim().isEmpty) return;
 
     final messageContent = _messageController.text.trim();
     _messageController.clear();
-
-    print('📤 Enviando mensaje: $messageContent');
 
     try {
       await _chatRepository.sendHumanMessage(
@@ -229,12 +99,8 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
         content: messageContent,
       );
       
-      print('✅ Mensaje enviado correctamente');
-      
-      // ✅ El stream de Firestore actualizará automáticamente la UI
-      
+      _scrollToBottom();
     } catch (e) {
-      print('❌ Error enviando mensaje: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al enviar el mensaje: $e')),
@@ -256,23 +122,6 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // ✅ Mostrar indicador si E2EE no está listo
-    if (!_isInitialized) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.psychologistName)),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Inicializando cifrado seguro...'),
-            ],
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -335,20 +184,12 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.lock, size: 12, color: Colors.green),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              isOnline ? 'En línea' : lastSeenText,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: isOnline ? Colors.green : theme.textTheme.bodySmall?.color,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        isOnline ? 'En línea' : lastSeenText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isOnline ? Colors.green : theme.textTheme.bodySmall?.color,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   );
@@ -357,42 +198,44 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
           Expanded(
             child: Container(
               color: theme.scaffoldBackgroundColor,
-              // ✅ Usar el stream de mensajes descifrados
-              child: StreamBuilder<List<MessageModel>>(
-                stream: _messagesStreamController.stream,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('chats')
+                    .doc(_chatId)
+                    .collection('messages')
+                    .orderBy('timestamp', descending: false)
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Descifrando mensajes...'),
-                        ],
-                      ),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Center(
                       child: Text('Inicia una conversación...'),
                     );
                   }
 
-                  final messages = snapshot.data!;
+                  final messages = snapshot.data!.docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return MessageModel(
+                      id: doc.id,
+                      content: data['content'] ?? '',
+                      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                      isUser: data['senderId'] == _currentUserId,
+                      senderId: data['senderId'] ?? '',
+                      receiverId: data['receiverId'] as String?,
+                      isRead: data['isRead'] as bool? ?? false,
+                    );
+                  }).toList();
+
+                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
                   return ListView.builder(
                     controller: _scrollController,
@@ -437,11 +280,8 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
-                      enabled: _isInitialized,
                       decoration: InputDecoration(
-                        hintText: _isInitialized 
-                            ? 'Escribe un mensaje...' 
-                            : 'Inicializando cifrado...',
+                        hintText: 'Escribe un mensaje...',
                         hintStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -473,9 +313,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: _isInitialized 
-                          ? theme.colorScheme.primary 
-                          : Colors.grey,
+                      color: theme.colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -483,7 +321,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                         Icons.send_rounded,
                         color: theme.colorScheme.onPrimary,
                       ),
-                      onPressed: _isInitialized ? _sendMessage : null,
+                      onPressed: _sendMessage,
                     ),
                   ),
                 ],
