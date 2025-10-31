@@ -12,7 +12,7 @@ const router = express.Router();
 // ==================== ENVIAR MENSAJE (SIMPLIFICADO) ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content } = req.body;
+        const { chatId, senderId, receiverId, content, isEncrypted } = req.body;
         
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
@@ -20,16 +20,12 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        // ✅ Log para debug
         console.log('📥 Mensaje recibido en backend:');
         console.log('   - chatId:', chatId);
         console.log('   - senderId:', senderId);
         console.log('   - receiverId:', receiverId);
+        console.log('   - isEncrypted:', isEncrypted);
         console.log('   - content:', content.substring(0, 50) + '...');
-
-        // ✅ Encriptar el mensaje para almacenamiento seguro
-        const encryptedContent = encrypt(content);
-        console.log('   - contenido encriptado:', encryptedContent.substring(0, 50) + '...');
 
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
@@ -37,26 +33,24 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         const messageData = {
             senderId,
             receiverId,
-            content: encryptedContent, // ✅ Almacenar encriptado
+            content: content, // ✅ DEJAR EL CONTENIDO COMO VIENE (ya debería estar cifrado del frontend)
             isRead: false,
-            isEncrypted: true, // ✅ Marcar como encriptado
+            isEncrypted: isEncrypted || false,
             timestamp: FieldValue.serverTimestamp(), 
         };
 
         await messageRef.add(messageData);
         
-        console.log('✅ Mensaje guardado en subcolección (encriptado)');
+        console.log('✅ Mensaje guardado en subcolección');
 
-        // ✅ Actualizar documento principal con texto plano para preview
+        // ✅ Actualizar documento principal con preview (texto plano para vista rápida)
         const chatUpdateData = {
             participants: [senderId, receiverId].sort(),
-            lastMessage: content, // ✅ Texto plano para preview
+            lastMessage: '[Mensaje cifrado]', // ✅ Preview genérico para mensajes cifrados
             lastTimestamp: FieldValue.serverTimestamp(),
             lastSenderId: senderId,
-            isEncrypted: true,
+            isEncrypted: isEncrypted || false,
         };
-        
-        console.log('📝 Actualizando documento principal con lastMessage:', content.substring(0, 30) + '...');
         
         const chatDocSnapshot = await chatDocRef.get();
         if (!chatDocSnapshot.exists) {
@@ -66,7 +60,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
 
         await chatDocRef.set(chatUpdateData, { merge: true }); 
         
-        console.log('✅ Documento principal actualizado correctamente');
+        console.log('✅ Documento principal actualizado');
 
         res.status(201).json({ 
             message: 'Mensaje enviado correctamente', 
@@ -96,23 +90,12 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
             
-            // ✅ Desencriptar el contenido si está encriptado
-            let content = data.content;
-            if (data.isEncrypted) {
-                try {
-                    content = decrypt(data.content);
-                    console.log(`✅ Mensaje desencriptado: ${content.substring(0, 30)}...`);
-                } catch (decryptError) {
-                    console.error('❌ Error desencriptando mensaje:', decryptError);
-                    content = '[Error al desencriptar mensaje]';
-                }
-            }
-            
+            // ✅ DEVOLVER EL CONTENIDO TAL CUAL - EL FRONTEND LO DESCIFRARÁ
             return {
                 id: doc.id,
                 senderId: data.senderId,
                 receiverId: data.receiverId,
-                content: content, // ✅ Contenido desencriptado
+                content: data.content, // ✅ Contenido tal cual (cifrado)
                 isRead: data.isRead || false, 
                 isEncrypted: data.isEncrypted || false,
                 timestamp: data.timestamp?.toDate() || new Date(),
