@@ -5,7 +5,6 @@ import express from 'express';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import {
     getOrCreateAIChatId,
-    processUserMessage,
     loadChatMessages,
     validateMessageLimit,
 } from './services/chatService.js';
