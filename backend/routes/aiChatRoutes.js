@@ -1,5 +1,5 @@
 // backend/routes/aiChatRoutes.js
-// ✅ VERSIÓN FINAL SIN E2EE - SOLO CIFRADO/DESCIFRADO EN EL BACKEND
+// ✅ VERSIÓN CORREGIDA FINAL (SIN E2EE)
 
 import express from 'express';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
@@ -7,14 +7,12 @@ import {
     getOrCreateAIChatId,
     loadChatMessages,
     validateMessageLimit,
-    // [CORRECCIÓN D] Importar la función simple
-    processUserMessage, 
+    processUserMessage, // Importar la función corregida simple
 } from './services/chatService.js';
-// [CORRECCIÓN E] Quitar 'encrypt' (lo hace el servicio)
-import { decrypt } from '../utils/encryptionUtils.js'; 
+import { decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'; // Variable para control de entorno
 
 // ==================== OBTENER/CREAR CHAT ID ====================
 router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
@@ -32,8 +30,7 @@ router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
-        // 'message' es el texto plano enviado desde el cliente
-        const { message } = req.body; 
+        const { message } = req.body;
 
         if (!message || message.trim() === '') {
             return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
@@ -45,14 +42,13 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         const isLimitReached = await validateMessageLimit(userId);
         if (isLimitReached) {
             return res.status(403).json({
-                error: 'Has alcanzado tu límite de mensajes. Actualiza a Premium para continuar.',
+                error: 'Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.',
                 limitReached: true,
             });
         }
 
-        // [CORRECCIÓN F] Llamar a la función simple y pasar solo el texto plano
-        // El servicio se encarga de cifrarlo antes de guardar.
-        const aiResponse = await processUserMessage(userId, message); 
+        // Procesar mensaje (se encripta dentro del servicio)
+        const aiResponse = await processUserMessage(userId, message);
 
         res.status(200).json({
             aiMessage: aiResponse,
@@ -60,8 +56,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        // [CORRECCIÓN G] Log mejorado para diagnosticar el Error 500
-        console.error('❌ ERROR GRAVE EN POST /ai-chat/messages:', error.stack || error.message);
+        console.error('❌ Error procesando mensaje:', error.stack || error.message);
         
         if (error.message.includes('límite')) {
             return res.status(403).json({
@@ -80,7 +75,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== OBTENER MENSAJES ====================
+// ==================== OBTENER MENSAJES (CORREGIDO) ====================
 router.get('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
@@ -90,26 +85,26 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
 
         const messages = await loadChatMessages(chatId);
 
-        // [CORRECCIÓN H] Desencriptar condicionalmente (si no es de la IA, está cifrado)
+        // ✅ CORRECCIÓN CLAVE: Desencriptar SOLO si el mensaje NO fue enviado por la IA
         const decryptedMessages = messages.map(msg => {
             let decryptedText = msg.content;
             
-            // Si el mensaje NO es de la IA (senderId es 'aurora'), está cifrado y debe descifrarse.
+            // Los mensajes del usuario se guardan CIFRADOS. Los de la IA se guardan PLANOS.
+            // La IA tiene senderId: 'aurora' o isAI: true.
             if (msg.senderId !== 'aurora' && !msg.isAI) {
                  decryptedText = decrypt(msg.content);
             }
-            // Si es de 'aurora' (la IA), se guardó en texto plano y pasa sin cambios.
-
+            
             return {
                 ...msg,
-                text: decryptedText, // Campo final que el cliente usa
+                text: decryptedText, // El campo 'text' es el texto plano para el cliente
             };
         });
 
         res.status(200).json(decryptedMessages);
 
     } catch (error) {
-        console.error('❌ Error cargando mensajes de IA:', error.message);
+        console.error('❌ Error cargando mensajes:', error);
         res.status(500).json({ error: 'Error al cargar mensajes' });
     }
 });
