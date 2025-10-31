@@ -1,5 +1,5 @@
 // lib/data/repositories/chat_repository.dart
-// ✅ VERSIÓN SIN E2EE - SOLO ENCRIPTACIÓN BACKEND
+// ✅ VERSIÓN CORREGIDA: Se calcula 'isUser' correctamente
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -66,6 +66,12 @@ class ChatRepository {
   Future<List<MessageModel>> loadAIChatMessages() async {
     try {
       print('📥 Cargando mensajes de IA...');
+      
+      final currentUserId = _auth.currentUser?.uid; // Obtener el ID del usuario
+
+      if (currentUserId == null) {
+        throw Exception('Usuario no autenticado para cargar mensajes.');
+      }
 
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/ai-chat/messages'),
@@ -79,7 +85,9 @@ class ChatRepository {
         return jsonList.map((json) => MessageModel.fromJson({
           'id': json['id'] ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
           'text': json['text'] ?? '',
-          'isUser': json['isUser'] ?? false,
+          // ✅ CORRECCIÓN CLAVE: Calcular isUser comparando senderId con el ID del usuario.
+          // Si el senderId del mensaje es igual al ID del usuario actual, entonces isUser es true.
+          'isUser': json['senderId'] == currentUserId, 
           'senderId': json['senderId'] ?? '',
           'timestamp': json['timestamp'],
           'isRead': true,

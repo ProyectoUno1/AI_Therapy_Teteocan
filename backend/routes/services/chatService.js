@@ -1,14 +1,12 @@
-// backend/routes/services/chatService.js - VERSIÓN CORREGIDA FINAL
-
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
-// [CORRECCIÓN 1] Importar la función de cifrado del backend
 import { encrypt } from '../../utils/encryptionUtils.js'; 
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
 
+// ==================== VALIDAR LÍMITE DE MENSAJES ====================
 const validateMessageLimit = async (userId) => {
     try {
         const userRef = db.collection('patients').doc(userId);
@@ -31,10 +29,12 @@ const validateMessageLimit = async (userId) => {
         return messageCount >= FREE_MESSAGE_LIMIT;
 
     } catch (error) {
-        return true;
+        console.error('Error validando límite de mensajes:', error);
+        return true; // Fallback seguro para limitar
     }
 };
 
+// ==================== OBTENER O CREAR CHAT ID ====================
 async function getOrCreateAIChatId(userId) {
     try {
         const chatRef = db.collection('ai_chats').doc(userId);
@@ -57,6 +57,8 @@ async function getOrCreateAIChatId(userId) {
                 chatType: 'ai_chat',
                 status: 'active',
                 lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+                // Se inicializa lastMessage como texto plano
+                lastMessage: `¡Hola ${userName}! Soy Aurora, tu asistente.`, 
             });
 
             const messagesCollection = chatRef.collection('messages');
@@ -86,7 +88,7 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
-// [FUNCIÓN CORREGIDA D] Renombrada a la versión simple y con lógica de cifrado de backend
+// ==================== PROCESAR MENSAJE DE USUARIO (CORREGIDO: LISTA DE CHATS) ====================
 async function processUserMessage(userId, plainMessage) { 
     const startTime = Date.now();
     try {
@@ -99,19 +101,26 @@ async function processUserMessage(userId, plainMessage) {
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // [CORRECCIÓN E] Cifrar el mensaje del usuario antes de guardarlo en Firebase
+        // Cifrar el mensaje del usuario antes de guardarlo en Firebase
         const encryptedContent = encrypt(plainMessage);
         
-        // Guardar mensaje del usuario (cifrado)
+        // 1. Guardar mensaje del usuario (cifrado) en la subcolección
         const userMessageData = {
             senderId: userId,
-            content: encryptedContent, // <-- ¡GUARDAR LA VERSIÓN CIFRADA!
+            content: encryptedContent, // <-- CIFRADO para el historial
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
-            isE2EE: false, // <-- Marcar como false (cifrado de backend, no E2EE)
+            isE2EE: false, 
         };
         await messagesCollection.add(userMessageData);
+        
+        // 2. ACTUALIZAR documento principal con la versión PLANA del usuario
+        await chatRef.update({
+            lastMessage: plainMessage, // ✅ CORRECCIÓN: Guardar el texto PLAINO
+            lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
+            lastSenderId: userId,
+        });
 
         // Obtener respuesta de Gemini con mensaje PLANO
         const systemInstruction = {
@@ -130,16 +139,23 @@ async function processUserMessage(userId, plainMessage) {
             throw new Error('Respuesta vacía de Gemini');
         }
 
-        // Guardar respuesta de IA en TEXTO PLANO
+        // 3. Guardar respuesta de IA en TEXTO PLANO
         const aiMessageData = {
             senderId: 'aurora',
             content: aiResponseContent,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
-            isE2EE: false, // <-- Siempre false para la IA
+            isE2EE: false, 
         };
         await messagesCollection.add(aiMessageData);
+        
+        // 4. ACTUALIZAR documento principal con la respuesta PLANA de la IA
+        await chatRef.update({
+            lastMessage: aiResponseContent, // ✅ CORRECCIÓN: Guardar el texto PLAINO
+            lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
+            lastSenderId: 'aurora',
+        });
 
         // Actualizar contador de mensajes
         const userRef = db.collection('patients').doc(userId);
@@ -157,12 +173,11 @@ async function processUserMessage(userId, plainMessage) {
         if (error.message === 'LIMIT_REACHED') {
             throw new Error("Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.");
         }
-
-        // [CORRECCIÓN F] Lanza el error capturado en el try-catch de la ruta
         throw error; 
     }
 }
 
+// ==================== CARGAR MENSAJES ====================
 async function loadChatMessages(chatId) {
     try {
         const messagesCollection = db
@@ -186,7 +201,7 @@ async function loadChatMessages(chatId) {
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                isE2EE: data.isE2EE || false, // ← Se mantiene para compatibilidad
+                isE2EE: data.isE2EE || false, 
             };
         });
 
