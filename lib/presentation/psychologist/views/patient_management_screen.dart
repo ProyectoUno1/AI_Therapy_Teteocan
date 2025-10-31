@@ -548,7 +548,6 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ✅ BOTÓN DE CHAT AGREGADO
           IconButton(
             icon: Stack(
               children: [
@@ -557,7 +556,6 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                   color: AppConstants.primaryColor,
                   size: 20,
                 ),
-                // Badge opcional para mensajes no leídos (puedes agregar lógica después)
                 Positioned(
                   right: 0,
                   top: 0,

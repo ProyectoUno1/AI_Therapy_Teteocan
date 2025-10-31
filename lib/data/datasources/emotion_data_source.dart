@@ -1,4 +1,6 @@
 // lib/data/datasources/emotion_data_source.dart
+// ✅ VERSIÓN CORREGIDA: Rutas consistentes
+
 import 'package:ai_therapy_teteocan/data/models/emotion_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -26,7 +28,8 @@ class EmotionRemoteDataSource implements EmotionDataSource {
         return token;
       }
       return null;
-    } catch (_) {
+    } catch (e) {
+      print('❌ Error obteniendo token: $e');
       return null;
     }
   }
@@ -37,6 +40,9 @@ class EmotionRemoteDataSource implements EmotionDataSource {
     if (token == null) {
       throw Exception('Usuario no autenticado');
     }
+
+    print('📤 POST: $url');
+    print('📦 Body: ${json.encode(body)}');
 
     return await http.post(
       Uri.parse(url),
@@ -54,6 +60,8 @@ class EmotionRemoteDataSource implements EmotionDataSource {
       throw Exception('Usuario no autenticado');
     }
 
+    print('📥 GET: $url');
+
     return await http.get(
       Uri.parse(url),
       headers: {
@@ -65,15 +73,22 @@ class EmotionRemoteDataSource implements EmotionDataSource {
   @override
   Future<void> saveEmotion(Emotion emotion) async {
     try {
+      // ✅ CORRECCIÓN: Usar ruta consistente CON /api/
       final response = await _authenticatedPost(
-        '$baseUrl/patient-management/emotions',
+        '$baseUrl/api/patient-management/emotions',
         emotion.toMap(),
       );
 
-      if (response.statusCode != 200) {
+      print('📊 Respuesta saveEmotion: ${response.statusCode}');
+      print('📄 Body: ${response.body}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('Error al guardar emoción: ${response.body}');
       }
+      
+      print('✅ Emoción guardada exitosamente');
     } catch (e) {
+      print('❌ Error en saveEmotion: $e');
       rethrow;
     }
   }
@@ -81,81 +96,130 @@ class EmotionRemoteDataSource implements EmotionDataSource {
   @override
   Future<List<Emotion>> getPatientEmotions(String patientId) async {
     try {
+      // ✅ Ruta consistente
       final response = await _authenticatedGet(
         '$baseUrl/api/patient-management/patients/$patientId/emotions',
       );
 
+      print('📊 Respuesta getPatientEmotions: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        print('✅ ${data.length} emociones cargadas');
         return data.map((item) => Emotion.fromMap(item)).toList();
       } else {
         throw Exception('Error al obtener emociones: ${response.body}');
       }
     } catch (e) {
+      print('❌ Error en getPatientEmotions: $e');
       rethrow;
     }
   }
 
   @override
-Future<Emotion?> getTodayEmotion(String patientId) async {
-  try {
-    final response = await _authenticatedGet(
-      '$baseUrl/api/patient-management/patients/$patientId/emotions/today',
-    );
-
-    if (response.statusCode == 200) {
-      final responseBody = response.body.trim();
-      if (responseBody.isEmpty || responseBody == 'null' || responseBody == '{}') {
-        return null;
-      }
+  Future<Emotion?> getTodayEmotion(String patientId) async {
+    try {
+      print('🔍 Buscando emoción de hoy para: $patientId');
       
-      try {
-        final Map<String, dynamic> data = json.decode(responseBody);
-        if (data.isEmpty) return null;
-        return Emotion.fromMap(data);
-      } catch (e) {
+      // ✅ Ruta consistente
+      final response = await _authenticatedGet(
+        '$baseUrl/api/patient-management/patients/$patientId/emotions/today',
+      );
+
+      print('📊 Respuesta getTodayEmotion: ${response.statusCode}');
+      print('📄 Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseBody = response.body.trim();
+        
+        // Si la respuesta es "null" o vacía, no hay emoción hoy
+        if (responseBody.isEmpty || responseBody == 'null' || responseBody == '{}') {
+          print('ℹ️ No hay emoción registrada hoy');
+          return null;
+        }
+        
+        try {
+          final Map<String, dynamic> data = json.decode(responseBody);
+          if (data.isEmpty) {
+            print('ℹ️ Respuesta vacía, no hay emoción hoy');
+            return null;
+          }
+          
+          print('✅ Emoción de hoy encontrada: ${data['feeling']}');
+          return Emotion.fromMap(data);
+        } catch (e) {
+          print('⚠️ Error parseando respuesta: $e');
+          return null;
+        }
+      } else if (response.statusCode == 404) {
+        print('ℹ️ No hay emoción registrada hoy (404)');
         return null;
+      } else {
+        print('⚠️ Error ${response.statusCode}, intentando método alternativo');
+        return _getTodayEmotionAlternative(patientId);
       }
-    } else if (response.statusCode == 404) {
-      return _getTodayEmotionAlternative(patientId);
-    } else {
+    } catch (e) {
+      print('❌ Error en getTodayEmotion: $e');
       return _getTodayEmotionAlternative(patientId);
     }
-  } catch (e) {
-    return _getTodayEmotionAlternative(patientId);
   }
-}
 
   // Método alternativo para obtener la emoción de hoy
   Future<Emotion?> _getTodayEmotionAlternative(String patientId) async {
     try {
+      print('🔄 Intentando método alternativo...');
+      
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
       final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
 
       final emotions = await getEmotionsByDateRange(patientId, startOfDay, endOfDay);
-      return emotions.isNotEmpty ? emotions.first : null;
-    } catch (_) {
+      
+      if (emotions.isNotEmpty) {
+        print('✅ Emoción encontrada por método alternativo');
+        return emotions.first;
+      }
+      
+      print('ℹ️ No hay emoción hoy (método alternativo)');
+      return null;
+    } catch (e) {
+      print('❌ Error en método alternativo: $e');
       return null;
     }
   }
 
   @override
-  Future<List<Emotion>> getEmotionsByDateRange(String patientId, DateTime start, DateTime end) async {
+  Future<List<Emotion>> getEmotionsByDateRange(
+    String patientId, 
+    DateTime start, 
+    DateTime end
+  ) async {
     try {
+      final startIso = start.toIso8601String();
+      final endIso = end.toIso8601String();
+      
+      print('📅 Buscando emociones entre $startIso y $endIso');
+      
+      // ✅ Ruta consistente
       final response = await _authenticatedGet(
-        '$baseUrl/api/patient-management/patients/$patientId/emotions?start=${start.toIso8601String()}&end=${end.toIso8601String()}',
+        '$baseUrl/api/patient-management/patients/$patientId/emotions?start=$startIso&end=$endIso',
       );
+
+      print('📊 Respuesta getEmotionsByDateRange: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final emotions = data.map((item) => Emotion.fromMap(item)).toList();
+        print('✅ ${emotions.length} emociones encontradas en el rango');
         return emotions;
       } else {
         final errorData = json.decode(response.body);
-        throw Exception('Error al obtener emociones: ${errorData['error']} - ${errorData['details']}');
+        throw Exception(
+          'Error al obtener emociones: ${errorData['error']} - ${errorData['details']}'
+        );
       }
     } catch (e) {
+      print('❌ Error en getEmotionsByDateRange: $e');
       rethrow;
     }
   }

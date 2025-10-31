@@ -913,35 +913,59 @@ async function handlePaymentSucceeded(invoice) {
   console.log(`Pago exitoso: ${invoice.id} para suscripción: ${invoice.subscription}`);
 
   try {
-    // REGISTRAR PAGO EXITOSO
-    await db.collection('payments').add({
+    // Obtener información de la suscripción desde Firestore
+    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
+    
+    let planName = 'Premium';
+    let userId = null;
+    
+    if (subscriptionDoc.exists) {
+      const subscriptionData = subscriptionDoc.data();
+      userId = subscriptionData.userId;
+      planName = subscriptionData.planName || 'Premium';
+    }
+
+    // Si no encontramos el userId en subscriptions, buscarlo en el customer de Stripe
+    if (!userId) {
+      try {
+        const customer = await stripeClient.customers.retrieve(invoice.customer);
+        userId = customer.metadata?.firebase_uid;
+      } catch (error) {
+        console.error('Error obteniendo customer:', error);
+      }
+    }
+
+    // REGISTRAR PAGO EXITOSO EN COLECCIÓN PAYMENTS
+    const paymentData = {
       invoiceId: invoice.id,
       subscriptionId: invoice.subscription,
-      customerId: invoice.customer,
+      customerId: userId || invoice.customer,
       amountPaid: invoice.amount_paid,
       currency: invoice.currency,
       status: 'succeeded',
+      paymentMethod: invoice.payment_intent?.payment_method_types?.[0] || 'card',
       paymentDate: new Date(invoice.status_transitions.paid_at * 1000),
       periodStart: new Date(invoice.period_start * 1000),
       periodEnd: new Date(invoice.period_end * 1000),
+      planName: planName,
       createdAt: FieldValue.serverTimestamp()
-    });
+    };
 
-    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
-    if (subscriptionDoc.exists) {
-      const subscriptionData = subscriptionDoc.data();
-      const userIdFromDoc = subscriptionData.userId;
-      const planName = subscriptionData.planName || 'Premium';
-      const amountFormatted = (invoice.amount_paid / 100).toFixed(2);
+    await db.collection('payments').add(paymentData);
+    console.log(`✅ Pago registrado en Firestore: ${invoice.id}`);
 
-      await db.collection('patients').doc(userIdFromDoc).update({
+    // Actualizar usuario si lo encontramos
+    if (userId) {
+      await db.collection('patients').doc(userId).update({
         lastPaymentDate: FieldValue.serverTimestamp(),
         isPremium: true // REACTIVAR SI ESTABA SUSPENDIDA 
       });
 
+      const amountFormatted = (invoice.amount_paid / 100).toFixed(2);
+
       // CREAR NOTIFICACIÓN DE PAGO EXITOSO
       await createNotification({
-        userId: userIdFromDoc,
+        userId: userId,
         title: 'Pago Procesado',
         body: `Tu pago de ${amountFormatted} ${invoice.currency.toUpperCase()} para ${planName} ha sido procesado exitosamente.`,
         type: 'payment_succeeded',
@@ -950,12 +974,15 @@ async function handlePaymentSucceeded(invoice) {
           planName: planName,
           amountPaid: invoice.amount_paid,
           currency: invoice.currency,
-          periodEnd: new Date(invoice.period_end * 1000).toISOString()
+          periodEnd: new Date(invoice.period_end * 1000).toISOString(),
+          invoiceId: invoice.id
         }
       });
+
+      console.log(`✅ Notificación enviada al usuario ${userId}`);
     }
   } catch (error) {
-    console.error(`Error al procesar pago exitoso:`, error);
+    console.error(`❌ Error al procesar pago exitoso:`, error);
   }
 }
 
@@ -963,32 +990,57 @@ async function handlePaymentFailed(invoice) {
   console.log(`Pago fallido: ${invoice.id} para suscripción: ${invoice.subscription}`);
 
   try {
-    // REGISTRAR PAGO FALLIDO
-    await db.collection('payments').add({
+    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
+    
+    let planName = 'Premium';
+    let userId = null;
+    
+    if (subscriptionDoc.exists) {
+      const subscriptionData = subscriptionDoc.data();
+      userId = subscriptionData.userId;
+      planName = subscriptionData.planName || 'Premium';
+    }
+
+    // Si no encontramos userId, intentar desde Stripe
+    if (!userId) {
+      try {
+        const customer = await stripeClient.customers.retrieve(invoice.customer);
+        userId = customer.metadata?.firebase_uid;
+      } catch (error) {
+        console.error('Error obteniendo customer:', error);
+      }
+    }
+
+    // REGISTRAR PAGO FALLIDO EN COLECCIÓN PAYMENTS
+    const paymentData = {
       invoiceId: invoice.id,
       subscriptionId: invoice.subscription,
-      customerId: invoice.customer,
+      customerId: userId || invoice.customer,
       amountDue: invoice.amount_due,
       currency: invoice.currency,
       status: 'failed',
+      paymentMethod: 'card', // Stripe no siempre provee esto en fallos
       failureReason: invoice.last_finalization_error?.message || 'unknown',
-      attemptedAt: new Date(invoice.status_transitions.finalized_at * 1000),
+      attemptedAt: invoice.status_transitions?.finalized_at ? 
+                   new Date(invoice.status_transitions.finalized_at * 1000) : 
+                   new Date(),
+      planName: planName,
       createdAt: FieldValue.serverTimestamp()
-    });
+    };
 
-    const subscriptionDoc = await db.collection('subscriptions').doc(invoice.subscription).get();
-    if (subscriptionDoc.exists) {
-      const subscriptionData = subscriptionDoc.data();
-      const userIdFromDoc = subscriptionData.userId;
-      const planName = subscriptionData.planName || 'Premium';
-      const amountFormatted = (invoice.amount_due / 100).toFixed(2);
+    await db.collection('payments').add(paymentData);
+    console.log(`⚠️ Pago fallido registrado en Firestore: ${invoice.id}`);
 
-      await db.collection('patients').doc(userIdFromDoc).update({
+    if (userId) {
+      await db.collection('patients').doc(userId).update({
         lastPaymentFailure: FieldValue.serverTimestamp(),
         paymentStatus: 'failed'
       });
+
+      const amountFormatted = (invoice.amount_due / 100).toFixed(2);
+
       await createNotification({
-        userId: userIdFromDoc,
+        userId: userId,
         title: 'Error en el Pago',
         body: `No pudimos procesar tu pago de ${amountFormatted} ${invoice.currency.toUpperCase()} para ${planName}. Por favor actualiza tu método de pago.`,
         type: 'payment_failed',
@@ -997,13 +1049,15 @@ async function handlePaymentFailed(invoice) {
           planName: planName,
           amountDue: invoice.amount_due,
           currency: invoice.currency,
-          failureReason: invoice.last_finalization_error?.message || 'unknown'
+          failureReason: invoice.last_finalization_error?.message || 'unknown',
+          invoiceId: invoice.id
         }
       });
 
+      console.log(`⚠️ Notificación de fallo enviada al usuario ${userId}`);
     }
   } catch (error) {
-    console.error(`Error al procesar pago fallido:`, error);
+    console.error(`❌ Error al procesar pago fallido:`, error);
   }
 }
 
