@@ -1,18 +1,16 @@
 // lib/data/repositories/chat_repository.dart
-// ✅ VERSIÓN CON DEBUG MEJORADO
+// ✅ VERSIÓN SIN E2EE - SOLO ENCRIPTACIÓN BACKEND
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
-import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 class ChatRepository {
   static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final E2EEService _e2eeService = E2EEService();
 
   ChatRepository();
 
@@ -36,40 +34,23 @@ class ChatRepository {
     return headers;
   }
 
-  // ============== CHAT CON IA (AURORA) - CON E2EE ==============
+  // ============== CHAT CON IA (AURORA) ==============
 
   Future<String> sendAIMessage(String message) async {
     try {
-      final encryptedMessage = await _e2eeService.encryptForAI(message);
+      print('📤 Enviando mensaje a IA: ${message.substring(0, message.length > 30 ? 30 : message.length)}...');
 
       final response = await http.post(
         Uri.parse('$_baseUrl/chats/ai-chat/messages'),
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'message': message,
-          'encryptedForStorage': encryptedMessage,
-        }),
+        body: jsonEncode({'message': message}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        if (data['aiMessage'] != null) {
-          final aiMessage = data['aiMessage'];
-          
-          if (aiMessage.toString().startsWith('{')) {
-            try {
-              return await _e2eeService.decryptFromAI(aiMessage);
-            } catch (e) {
-              print('⚠️ Error descifrando respuesta IA: $e');
-              return aiMessage;
-            }
-          }
-          
-          return aiMessage;
-        }
-        
-        throw Exception('Respuesta inválida del servidor');
+        final aiMessage = data['aiMessage'] ?? 'Sin respuesta';
+        print('✅ Respuesta IA recibida: ${aiMessage.substring(0, aiMessage.length > 30 ? 30 : aiMessage.length)}...');
+        return aiMessage;
       } else if (response.statusCode == 403) {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['error'] ?? 'Límite de mensajes alcanzado');
@@ -84,6 +65,8 @@ class ChatRepository {
 
   Future<List<MessageModel>> loadAIChatMessages() async {
     try {
+      print('📥 Cargando mensajes de IA...');
+
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/ai-chat/messages'),
         headers: await _getHeaders(),
@@ -91,36 +74,16 @@ class ChatRepository {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
+        print('✅ ${jsonList.length} mensajes de IA recibidos');
         
-        final messages = <MessageModel>[];
-        
-        for (var json in jsonList) {
-          String decryptedContent;
-          
-          try {
-            final text = json['text'] ?? '';
-            
-            if (text.startsWith('{') && text.contains('encryptedMessage')) {
-              decryptedContent = await _e2eeService.decryptFromAI(text);
-            } else {
-              decryptedContent = text;
-            }
-          } catch (e) {
-            print('⚠️ Error descifrando mensaje: $e');
-            decryptedContent = '[Mensaje cifrado]';
-          }
-
-          messages.add(MessageModel.fromJson({
-            'id': json['id'] ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
-            'text': decryptedContent,
-            'isUser': json['isUser'] ?? false,
-            'senderId': json['senderId'] ?? '',
-            'timestamp': json['timestamp'],
-            'isRead': true,
-          }));
-        }
-
-        return messages;
+        return jsonList.map((json) => MessageModel.fromJson({
+          'id': json['id'] ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
+          'text': json['text'] ?? '',
+          'isUser': json['isUser'] ?? false,
+          'senderId': json['senderId'] ?? '',
+          'timestamp': json['timestamp'],
+          'isRead': true,
+        })).toList();
       } else {
         throw Exception('Error cargando mensajes: ${response.statusCode}');
       }
@@ -130,73 +93,62 @@ class ChatRepository {
     }
   }
 
-  // ============== CHAT CON HUMANOS - CON E2EE ==============
+  // ============== CHAT CON HUMANOS ==============
 
   Future<void> sendHumanMessage({
-  required String chatId,
-  required String senderId,
-  required String receiverId,
-  required String content,
-}) async {
-  try {
-    print('🔐 Cifrando mensaje para: $receiverId');
-    
-    // ✅ Cifrar para el RECEPTOR
-    final encryptedForReceiver = await _e2eeService.encryptMessage(
-      content,
-      receiverId,
-    );
+    required String chatId,
+    required String senderId,
+    required String receiverId,
+    required String content,
+  }) async {
+    try {
+      print('📤 Enviando mensaje humano...');
+      print('   - Chat ID: $chatId');
+      print('   - De: $senderId');
+      print('   - Para: $receiverId');
+      print('   - Contenido: ${content.substring(0, content.length > 30 ? 30 : content.length)}...');
 
-    // ✅ Cifrar para el REMITENTE (yo mismo)
-    final encryptedForSender = await _e2eeService.encryptMessage(
-      content,
-      senderId,
-    );
-
-    print('✅ Mensaje doblemente cifrado, enviando al backend...');
-
-    final url = Uri.parse('$_baseUrl/chats/messages');
-    
-    final response = await http.post(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'chatId': chatId,
-        'senderId': senderId,
-        'receiverId': receiverId,
-        'content': encryptedForReceiver, // Cifrado para destinatario
-        'senderContent': encryptedForSender, // Cifrado para remitente
-        'plainTextForSender': content, // ✅ Texto plano para el preview
-        'isE2EE': true,
-      }),
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
+      final url = Uri.parse('$_baseUrl/chats/messages');
       
-      try {
-        final body = jsonDecode(response.body);
-        errorMessage = body['error'] ?? errorMessage;
-      } catch (_) {
-        // HTML response, usar mensaje por defecto
+      final response = await http.post(
+        url,
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'chatId': chatId,
+          'senderId': senderId,
+          'receiverId': receiverId,
+          'content': content, // Texto plano, se encripta en backend
+        }),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
+        
+        try {
+          final body = jsonDecode(response.body);
+          errorMessage = body['error'] ?? errorMessage;
+        } catch (_) {
+          // Respuesta HTML, usar mensaje por defecto
+        }
+        
+        throw Exception(errorMessage);
       }
-      throw Exception(errorMessage);
+      
+      print('✅ Mensaje enviado correctamente');
+    } catch (e) {
+      print('❌ Error enviando mensaje humano: $e');
+      rethrow;
     }
-    
-    print('✅ Mensaje enviado correctamente');
-  } catch (e) {
-    print('❌ Error enviando mensaje humano: $e');
-    rethrow;
   }
-}
-  /// ✅ VERSIÓN CORREGIDA: Procesar correctamente isE2EE del backend
+
   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
+      // Si es chat con IA, usar método específico
       if (chatId == _auth.currentUser?.uid || chatId.contains('ai')) {
         return await loadAIChatMessages();
       }
 
-      print('🔥 Cargando mensajes del chat: $chatId');
+      print('📥 Cargando mensajes del chat: $chatId');
 
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
@@ -207,70 +159,23 @@ class ChatRepository {
         final List<dynamic> jsonList = jsonDecode(response.body);
         print('✅ ${jsonList.length} mensajes recibidos del backend');
         
-        final messages = <MessageModel>[];
-        
-        for (var json in jsonList) {
-          String decryptedContent;
+        // El backend ya desencriptó los mensajes, solo parseamos
+        return jsonList.map((json) {
           final content = json['content'] ?? '';
-          final isE2EE = json['isE2EE'] ?? false;
           
           print('📦 Mensaje ID: ${json['id']}');
-          print('   - isE2EE: $isE2EE');
-          print('   - Primeros 30 chars: ${content.substring(0, content.length > 30 ? 30 : content.length)}');
+          print('   - Contenido: ${content.substring(0, content.length > 30 ? 30 : content.length)}...');
           
-          try {
-            // ✅ Verificar si es JSON cifrado
-            if (content.trim().startsWith('{')) {
-              try {
-                final parsed = jsonDecode(content);
-                if (parsed['encryptedMessage'] != null) {
-                  print('🔓 Descifrando mensaje...');
-                  decryptedContent = await _e2eeService.decryptMessage(content);
-                  print('✅ Descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
-                } else {
-                  decryptedContent = content;
-                }
-              } catch (jsonError) {
-                // No es JSON válido, es texto plano
-                decryptedContent = content;
-              }
-            } else if (isE2EE) {
-              // Flag E2EE pero no parece JSON
-              print('⚠️ Flag isE2EE=true pero contenido no parece cifrado');
-              try {
-                decryptedContent = await _e2eeService.decryptMessage(content);
-              } catch (e) {
-                print('❌ Error descifrando: $e');
-                decryptedContent = '[Mensaje cifrado - Error al descifrar]';
-              }
-            } else {
-              // Mensaje en texto plano
-              print('📄 Mensaje en texto plano');
-              decryptedContent = content;
-            }
-          } catch (e) {
-            print('❌ Error procesando mensaje: $e');
-            
-            if (e.toString().contains('Unsupported block type')) {
-              decryptedContent = '🔒 [Mensaje cifrado con clave anterior]';
-            } else {
-              decryptedContent = '[Error al descifrar mensaje]';
-            }
-          }
-          
-          messages.add(MessageModel.fromJson({
+          return MessageModel.fromJson({
             'id': json['id'] ?? '',
-            'text': decryptedContent,
+            'text': content,
             'isUser': json['senderId'] == _auth.currentUser?.uid,
             'senderId': json['senderId'] ?? '',
             'receiverId': json['receiverId'],
             'timestamp': json['timestamp'],
             'isRead': json['isRead'] ?? false,
-          }));
-        }
-        
-        print('✅ Total mensajes procesados: ${messages.length}');
-        return messages;
+          });
+        }).toList();
       } else {
         throw Exception('Error al cargar mensajes: ${response.statusCode}');
       }
@@ -292,25 +197,23 @@ class ChatRepository {
       final response = await http.post(
         url,
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'userId': currentUserId,
-        }),
+        body: jsonEncode({'userId': currentUserId}),
       );
       
       if (response.statusCode != 200) {
         String errorMessage = 'Error al marcar mensajes como leídos. Código: ${response.statusCode}';
 
-        // Manejo robusto para evitar el FormatException por respuesta HTML
         try {
           final body = jsonDecode(response.body);
           errorMessage = body['error'] ?? errorMessage;
         } catch (_) {
-          // Captura el FormatException (HTML) o cualquier otro error de decodificación
-          // y usa el mensaje de error por defecto.
+          // Captura FormatException si la respuesta es HTML
         }
         
         throw Exception(errorMessage);
       }
+      
+      print('✅ Mensajes marcados como leídos');
     } catch (e) {
       print('❌ Error marcando mensajes como leídos: $e');
       rethrow;
@@ -330,15 +233,19 @@ class ChatRepository {
           .where('isRead', isEqualTo: false)
           .get();
 
+      if (messagesSnapshot.docs.isEmpty) {
+        print('ℹ️ No hay mensajes sin leer');
+        return;
+      }
+
       final batch = _firestore.batch();
       
       for (final doc in messagesSnapshot.docs) {
         batch.update(doc.reference, {'isRead': true});
       }
       
-      if (messagesSnapshot.docs.isNotEmpty) {
-        await batch.commit();
-      }
+      await batch.commit();
+      print('✅ ${messagesSnapshot.docs.length} mensajes marcados como leídos en Firestore');
     } catch (e) {
       print('❌ Error en markMessagesAsReadFirestore: $e');
     }
@@ -346,26 +253,50 @@ class ChatRepository {
 
   Future<String> getOrCreateChatId(String userId) async {
     try {
+      print('📋 Obteniendo/creando chat ID para usuario: $userId');
+
       final response = await http.get(
-        Uri.parse('$_baseUrl/ai/chat-id'),
+        Uri.parse('$_baseUrl/chats/ai-chat/chat-id'),
         headers: await _getHeaders(),
       );
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['chatId'];
+        final chatId = data['chatId'];
+        print('✅ Chat ID obtenido: $chatId');
+        return chatId;
       } else {
         throw Exception('Fallo al obtener/crear el ID del chat de IA');
       }
     } catch (e) {
+      print('❌ Error al obtener el ID del chat de IA: $e');
       throw Exception('Error al obtener el ID del chat de IA: $e');
     }
   }
 
-  Future<bool> ensureKeysExist() async {
-    final hasKeys = await _e2eeService.hasKeys();
-    if (!hasKeys) {
-      await _e2eeService.initialize();
+  // ============== MÉTODOS DE LIMPIEZA (OPCIONAL) ==============
+
+  /// Elimina todos los mensajes de un chat (útil para desarrollo/testing)
+  Future<void> clearChatMessages(String chatId) async {
+    try {
+      print('🗑️ Eliminando mensajes del chat: $chatId');
+
+      final url = Uri.parse('$_baseUrl/chats/$chatId/messages');
+      
+      final response = await http.delete(
+        url,
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ ${data['count']} mensajes eliminados');
+      } else {
+        throw Exception('Error eliminando mensajes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error eliminando mensajes: $e');
+      rethrow;
     }
-    return true;
   }
 }

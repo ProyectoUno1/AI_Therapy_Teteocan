@@ -1,5 +1,5 @@
 // lib/presentation/psychologist/views/patient_chat_screen.dart
-// ✅ SOLUCIÓN DEFINITIVA: Stream de mensajes descifrados
+// ✅ VERSIÓN SIN E2EE - SOLO ENCRIPTACIÓN BACKEND
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,8 +11,6 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
-import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
-import 'dart:async';
 
 class PatientChatScreen extends StatefulWidget {
   final String patientId;
@@ -33,23 +31,16 @@ class PatientChatScreen extends StatefulWidget {
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final _e2eeService = E2EEService();
   
   String? _currentUserId;
   late String _chatId;
-  late Stream<DocumentSnapshot> _patientStatusStream;
   late final ChatRepository _chatRepository;
-  
-  bool _isInitialized = false;
-  
-  // ✅ Stream controller para mensajes descifrados
-  late StreamController<List<MessageModel>> _messagesStreamController;
-  StreamSubscription? _firestoreSubscription;
+  late Stream<DocumentSnapshot> _patientStatusStream;
 
   bool get _isChatEnabled {
     final authState = BlocProvider.of<AuthBloc>(context).state;
     final status = authState.psychologist?.status;
-    return status == 'ACTIVE' && _isInitialized;
+    return status == 'ACTIVE';
   }
 
   String _getStatusBasedBlockingMessage() {
@@ -77,14 +68,15 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     }
 
     _chatRepository = ChatRepository();
-    _messagesStreamController = StreamController<List<MessageModel>>.broadcast();
     
     _patientStatusStream = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.patientId)
         .snapshots();
     
-    _initializeE2EE();
+    print('🔍 Chat ID: $_chatId');
+    print('🔍 Current User ID: $_currentUserId');
+    print('🔍 Patient ID: ${widget.patientId}');
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _chatRepository.markMessagesAsRead(
@@ -94,135 +86,42 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     });
   }
 
-  Future<void> _initializeE2EE() async {
-    try {
-      await _e2eeService.initialize();
-      if (mounted) {
-        setState(() => _isInitialized = true);
-        _startListeningToMessages();
-      }
-    } catch (e) {
-      print('❌ Error inicializando E2EE: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error inicializando cifrado. Reinicia la app.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // ✅ Escuchar mensajes de Firestore y descifrarlos
-  void _startListeningToMessages() {
-  _firestoreSubscription = FirebaseFirestore.instance
-      .collection('chats')
-      .doc(_chatId)
-      .collection('messages')
-      .orderBy('timestamp', descending: false)
-      .snapshots()
-      .listen((snapshot) async {
-    
-    print('🔥 Nuevos mensajes recibidos: ${snapshot.docs.length}');
-    
-    final messages = <MessageModel>[];
-    
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final content = data['content'] as String? ?? '';
-      final senderContent = data['senderContent'] as String? ?? '';
-      final isE2EE = data['isE2EE'] as bool? ?? false;
-      final senderId = data['senderId'] as String? ?? '';
-      
-      String decryptedContent;
-      
-      // ✅ SIEMPRE descifrar, sin importar quién lo envió
-      if (senderId == _currentUserId) {
-        // Descifrar MI versión cifrada
-        print('🔓 Descifrando MI mensaje cifrado...');
-        try {
-          decryptedContent = await _e2eeService.decryptMessage(senderContent);
-          print('✅ Mi mensaje descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
-        } catch (e) {
-          print('❌ Error descifrando mi mensaje: $e');
-          decryptedContent = '🔐 [Error al descifrar mi mensaje]';
-        }
-      } else {
-        // Descifrar mensaje del OTRO usuario
-        print('🔓 Descifrando mensaje recibido...');
-        try {
-          decryptedContent = await _e2eeService.decryptMessage(content);
-          print('✅ Mensaje recibido descifrado: ${decryptedContent.substring(0, decryptedContent.length > 30 ? 30 : decryptedContent.length)}');
-        } catch (e) {
-          print('❌ Error descifrando mensaje recibido: $e');
-          decryptedContent = '🔐 [Mensaje cifrado - No disponible]';
-        }
-      }
-      
-      final timestamp = data['timestamp'] as Timestamp?;
-      
-      messages.add(MessageModel(
-        id: doc.id,
-        content: decryptedContent,
-        timestamp: timestamp?.toDate() ?? DateTime.now(),
-        isUser: senderId == _currentUserId,
-        senderId: senderId,
-        receiverId: data['receiverId'] as String?,
-        isRead: data['isRead'] as bool? ?? false,
-      ));
-    }
-    
-    if (!_messagesStreamController.isClosed) {
-      _messagesStreamController.add(messages);
-      print('✅ ${messages.length} mensajes emitidos al stream');
-      
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
-    }
-  });
-}
-
   @override
   void dispose() {
-    _firestoreSubscription?.cancel();
-    _messagesStreamController.close();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _sendMessage() async {
-  if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
-  if (!_isChatEnabled) return;
+    if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
+    if (!_isChatEnabled) return;
 
-  final messageContent = _messageController.text.trim();
-  _messageController.clear();
-  
-  print('📤 Enviando mensaje: $messageContent');
-  
-  try {
-    await _chatRepository.sendHumanMessage(
-      chatId: _chatId,
-      senderId: _currentUserId!,
-      receiverId: widget.patientId,
-      content: messageContent,
-    );
+    final messageContent = _messageController.text.trim();
+    _messageController.clear();
     
-    print('✅ Mensaje enviado correctamente');
+    print('📤 Enviando mensaje: $messageContent');
     
-    // ✅ El stream de Firestore actualizará automáticamente la UI
-    
-  } catch (e) {
-    print('❌ Error enviando mensaje: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al enviar el mensaje: $e')),
+    try {
+      await _chatRepository.sendHumanMessage(
+        chatId: _chatId,
+        senderId: _currentUserId!,
+        receiverId: widget.patientId,
+        content: messageContent,
       );
+      
+      print('✅ Mensaje enviado correctamente');
+      _scrollToBottom();
+      
+    } catch (e) {
+      print('❌ Error enviando mensaje: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al enviar el mensaje: $e')),
+        );
+      }
     }
   }
-}
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
@@ -236,22 +135,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.patientName)),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Inicializando cifrado seguro...'),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -322,21 +205,13 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.lock, size: 12, color: Colors.green),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              statusText,
-                              style: TextStyle(
-                                color: isOnline ? Colors.green : Colors.grey,
-                                fontSize: 12,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ],
                   ),
@@ -345,53 +220,40 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             );
           },
         ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-            onSelected: (value) {},
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person),
-                    SizedBox(width: 8),
-                    Text('Ver perfil'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
           Expanded(
-            // ✅ Usar el stream de mensajes descifrados
-            child: StreamBuilder<List<MessageModel>>(
-              stream: _messagesStreamController.stream,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(_chatId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Descifrando mensajes...'),
-                      ],
-                    ),
-                  );
+                  return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return _buildEmptyState(context);
                 }
 
-                final messages = snapshot.data!;
+                final messages = snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return MessageModel(
+                    id: doc.id,
+                    content: data['content'] ?? '',
+                    timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                    isUser: data['senderId'] == _currentUserId,
+                    senderId: data['senderId'] ?? '',
+                    receiverId: data['receiverId'] as String?,
+                    isRead: data['isRead'] as bool? ?? false,
+                  );
+                }).toList();
+
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
                 return ListView.builder(
                   controller: _scrollController,

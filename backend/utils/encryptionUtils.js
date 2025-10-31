@@ -1,4 +1,5 @@
 // backend/utils/encryptionUtils.js
+// ✅ ESTE ARCHIVO YA ESTÁ CORRECTO - NO TOCAR
 
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -9,12 +10,10 @@ const algorithm = 'aes-256-gcm';
 let ENCRYPTION_KEY;
 
 try {
-    // Validar que la variable exista
     if (!process.env.ENCRYPTION_KEY) {
         throw new Error('ENCRYPTION_KEY no configurada en .env');
     }
 
-    // Convertir y validar longitud
     ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
 
     if (ENCRYPTION_KEY.length !== 32) {
@@ -22,15 +21,13 @@ try {
     }
     
 } catch (error) {
-    console.error('Error en configuración de encriptación:', error.message);
-    
-    // Fallback para desarrollo
+    console.error('❌ Error en configuración de encriptación:', error.message);
     ENCRYPTION_KEY = crypto.randomBytes(32);
-    console.warn('Usando clave temporal. Configura ENCRYPTION_KEY en tu .env');
+    console.warn('⚠️ Usando clave temporal. Configura ENCRYPTION_KEY en tu .env');
 }
 
 /**
- * Encripta texto usando AES-256-GCM (más seguro que CBC)
+ * Encripta texto usando AES-256-GCM
  */
 function encrypt(text) {
     if (!text || typeof text !== 'string') {
@@ -39,25 +36,20 @@ function encrypt(text) {
     }
     
     try {
-        // Generar IV único para cada encriptación
         const iv = crypto.randomBytes(16);
-        
         const cipher = crypto.createCipheriv(algorithm, ENCRYPTION_KEY, iv);
         
         let encrypted = cipher.update(text, 'utf8', 'hex');
         encrypted += cipher.final('hex');
         
-        // Obtener auth tag para GCM
         const authTag = cipher.getAuthTag();
-        
-        // Combinar IV + authTag + texto encriptado
         const result = iv.toString('hex') + authTag.toString('hex') + encrypted;
         
-        console.log(`[Cripto] Texto encriptado: "${text.substring(0, 20)}..." → ${result.substring(0, 20)}...`);
+        console.log(`[Cripto] ✅ Texto encriptado: "${text.substring(0, 20)}..." → ${result.substring(0, 20)}...`);
         return result;
         
     } catch (error) {
-        console.error('[Cripto] Error encriptando:', error.message);
+        console.error('[Cripto] ❌ Error encriptando:', error.message);
         return text;
     }
 }
@@ -66,19 +58,16 @@ function encrypt(text) {
  * Desencripta texto con AES-256-GCM
  */
 function decrypt(encryptedData) {
-    // Si no es string válido, devolver tal cual
     if (!encryptedData || typeof encryptedData !== 'string') {
         return encryptedData;
     }
     
-    // Verificar longitud mínima para datos GCM (IV(32) + authTag(32) + data)
     if (encryptedData.length < 64) {
         console.warn('[Cripto] Datos muy cortos para ser encriptados GCM');
         return encryptedData;
     }
     
     try {
-        // Extraer componentes (GCM: IV(16 bytes = 32 hex) + authTag(16 bytes = 32 hex) + encryptedText)
         const iv = Buffer.from(encryptedData.substring(0, 32), 'hex');
         const authTag = Buffer.from(encryptedData.substring(32, 64), 'hex');
         const encryptedText = encryptedData.substring(64);
@@ -88,18 +77,20 @@ function decrypt(encryptedData) {
         
         let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
+        
+        console.log(`[Cripto] ✅ Desencriptado: "${decrypted.substring(0, 20)}..."`);
         return decrypted;
         
     } catch (error) {
-        // Manejar errores específicos
         if (error.message.includes('bad decrypt') || 
             error.message.includes('Unsupported state') ||
             error.message.includes('wrong tag')) {
             
+            console.warn('[Cripto] Intentando método legacy CBC...');
             return decryptLegacyCBC(encryptedData);
         }
         
-        console.error('[Cripto] Error grave en desencriptación:', error.message);
+        console.error('[Cripto] ❌ Error grave en desencriptación:', error.message);
         return encryptedData;
     }
 }
@@ -119,7 +110,7 @@ function decryptLegacyCBC(encryptedText) {
         let decrypted = legacyCipher.update(encryptedText, 'hex', 'utf8');
         decrypted += legacyCipher.final('utf8');
         
-        console.log(`[Cripto] Desencriptado con CBC legacy: "${decrypted.substring(0, 20)}..."`);
+        console.log(`[Cripto] ✅ Desencriptado con CBC legacy: "${decrypted.substring(0, 20)}..."`);
         return decrypted;
         
     } catch (error) {
@@ -133,10 +124,8 @@ function decryptLegacyCBC(encryptedText) {
  */
 function migrateOldData(oldEncryptedText) {
     try {
-        // Desencriptar con método antiguo
         const decrypted = decryptLegacyCBC(oldEncryptedText);
         
-        // Si se pudo desencriptar, re-encriptar con nuevo método
         if (decrypted && decrypted !== oldEncryptedText) {
             return encrypt(decrypted);
         }
@@ -146,6 +135,5 @@ function migrateOldData(oldEncryptedText) {
         return oldEncryptedText;
     }
 }
-
 
 export { encrypt, decrypt, migrateOldData };

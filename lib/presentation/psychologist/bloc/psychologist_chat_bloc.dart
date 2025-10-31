@@ -1,4 +1,5 @@
 // lib/presentation/psychologist/bloc/psychologist_chat_bloc.dart
+// ✅ VERSIÓN SIN E2EE
 
 import 'dart:async';
 import 'package:bloc/bloc.dart';
@@ -7,13 +8,11 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_chat_state.dart';
-import 'package:ai_therapy_teteocan/core/services/e2ee_service.dart';
 
 class PsychologistChatBloc
     extends Bloc<PsychologistChatEvent, PsychologistChatState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ChatRepository _chatRepository = ChatRepository();
-  final E2EEService _e2eeService = E2EEService();
   StreamSubscription? _messagesSubscription;
 
   PsychologistChatBloc() : super(PsychologistChatInitial()) {
@@ -36,7 +35,7 @@ class PsychologistChatBloc
 
       final currentUserId = event.senderId;
 
-      // ✅ Escuchar cambios en Firestore
+      // Escuchar cambios en Firestore
       _messagesSubscription = _firestore
           .collection('chats')
           .doc(event.chatId)
@@ -45,11 +44,7 @@ class PsychologistChatBloc
           .snapshots()
           .listen(
             (snapshot) {
-              print(
-                '📥 Snapshot recibido con ${snapshot.docs.length} mensajes',
-              );
-
-              // ✅ Procesar mensajes de forma asíncrona
+              print('📥 Snapshot recibido con ${snapshot.docs.length} mensajes');
               _processMessages(snapshot.docs, currentUserId);
             },
             onError: (error) {
@@ -63,11 +58,11 @@ class PsychologistChatBloc
     }
   }
 
-  /// Procesa y descifra mensajes de forma asíncrona
-  Future<void> _processMessages(
+  /// Procesa mensajes desde Firestore
+  void _processMessages(
     List<QueryDocumentSnapshot> docs,
     String currentUserId,
-  ) async {
+  ) {
     List<MessageModel> messages = [];
 
     print('🔄 Procesando ${docs.length} mensajes...');
@@ -75,40 +70,19 @@ class PsychologistChatBloc
     for (var doc in docs) {
       try {
         final data = doc.data() as Map<String, dynamic>;
-        String decryptedContent = data['content'] ?? '';
+        final content = data['content'] ?? '';
 
         print('📄 Mensaje ID: ${doc.id}');
-        print(
-          '📝 Contenido raw (primeros 50 chars): ${decryptedContent.substring(0, decryptedContent.length > 50 ? 50 : decryptedContent.length)}',
-        );
-
-        // ✅ Verificar si el mensaje está cifrado
-        if (decryptedContent.startsWith('{') &&
-            decryptedContent.contains('encryptedMessage')) {
-          print('🔐 Mensaje cifrado detectado, intentando descifrar...');
-
-          try {
-            decryptedContent = await _e2eeService.decryptMessage(
-              decryptedContent,
-            );
-            print('✅ Mensaje descifrado: $decryptedContent');
-          } catch (e) {
-            print('❌ Error descifrando mensaje: $e');
-            decryptedContent = '[Error al descifrar mensaje]';
-          }
-        } else {
-          print('📝 Mensaje en texto plano');
-        }
+        print('📝 Contenido (primeros 50 chars): ${content.substring(0, content.length > 50 ? 50 : content.length)}');
 
         // Crear modelo de mensaje
         final message = MessageModel(
           id: doc.id,
-          content: decryptedContent, // ✅ Solo usar 'content'
+          content: content, // Texto plano o encriptado (backend lo maneja)
           isUser: data['senderId'] == currentUserId,
           senderId: data['senderId'] ?? '',
           receiverId: data['receiverId'],
-          timestamp:
-              (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
           isRead: data['isRead'] ?? false,
         );
 
@@ -120,50 +94,42 @@ class PsychologistChatBloc
 
     print('✅ Total mensajes procesados: ${messages.length}');
 
-    // Emitir evento con mensajes descifrados
+    // Emitir evento con mensajes procesados
     add(MessagesUpdated(messages));
   }
 
- Future<void> _onSendMessage(
-  SendMessage event,
-  Emitter<PsychologistChatState> emit,
-) async {
-  try {
-    print('📤 Enviando mensaje...');
-    print('📋 Chat ID: ${event.chatId}');
-    print('👤 Sender: ${event.senderId}');
-    print('👥 Receiver: ${event.receiverId}');
-    print('💬 Contenido: ${event.content}');
+  Future<void> _onSendMessage(
+    SendMessage event,
+    Emitter<PsychologistChatState> emit,
+  ) async {
+    try {
+      print('📤 Enviando mensaje...');
+      print('📋 Chat ID: ${event.chatId}');
+      print('👤 Sender: ${event.senderId}');
+      print('👥 Receiver: ${event.receiverId}');
+      print('💬 Contenido: ${event.content}');
 
-    if (event.receiverId == null) {
-      print('❌ Error: receiverId es null');
-      emit(PsychologistChatError('Error: ID del destinatario no disponible'));
-      return;
+      if (event.receiverId == null) {
+        print('❌ Error: receiverId es null');
+        emit(PsychologistChatError('Error: ID del destinatario no disponible'));
+        return;
+      }
+
+      // Enviar mensaje (el backend se encarga de la encriptación)
+      await _chatRepository.sendHumanMessage(
+        chatId: event.chatId,
+        senderId: event.senderId,
+        receiverId: event.receiverId!,
+        content: event.content,
+      );
+
+      print('✅ Mensaje enviado exitosamente');
+    } catch (e) {
+      print('❌ Error al enviar el mensaje: $e');
+      print('Stack trace: ${StackTrace.current}');
+      emit(PsychologistChatError('Error al enviar el mensaje: $e'));
     }
-
-    // ✅ Usar ChatRepository que cifra automáticamente
-    await _chatRepository.sendHumanMessage(
-      chatId: event.chatId,
-      senderId: event.senderId,
-      receiverId: event.receiverId!,
-      content: event.content,
-    );
-
-    print('✅ Mensaje enviado y cifrado exitosamente');
-
-    // ✅ ELIMINAR estas líneas que sobrescribían lastMessage
-    // await _firestore.collection('chats').doc(event.chatId).set({
-    //   'lastMessage': '[Mensaje cifrado]',
-    //   'lastTimestamp': FieldValue.serverTimestamp(),
-    //   'participants': [event.senderId, event.receiverId],
-    // }, SetOptions(merge: true));
-    
-  } catch (e) {
-    print('❌ Error al enviar el mensaje: $e');
-    print('Stack trace: ${StackTrace.current}');
-    emit(PsychologistChatError('Error al enviar el mensaje: $e'));
   }
-}
 
   void _onMessagesUpdated(
     MessagesUpdated event,
