@@ -17,7 +17,7 @@ class PaymentHistoryRepositoryImpl implements PaymentHistoryRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final http.Client _client;
 
-  static const String _baseUrl = '${ApiConstants.baseUrl}/api/stripe';
+  static const String _baseUrl = '${ApiConstants.baseUrl}/stripe';
 
   PaymentHistoryRepositoryImpl({http.Client? client}) 
       : _client = client ?? http.Client();

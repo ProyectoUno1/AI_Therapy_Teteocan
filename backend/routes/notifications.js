@@ -356,6 +356,7 @@ function getChannelForType(type) {
         case 'payment_succeeded':
             return 'subscription_notifications';
         case 'session_started':
+        case 'session_started':
         case 'session_completed':
             return 'session_notifications';
         default:

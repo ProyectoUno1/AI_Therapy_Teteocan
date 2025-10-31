@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 
+
 class PatientProgressScreen extends StatefulWidget {
   final String patientId;
   final String patientName;
@@ -59,7 +60,7 @@ class _PatientProgressScreenState extends State<PatientProgressScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://ai-therapy-teteocan.onrender.com/api/patient-management/patients/${widget.patientId}/emotions'
+          '${AppConstants.baseUrl}/patient-management/patients/${widget.patientId}/emotions'
           '?start=${startDate.toIso8601String()}&end=${endDate.toIso8601String()}'
         ),
         headers: {
