@@ -631,50 +631,57 @@ router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
 router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const authenticatedUserId = req.firebaseUser.uid;
+        const userId = req.firebaseUser.uid;
 
         const appointmentRef = db.collection('appointments').doc(id);
-        const appointmentDoc = await appointmentRef.get();
-        if (!appointmentDoc.exists) {
-            return res.status(404).json({ error: 'Cita no encontrada' });
+        const doc = await appointmentRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Cita no encontrada.' });
         }
 
-        const appointmentData = appointmentDoc.data();
-        if (appointmentData.psychologistId !== authenticatedUserId) {
-            return res.status(403).json({ error: 'Acceso denegado' });
+        const appointmentData = doc.data();
+
+        if (appointmentData.psychologistId !== userId) {
+            return res.status(403).json({ error: 'Solo el psicólogo asignado puede iniciar la sesión.' });
         }
 
         if (appointmentData.status !== 'confirmed') {
-            return res.status(400).json({ error: 'Solo se pueden iniciar sesiones confirmadas' });
+            return res.status(400).json({ error: 'La sesión solo se puede iniciar si está en estado "confirmed".' });
         }
 
-        const updateData = {
+        const sessionLink = appointmentData.sessionLink || 'No se proporcionó un enlace.';
+
+        await appointmentRef.update({
             status: 'in_progress',
-            sessionStartedAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-        };
+            sessionStartTime: FieldValue.serverTimestamp(),
+        });
 
-        await appointmentRef.update(updateData);
+        // --- NUEVA LÓGICA: Enviar notificación al paciente al iniciar la sesión ---
+        const patientId = appointmentData.patientId;
 
-        // --- Notificación para el paciente ---
         await createNotification({
-            userId: appointmentData.patientId,
+            userId: patientId,
             title: '¡Sesión Iniciada!',
-            body: `Tu sesión con el psicólogo ${appointmentData.psychologistName} ha iniciado.`,
+            body: `Tu sesión con el psicólogo(a) ha comenzado. ¡Haz clic para unirte! Enlace: ${sessionLink}`,
             type: 'session_started',
             data: {
                 appointmentId: id,
-                psychologistId: appointmentData.psychologistId,
+                sessionLink: sessionLink,
                 status: 'in_progress'
             }
         });
+        console.log(`Notificación de inicio de sesión enviada al paciente: ${patientId} para cita: ${id}`);
+        // --- FIN NUEVA LÓGICA ---
 
-
-        res.status(200).json({ message: 'Sesión iniciada exitosamente' });
+        res.status(200).json({ message: 'Sesión iniciada exitosamente.' });
 
     } catch (error) {
-        console.error('Error al iniciar sesión:', error);
-        res.status(500).json({ error: 'Error al iniciar la sesión', details: error.message });
+        console.error('Error al iniciar la sesión:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
     }
 });
 

@@ -31,7 +31,7 @@ abstract class PsychologyPaymentRepository {
 class PsychologyPaymentRepositoryImpl implements PsychologyPaymentRepository {
   final http.Client _client;
   
-  static const String _baseUrl = '${ApiConstants.baseUrl}/api/stripe';
+  static const String _baseUrl = '${ApiConstants.baseUrl}/stripe';
 
   PsychologyPaymentRepositoryImpl({http.Client? client}) 
       : _client = client ?? http.Client();

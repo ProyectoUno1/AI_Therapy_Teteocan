@@ -73,8 +73,25 @@ class NotificationService {
       _handleNotificationClick(message.data);
     });
 
+
     // App completamente cerrada - verificar mensaje inicial
     _checkInitialMessage();
+  }
+
+  static void _handleNotificationTap(Map<String, dynamic> data) {
+    final type = data['type'] as String?;
+    final appointmentId = data['appointmentId'] as String?;
+    final sessionLink = data['sessionLink'] as String?; // <-- Obtener el enlace
+
+    if (type == 'session_started' && appointmentId != null && sessionLink != null) {
+        
+        if (onNotificationTap != null) {
+          onNotificationTap!(data);
+        }
+
+    } else if (onNotificationTap != null) {
+      onNotificationTap!(data);
+    }
   }
 
   static Future<void> _checkInitialMessage() async {

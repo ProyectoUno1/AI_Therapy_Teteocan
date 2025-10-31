@@ -98,7 +98,7 @@ class EmotionRemoteDataSource implements EmotionDataSource {
     try {
       // ✅ Ruta consistente
       final response = await _authenticatedGet(
-        '$baseUrl/api/patient-management/patients/$patientId/emotions',
+        '$baseUrl/patient-management/patients/$patientId/emotions',
       );
 
       print('📊 Respuesta getPatientEmotions: ${response.statusCode}');
@@ -123,7 +123,7 @@ class EmotionRemoteDataSource implements EmotionDataSource {
       
       // ✅ Ruta consistente
       final response = await _authenticatedGet(
-        '$baseUrl/api/patient-management/patients/$patientId/emotions/today',
+        '$baseUrl/patient-management/patients/$patientId/emotions/today',
       );
 
       print('📊 Respuesta getTodayEmotion: ${response.statusCode}');
@@ -202,7 +202,7 @@ class EmotionRemoteDataSource implements EmotionDataSource {
       
       // ✅ Ruta consistente
       final response = await _authenticatedGet(
-        '$baseUrl/api/patient-management/patients/$patientId/emotions?start=$startIso&end=$endIso',
+        '$baseUrl/patient-management/patients/$patientId/emotions?start=$startIso&end=$endIso',
       );
 
       print('📊 Respuesta getEmotionsByDateRange: ${response.statusCode}');
