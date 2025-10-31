@@ -1,19 +1,18 @@
 // backend/routes/chatRoutes.js
-// ✅ VERSIÓN CORREGIDA FINAL: Guarda texto plano en 'lastMessage'
+// ✅ CÓDIGO CORREGIDO: SIN ENCRIPTACIÓN
 
 import express from 'express'; 
 import { db } from '../firebase-admin.js'; 
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { encrypt, decrypt } from '../utils/encryptionUtils.js';
+// ❌ ELIMINADA LÍNEA: import { encrypt, decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
 
-// ==================== ENVIAR MENSAJE (CORREGIDO: LISTA DE CHATS) ====================
+// ==================== ENVIAR MENSAJE ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        // 'content' viene como texto plano desde el cliente
-        const { chatId, senderId, receiverId, content, isEncrypted } = req.body;
+        const { chatId, senderId, receiverId, content } = req.body;
         
         if (req.firebaseUser.uid !== senderId) {
             return res.status(403).json({ 
@@ -21,36 +20,27 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        console.log('📥 Mensaje recibido en backend:');
-        console.log('   - chatId:', chatId);
-        console.log('   - senderId:', senderId);
-        console.log('   - content:', content.substring(0, 30) + '...');
-        
-        // 1. Cifrar el contenido para el historial
-        const encryptedContent = encrypt(content); 
-
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
 
-        // 2. Guardar el mensaje CIFRADO en la subcolección (historial seguro)
         const messageData = {
             senderId,
             receiverId,
-            content: encryptedContent, // <-- CIFRADO
+            // 🔴 CORRECCIÓN: Guardar el contenido en texto plano
+            content: content, 
             timestamp: FieldValue.serverTimestamp(),
             isRead: false,
         };
+        
         await messageRef.add(messageData);
 
-        // 3. ACTUALIZAR el documento principal con la versión PLANA para la lista de chats
         await chatDocRef.set({
-            lastMessage: content, // ✅ CORRECCIÓN: Guardar la versión PLANA para el listado
+            lastMessage: content,
             lastMessageTime: FieldValue.serverTimestamp(),
-            lastSenderId: senderId,
-            unreadCount: FieldValue.increment(1),
+            lastMessageSenderId: senderId,
         }, { merge: true });
 
-        res.status(200).json({ message: 'Mensaje enviado correctamente' });
+        res.status(200).json({ message: 'Mensaje enviado', content: content });
 
     } catch (error) {
         console.error('❌ Error enviando mensaje:', error);
@@ -58,63 +48,23 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== OBTENER MENSAJES ====================
-router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
+// ==================== MARCAR MENSAJES COMO LEÍDOS ====================
+router.put('/:chatId/read/:readerId', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId } = req.params;
+        const { chatId, readerId } = req.params;
 
-        const messagesRef = db.collection('chats').doc(chatId).collection('messages');
-        const snapshot = await messagesRef.orderBy('timestamp', 'asc').get();
-
-        const messages = snapshot.docs.map(doc => {
-            const data = doc.data();
-            
-            let decryptedContent = data.content;
-            
-            // Desencriptar solo si no es un mensaje de sistema
-            if (data.senderId !== 'system') {
-                decryptedContent = decrypt(data.content);
-            }
-
-            return {
-                id: doc.id,
-                senderId: data.senderId,
-                receiverId: data.receiverId,
-                content: decryptedContent, // Devuelve contenido plano al cliente
-                timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
-                isRead: data.isRead || false,
-                isE2EE: data.isE2EE || false,
-            };
-        });
-
-        res.status(200).json(messages);
-
-    } catch (error) {
-        console.error('❌ Error cargando mensajes:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-// ==================== MARCAR COMO LEÍDO ====================
-router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const { userId } = req.body; 
-
-        if (req.firebaseUser.uid !== userId) {
-             return res.status(403).json({ error: 'Acceso denegado.' });
+        if (req.firebaseUser.uid !== readerId) {
+            return res.status(403).json({ error: 'Acceso denegado.' });
         }
 
-        const chatDocRef = db.collection('chats').doc(chatId);
-        const messagesRef = chatDocRef.collection('messages');
-
-        // Marcar mensajes no leídos dirigidos a este usuario
-        const messagesSnapshot = await messagesRef
-            .where('receiverId', '==', userId)
+        const batch = db.batch();
+        const messagesSnapshot = await db.collection('chats')
+            .doc(chatId)
+            .collection('messages')
+            .where('receiverId', '==', readerId)
             .where('isRead', '==', false)
             .get();
-
-        const batch = db.batch();
+        
         messagesSnapshot.docs.forEach(doc => {
             batch.update(doc.ref, { 'isRead': true });
         });

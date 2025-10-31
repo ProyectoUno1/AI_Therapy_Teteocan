@@ -1,5 +1,5 @@
 // lib/data/repositories/chat_repository.dart
-// ✅ VERSIÓN CORREGIDA: Se calcula 'isUser' correctamente
+// ✅ VERSIÓN SIN ENCRIPTACIÓN
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -43,14 +43,14 @@ class ChatRepository {
       final response = await http.post(
         Uri.parse('$_baseUrl/chats/ai-chat/messages'),
         headers: await _getHeaders(),
-        body: jsonEncode({'message': message}),
+        body: jsonEncode({'message': message}), // ✅ TEXTO PLANO
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final aiMessage = data['aiMessage'] ?? 'Sin respuesta';
         print('✅ Respuesta IA recibida: ${aiMessage.substring(0, aiMessage.length > 30 ? 30 : aiMessage.length)}...');
-        return aiMessage;
+        return aiMessage; // ✅ TEXTO PLANO
       } else if (response.statusCode == 403) {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['error'] ?? 'Límite de mensajes alcanzado');
@@ -67,7 +67,7 @@ class ChatRepository {
     try {
       print('📥 Cargando mensajes de IA...');
       
-      final currentUserId = _auth.currentUser?.uid; // Obtener el ID del usuario
+      final currentUserId = _auth.currentUser?.uid;
 
       if (currentUserId == null) {
         throw Exception('Usuario no autenticado para cargar mensajes.');
@@ -84,9 +84,7 @@ class ChatRepository {
         
         return jsonList.map((json) => MessageModel.fromJson({
           'id': json['id'] ?? 'temp-${DateTime.now().millisecondsSinceEpoch}',
-          'text': json['text'] ?? '',
-          // ✅ CORRECCIÓN CLAVE: Calcular isUser comparando senderId con el ID del usuario.
-          // Si el senderId del mensaje es igual al ID del usuario actual, entonces isUser es true.
+          'text': json['text'] ?? '', // ✅ YA ES TEXTO PLANO
           'isUser': json['senderId'] == currentUserId, 
           'senderId': json['senderId'] ?? '',
           'timestamp': json['timestamp'],
@@ -125,7 +123,7 @@ class ChatRepository {
           'chatId': chatId,
           'senderId': senderId,
           'receiverId': receiverId,
-          'content': content, // Texto plano, se encripta en backend
+          'content': content, // ✅ TEXTO PLANO
         }),
       );
 
@@ -167,7 +165,7 @@ class ChatRepository {
         final List<dynamic> jsonList = jsonDecode(response.body);
         print('✅ ${jsonList.length} mensajes recibidos del backend');
         
-        // El backend ya desencriptó los mensajes, solo parseamos
+        // ✅ Los mensajes ya vienen en texto plano
         return jsonList.map((json) {
           final content = json['content'] ?? '';
           
@@ -176,7 +174,7 @@ class ChatRepository {
           
           return MessageModel.fromJson({
             'id': json['id'] ?? '',
-            'text': content,
+            'text': content, // ✅ YA ES TEXTO PLANO
             'isUser': json['senderId'] == _auth.currentUser?.uid,
             'senderId': json['senderId'] ?? '',
             'receiverId': json['receiverId'],

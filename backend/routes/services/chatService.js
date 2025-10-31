@@ -1,7 +1,6 @@
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
-import { encrypt } from '../../utils/encryptionUtils.js'; 
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -30,7 +29,7 @@ const validateMessageLimit = async (userId) => {
 
     } catch (error) {
         console.error('Error validando límite de mensajes:', error);
-        return true; // Fallback seguro para limitar
+        return true;
     }
 };
 
@@ -51,28 +50,26 @@ async function getOrCreateAIChatId(userId) {
         }
 
         if (!doc.exists) {
+            const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
+            
             await chatRef.set({
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 patientId: userId,
                 chatType: 'ai_chat',
                 status: 'active',
                 lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
-                // Se inicializa lastMessage como texto plano
-                lastMessage: `¡Hola ${userName}! Soy Aurora, tu asistente.`, 
+                lastMessage: welcomeMessageContent, // ✅ TEXTO PLANO
             });
 
             const messagesCollection = chatRef.collection('messages');
             
-            const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
-            
             const welcomeMessage = {
                 senderId: 'aurora',
-                content: welcomeMessageContent,
+                content: welcomeMessageContent, // ✅ TEXTO PLANO
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
                 isWelcomeMessage: true,
-                isE2EE: false,
             };
             await messagesCollection.add(welcomeMessage);
         } else {
@@ -88,7 +85,7 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
-// ==================== PROCESAR MENSAJE DE USUARIO (CORREGIDO: LISTA DE CHATS) ====================
+// ==================== PROCESAR MENSAJE DE USUARIO (SIN ENCRIPTACIÓN) ====================
 async function processUserMessage(userId, plainMessage) { 
     const startTime = Date.now();
     try {
@@ -101,28 +98,24 @@ async function processUserMessage(userId, plainMessage) {
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // Cifrar el mensaje del usuario antes de guardarlo en Firebase
-        const encryptedContent = encrypt(plainMessage);
-        
-        // 1. Guardar mensaje del usuario (cifrado) en la subcolección
+        // ✅ GUARDAR mensaje del usuario en TEXTO PLANO
         const userMessageData = {
             senderId: userId,
-            content: encryptedContent, // <-- CIFRADO para el historial
+            content: plainMessage, // ✅ SIN ENCRIPTAR
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
-            isE2EE: false, 
         };
         await messagesCollection.add(userMessageData);
         
-        // 2. ACTUALIZAR documento principal con la versión PLANA del usuario
+        // ✅ ACTUALIZAR documento principal con texto plano
         await chatRef.update({
-            lastMessage: plainMessage, // ✅ CORRECCIÓN: Guardar el texto PLAINO
+            lastMessage: plainMessage, // ✅ TEXTO PLANO
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: userId,
         });
 
-        // Obtener respuesta de Gemini con mensaje PLANO
+        // Obtener respuesta de Gemini
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),
@@ -139,20 +132,19 @@ async function processUserMessage(userId, plainMessage) {
             throw new Error('Respuesta vacía de Gemini');
         }
 
-        // 3. Guardar respuesta de IA en TEXTO PLANO
+        // ✅ GUARDAR respuesta de IA en TEXTO PLANO
         const aiMessageData = {
             senderId: 'aurora',
-            content: aiResponseContent,
+            content: aiResponseContent, // ✅ TEXTO PLANO
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
-            isE2EE: false, 
         };
         await messagesCollection.add(aiMessageData);
         
-        // 4. ACTUALIZAR documento principal con la respuesta PLANA de la IA
+        // ✅ ACTUALIZAR documento principal con respuesta de IA
         await chatRef.update({
-            lastMessage: aiResponseContent, // ✅ CORRECCIÓN: Guardar el texto PLAINO
+            lastMessage: aiResponseContent, // ✅ TEXTO PLANO
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: 'aurora',
         });
@@ -177,7 +169,7 @@ async function processUserMessage(userId, plainMessage) {
     }
 }
 
-// ==================== CARGAR MENSAJES ====================
+// ==================== CARGAR MENSAJES (SIN DESENCRIPTACIÓN) ====================
 async function loadChatMessages(chatId) {
     try {
         const messagesCollection = db
@@ -191,17 +183,17 @@ async function loadChatMessages(chatId) {
 
         console.log(`[ChatService] 📥 Cargando ${snapshot.size} mensajes para chat: ${chatId}`);
 
+        // ✅ DEVOLVER mensajes tal como están (texto plano)
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
 
             return {
                 id: doc.id,
                 senderId: data.senderId,
-                content: data.content,
+                content: data.content, // ✅ YA ES TEXTO PLANO
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                isE2EE: data.isE2EE || false, 
             };
         });
 
@@ -310,7 +302,7 @@ Ni urgente ni importante: Elimina"
 📞 **LÍNEAS DE CRISIS 24/7 EN MÉXICO:**
 
 **Línea de la Vida:** 800 911 2000
-**SAPTEL:** 55 5259 8121  
+**SAPTEL:** 55 5259 8121  
 **Emergencias:** 911
 **Locatel CDMX:** 55 5658 1111
 
@@ -437,10 +429,9 @@ Estoy aquí cuando me necesites. 💙"
 **Tu objetivo: ACOMPAÑAR, VALIDAR, OFRECER HERRAMIENTAS y CONECTAR CON AYUDA PROFESIONAL. Somos un puente.** ✨`;
 }
 
-
 export {
     getOrCreateAIChatId,
-    processUserMessage, // [CORRECCIÓN G] Exportación de la función simple
+    processUserMessage,
     loadChatMessages,
     validateMessageLimit,
 };
