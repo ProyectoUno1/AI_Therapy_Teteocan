@@ -25,7 +25,7 @@ router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== ENVIAR MENSAJE A IA ====================
+// enviar mensaje al chat con la IA
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
@@ -34,8 +34,6 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         if (!message || message.trim() === '') {
             return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
         }
-
-        console.log('📨 Mensaje recibido de usuario:', userId);
 
         // Validar límite de mensajes
         const isLimitReached = await validateMessageLimit(userId);
@@ -46,7 +44,6 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        // ✅ Procesar mensaje (SIN ENCRIPTACIÓN)
         const aiResponse = await processUserMessage(userId, message);
 
         res.status(200).json({
@@ -55,7 +52,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error procesando mensaje:', error.stack || error.message);
+        console.error('Error procesando mensaje:', error.stack || error.message);
         
         if (error.message.includes('límite')) {
             return res.status(403).json({
@@ -74,22 +71,16 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== OBTENER MENSAJES (SIN DESENCRIPTACIÓN) ====================
+//obtener mensajes del chat con la IA
 router.get('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
         const chatId = userId;
-
-        console.log('📥 Cargando mensajes para:', userId);
-
-        // ✅ Cargar mensajes (YA SON TEXTO PLANO)
         const messages = await loadChatMessages(chatId);
-
-        // ✅ Devolver mensajes tal como están
         const formattedMessages = messages.map(msg => ({
             id: msg.id,
             senderId: msg.senderId,
-            text: msg.content, // ✅ YA ES TEXTO PLANO
+            text: msg.content, 
             timestamp: msg.timestamp,
             isAI: msg.isAI,
         }));
@@ -97,7 +88,7 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
         res.status(200).json(formattedMessages);
 
     } catch (error) {
-        console.error('❌ Error cargando mensajes:', error);
+        console.error('Error cargando mensajes:', error);
         res.status(500).json({ error: 'Error al cargar mensajes' });
     }
 });

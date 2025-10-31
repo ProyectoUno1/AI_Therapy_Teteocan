@@ -8,17 +8,10 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 const router = express.Router();
 
-// ==================== ENVIAR MENSAJE ====================
+//enviar mensaje
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
     try {
-        const { chatId, senderId, receiverId, content } = req.body;
-        
-        console.log('📨 Enviando mensaje:', { 
-            chatId, 
-            senderId, 
-            receiverId, 
-            contentLength: content?.length 
-        });
+        const { chatId, senderId, receiverId, content } = req.body;;
         
         if (!chatId || !senderId || !receiverId || !content) {
             return res.status(400).json({ 
@@ -34,29 +27,23 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
 
         const chatDocRef = db.collection('chats').doc(chatId);
         const messageRef = chatDocRef.collection('messages');
-
-        // 1. Guardar el mensaje en la subcolección
         const messageData = {
             senderId,
             receiverId,
-            content: content, // ✅ TEXTO PLANO
+            content: content, 
             timestamp: FieldValue.serverTimestamp(),
             isRead: false,
         };
         
         const newMessageDoc = await messageRef.add(messageData);
-        console.log('✅ Mensaje guardado en subcolección:', newMessageDoc.id);
 
-        // 2. ✅ CRÍTICO: Actualizar documento principal con participants
         await chatDocRef.set({
             lastMessage: content,
             lastMessageTime: FieldValue.serverTimestamp(),
             lastMessageSenderId: senderId,
-            participants: [senderId, receiverId], // ✅ CAMPO CRÍTICO
+            participants: [senderId, receiverId], 
             updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
-        
-        console.log('✅ Documento principal actualizado con participants');
 
         res.status(200).json({ 
             message: 'Mensaje enviado exitosamente', 
@@ -65,7 +52,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error enviando mensaje:', error);
+        console.error('Error enviando mensaje:', error);
         res.status(500).json({ 
             error: 'Error interno del servidor', 
             details: error.message 
@@ -73,13 +60,11 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== OBTENER MENSAJES DE UN CHAT ====================
+// obtener mensajes de un chat
 router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
         const userId = req.firebaseUser.uid;
-
-        console.log('📥 Cargando mensajes del chat:', chatId);
 
         // Verificar que el usuario es parte del chat
         const chatParts = chatId.split('_');
@@ -99,28 +84,24 @@ router.get('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
                 id: doc.id,
                 senderId: data.senderId,
                 receiverId: data.receiverId,
-                content: data.content, // ✅ Texto plano
+                content: data.content, 
                 timestamp: data.timestamp ? data.timestamp.toDate().toISOString() : null,
                 isRead: data.isRead || false,
             };
         });
-
-        console.log(`✅ ${messages.length} mensajes cargados`);
         res.status(200).json(messages);
 
     } catch (error) {
-        console.error('❌ Error cargando mensajes:', error);
+        console.error('Error cargando mensajes:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-// ==================== MARCAR MENSAJES COMO LEÍDOS ====================
+
 router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
         const { userId } = req.body;
-
-        console.log('📖 Marcando mensajes como leídos:', { chatId, userId });
 
         if (req.firebaseUser.uid !== userId) {
             return res.status(403).json({ error: 'Acceso denegado.' });
@@ -139,21 +120,18 @@ router.post('/:chatId/mark-read', verifyFirebaseToken, async (req, res) => {
         });
         
         await batch.commit();
-
-        console.log(`✅ ${messagesSnapshot.size} mensajes marcados como leídos`);
-
         res.status(200).json({ 
             message: `Marcados ${messagesSnapshot.size} mensajes como leídos.`,
             count: messagesSnapshot.size
         });
 
     } catch (error) {
-        console.error('❌ Error marcando mensajes como leídos:', error);
+        console.error('Error marcando mensajes como leídos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-// ==================== LIMPIAR CHATS ====================
+
 router.delete('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -173,16 +151,14 @@ router.delete('/:chatId/messages', verifyFirebaseToken, async (req, res) => {
         });
         
         await batch.commit();
-        
-        console.log(`✅ ${snapshot.size} mensajes eliminados del chat ${chatId}`);
-        
+         
         res.status(200).json({ 
             message: 'Mensajes eliminados',
             count: snapshot.size 
         });
 
     } catch (error) {
-        console.error('❌ Error eliminando mensajes:', error);
+        console.error('Error eliminando mensajes:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });

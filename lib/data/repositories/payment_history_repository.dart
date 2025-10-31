@@ -29,33 +29,33 @@ Future<List<PaymentRecord>> getPaymentHistory() async {
     if (user == null) throw Exception('Usuario no autenticado');
 
     List<PaymentRecord> payments = [];
+
+    // 1. OBTENER PAGOS DE SESIONES INDIVIDUALES (appointments con isPaid=true)
     final appointmentsQuery = await _firestore
         .collection('appointments')
         .where('patientId', isEqualTo: user.uid)
-        .where('isPaid', isEqualTo: true) 
-        .where('paymentType', isEqualTo: 'one_time') 
-        .orderBy('createdAt', descending: true)
+        .where('isPaid', isEqualTo: true)
+        .orderBy('paidAt', descending: true)
         .get();
 
     for (var doc in appointmentsQuery.docs) {
       final data = doc.data();
-      if (data['isPaid'] == true) {
-          payments.add(PaymentRecord(
-            id: doc.id,
-            type: PaymentType.psychologySession,
-            amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0, 
-            currency: data['currency'] ?? 'usd',
-            status: _parsePaymentStatus(data['status'] ?? 'completed'),
-            date: data['paidAt']?.toDate() ?? data['createdAt']?.toDate() ?? DateTime.now(),
-            description: 'Sesión individual con ${data['psychologistName'] ?? 'Psicólogo'}',
-            psychologistName: data['psychologistName'],
-            sessionDate: data['scheduledDateTime']?.toDate().toString().split(' ')[0],
-            sessionTime: data['scheduledDateTime']?.toDate().toString().split(' ')[1].substring(0, 5),
-            paymentMethod: _getPaymentMethodText(data['paymentType']), 
-          ));
-      }
+      payments.add(PaymentRecord(
+        id: doc.id,
+        type: PaymentType.psychologySession,
+        amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0, 
+        currency: data['currency'] ?? 'mxn',
+        status: _parsePaymentStatus(data['status'] ?? 'completed'),
+        date: data['paidAt']?.toDate() ?? data['createdAt']?.toDate() ?? DateTime.now(),
+        description: 'Sesión individual con ${data['psychologistName'] ?? 'Psicólogo'}',
+        psychologistName: data['psychologistName'],
+        sessionDate: data['scheduledDateTime']?.toDate().toString().split(' ')[0],
+        sessionTime: data['scheduledDateTime']?.toDate().toString().split(' ')[1].substring(0, 5),
+        paymentMethod: _getPaymentMethodText(data['paymentMethod']), 
+      ));
     }
 
+    // 2. OBTENER PAGOS RECURRENTES DE SUSCRIPCIONES (colección payments)
     final subscriptionPaymentsQuery = await _firestore
         .collection('payments')
         .where('customerId', isEqualTo: user.uid)
@@ -64,18 +64,35 @@ Future<List<PaymentRecord>> getPaymentHistory() async {
 
     for (var doc in subscriptionPaymentsQuery.docs) {
       final data = doc.data();
-      payments.add(PaymentRecord(
-        id: doc.id,
-        type: PaymentType.subscription,
-        amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0,
-        currency: data['currency'] ?? 'usd',
-        status: _parsePaymentStatus(data['status']),
-        date: data['paymentDate']?.toDate() ?? DateTime.now(),
-        description: 'Pago de Suscripción Premium (Factura)',
-        paymentMethod: _getPaymentMethodText(data['paymentMethod']), 
-      ));
+      
+      // Solo agregar pagos exitosos
+      if (data['status'] == 'succeeded') {
+        payments.add(PaymentRecord(
+          id: doc.id,
+          type: PaymentType.subscription,
+          amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0,
+          currency: data['currency'] ?? 'mxn',
+          status: PaymentStatus.completed,
+          date: data['paymentDate']?.toDate() ?? DateTime.now(),
+          description: 'Pago de Suscripción Premium',
+          paymentMethod: _getPaymentMethodText(data['paymentMethod'] ?? 'card'), 
+        ));
+      } else if (data['status'] == 'failed') {
+        // También mostrar pagos fallidos para que el usuario los vea
+        payments.add(PaymentRecord(
+          id: doc.id,
+          type: PaymentType.subscription,
+          amount: (data['amountDue'] is num) ? (data['amountDue'] as num) / 100 : 0.0,
+          currency: data['currency'] ?? 'mxn',
+          status: PaymentStatus.failed,
+          date: data['attemptedAt']?.toDate() ?? DateTime.now(),
+          description: 'Intento de Pago de Suscripción (Fallido)',
+          paymentMethod: _getPaymentMethodText(data['paymentMethod'] ?? 'card'), 
+        ));
+      }
     }
 
+    // 3. OBTENER SUSCRIPCIÓN ACTIVA Y SU PAGO INICIAL
     final response = await _client.get(
         Uri.parse('$_baseUrl/subscription-status/${user.uid}'),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
@@ -89,23 +106,36 @@ Future<List<PaymentRecord>> getPaymentHistory() async {
             final amountTotal = (sub['amountTotal'] as num?)?.toDouble() ?? 0;
             final paymentMethodKey = sub['paymentMethod']?.toString() ?? 'card'; 
      
-            payments.add(PaymentRecord(
-              id: sub['id']?.toString() ?? 'subscription_${user.uid}', 
-              type: PaymentType.subscription,
-              amount: amountTotal / 100, 
-              currency: sub['currency']?.toString() ?? 'usd',
-              status: _parsePaymentStatus(sub['status']?.toString() ?? 'active'), 
-              date: subscriptionDate, 
-              description: 'Suscripción Premium (ACTIVA)', 
-              paymentMethod: _getPaymentMethodText(paymentMethodKey),
-            ));
+            // Solo agregar si no existe ya en la lista (evitar duplicados del pago inicial)
+            final subscriptionId = sub['id']?.toString() ?? 'subscription_${user.uid}';
+            final alreadyExists = payments.any((p) => 
+              p.id == subscriptionId || 
+              (p.type == PaymentType.subscription && 
+               p.date.difference(subscriptionDate).inMinutes.abs() < 5)
+            );
+
+            if (!alreadyExists) {
+              payments.add(PaymentRecord(
+                id: subscriptionId, 
+                type: PaymentType.subscription,
+                amount: amountTotal / 100, 
+                currency: sub['currency']?.toString() ?? 'mxn',
+                status: _parsePaymentStatus(sub['status']?.toString() ?? 'active'), 
+                date: subscriptionDate, 
+                description: 'Activación de Suscripción ${sub['planName'] ?? 'Premium'}', 
+                paymentMethod: _getPaymentMethodText(paymentMethodKey),
+              ));
+            }
         }
     }
 
+    // Ordenar todos los pagos por fecha descendente
     payments.sort((a, b) => b.date.compareTo(a.date));
 
+    print('Total de pagos encontrados: ${payments.length}');
     return payments;
   } catch (e) {
+    print('Error en getPaymentHistory: $e');
     throw Exception('Error al obtener historial de pagos: ${e.toString()}');
   }
 }
@@ -117,7 +147,7 @@ Future<List<SubscriptionRecord>> getSubscriptionHistory() async {
 
 String _getPaymentMethodText(String? method) {
   if (method == null) {
-    return 'Desconocido';
+    return 'Tarjeta';
   }
   switch (method.toLowerCase()) {
     case 'card':
@@ -125,8 +155,12 @@ String _getPaymentMethodText(String? method) {
     case 'visa':
     case 'mastercard':
       return 'Tarjeta de Crédito/Débito';
+    case 'paypal':
+      return 'PayPal';
+    case 'bank_transfer':
+      return 'Transferencia Bancaria';
     default:
-      return method; 
+      return 'Tarjeta'; 
   }
 }
 
@@ -148,6 +182,7 @@ DateTime? _parseDateFromDynamic(dynamic dateValue) {
       return DateTime.fromMillisecondsSinceEpoch(value.toString().length > 10 ? value : value * 1000).toLocal();
     }
   } catch (e) {
+    print('Error parseando fecha: $e');
     return null;
   }
   return null;
@@ -196,51 +231,56 @@ SubscriptionStatus _parseSubscriptionStatus(String? status) {
   }
 }
 
-
 @override
 Future<PaymentDetails?> getPaymentDetails(String paymentId) async {
   try {
     final user = _auth.currentUser;
     if (user == null) return null;
 
+    // 1. Buscar en appointments (sesiones individuales)
     var doc = await _firestore.collection('appointments').doc(paymentId).get();
-    if (doc.exists && doc.data()?['paymentType'] == 'one_time') { 
+    if (doc.exists && doc.data()?['isPaid'] == true) { 
       final data = doc.data()!;
       return PaymentDetails(
         id: doc.id,
         type: PaymentType.psychologySession,
         amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0,
-        currency: data['currency'] ?? 'usd',
+        currency: data['currency'] ?? 'mxn',
         status: _parsePaymentStatus(data['status']),
         date: data['paidAt']?.toDate() ?? data['createdAt']?.toDate() ?? DateTime.now(),
         description: 'Sesión individual con ${data['psychologistName'] ?? 'Psicólogo'}',
         psychologistName: data['psychologistName'],
         sessionDate: data['scheduledDateTime']?.toDate().toString().split(' ')[0],
         sessionTime: data['scheduledDateTime']?.toDate().toString().split(' ')[1].substring(0, 5),
-        paymentMethod: _getPaymentMethodText(data['paymentType']),
+        paymentMethod: _getPaymentMethodText(data['paymentMethod']),
         customerId: data['patientId'],
         paymentIntentId: data['paymentIntentId'],
       );
     }
 
+    // 2. Buscar en payments (pagos recurrentes de suscripción)
     doc = await _firestore.collection('payments').doc(paymentId).get();
     if (doc.exists) {
       final data = doc.data()!;
       return PaymentDetails(
         id: doc.id,
         type: PaymentType.subscription,
-        amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 0.0,
-        currency: data['currency'] ?? 'usd',
+        amount: (data['amountPaid'] is num) ? (data['amountPaid'] as num) / 100 : 
+                (data['amountDue'] is num) ? (data['amountDue'] as num) / 100 : 0.0,
+        currency: data['currency'] ?? 'mxn',
         status: _parsePaymentStatus(data['status']),
-        date: data['paymentDate']?.toDate() ?? DateTime.now(),
-        description: 'Pago de Suscripción Premium (Factura)',
-        paymentMethod: _getPaymentMethodText(data['paymentMethod']),
+        date: data['paymentDate']?.toDate() ?? data['attemptedAt']?.toDate() ?? DateTime.now(),
+        description: data['status'] == 'succeeded' ? 
+                    'Pago de Suscripción Premium' : 
+                    'Intento de Pago (Fallido)',
+        paymentMethod: _getPaymentMethodText(data['paymentMethod'] ?? 'card'),
         customerId: data['customerId'],
         invoiceId: data['invoiceId'],
         subscriptionId: data['subscriptionId'],
       );
     }
 
+    // 3. Buscar suscripción activa (pago inicial)
     if (paymentId.startsWith('sub_') || paymentId.startsWith('subscription_')) {
         final response = await _client.get(
             Uri.parse('$_baseUrl/subscription-status/${user.uid}'),
@@ -259,10 +299,10 @@ Future<PaymentDetails?> getPaymentDetails(String paymentId) async {
                         id: sub['id']?.toString() ?? 'subscription_${user.uid}',
                         type: PaymentType.subscription,
                         amount: amountTotal / 100,
-                        currency: sub['currency']?.toString() ?? 'usd',
+                        currency: sub['currency']?.toString() ?? 'mxn',
                         status: _parsePaymentStatus(sub['status']?.toString() ?? 'active'), 
                         date: subscriptionDate,
-                        description: 'Suscripción Premium (ACTIVA)',
+                        description: 'Activación de Suscripción ${sub['planName'] ?? 'Premium'}',
                         paymentMethod: _getPaymentMethodText(paymentMethodKey),
                         subscriptionId: sub['id']?.toString(),
                         customerId: user.uid,
@@ -274,6 +314,7 @@ Future<PaymentDetails?> getPaymentDetails(String paymentId) async {
 
     return null;
   } catch (e) {
+    print('Error en getPaymentDetails: $e');
     throw Exception('Error al obtener detalles del pago: ${e.toString()}');
   }
 }
