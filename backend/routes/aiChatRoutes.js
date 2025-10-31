@@ -1,5 +1,5 @@
 // backend/routes/aiChatRoutes.js
-// ✅ VERSIÓN CORREGIDA FINAL (SIN E2EE)
+// ✅ VERSIÓN SIN ENCRIPTACIÓN
 
 import express from 'express';
 import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
@@ -7,12 +7,11 @@ import {
     getOrCreateAIChatId,
     loadChatMessages,
     validateMessageLimit,
-    processUserMessage, // Importar la función corregida simple
+    processUserMessage,
 } from './services/chatService.js';
-import { decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
-const IS_PRODUCTION = process.env.NODE_ENV === 'production'; // Variable para control de entorno
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ==================== OBTENER/CREAR CHAT ID ====================
 router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
@@ -47,7 +46,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
-        // Procesar mensaje (se encripta dentro del servicio)
+        // ✅ Procesar mensaje (SIN ENCRIPTACIÓN)
         const aiResponse = await processUserMessage(userId, message);
 
         res.status(200).json({
@@ -75,7 +74,7 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ==================== OBTENER MENSAJES (CORREGIDO) ====================
+// ==================== OBTENER MENSAJES (SIN DESENCRIPTACIÓN) ====================
 router.get('/messages', verifyFirebaseToken, async (req, res) => {
     try {
         const userId = req.firebaseUser.uid;
@@ -83,25 +82,19 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
 
         console.log('📥 Cargando mensajes para:', userId);
 
+        // ✅ Cargar mensajes (YA SON TEXTO PLANO)
         const messages = await loadChatMessages(chatId);
 
-        // ✅ CORRECCIÓN CLAVE: Desencriptar SOLO si el mensaje NO fue enviado por la IA
-        const decryptedMessages = messages.map(msg => {
-            let decryptedText = msg.content;
-            
-            // Los mensajes del usuario se guardan CIFRADOS. Los de la IA se guardan PLANOS.
-            // La IA tiene senderId: 'aurora' o isAI: true.
-            if (msg.senderId !== 'aurora' && !msg.isAI) {
-                 decryptedText = decrypt(msg.content);
-            }
-            
-            return {
-                ...msg,
-                text: decryptedText, // El campo 'text' es el texto plano para el cliente
-            };
-        });
+        // ✅ Devolver mensajes tal como están
+        const formattedMessages = messages.map(msg => ({
+            id: msg.id,
+            senderId: msg.senderId,
+            text: msg.content, // ✅ YA ES TEXTO PLANO
+            timestamp: msg.timestamp,
+            isAI: msg.isAI,
+        }));
 
-        res.status(200).json(decryptedMessages);
+        res.status(200).json(formattedMessages);
 
     } catch (error) {
         console.error('❌ Error cargando mensajes:', error);
