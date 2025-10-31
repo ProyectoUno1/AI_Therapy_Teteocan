@@ -18,11 +18,24 @@ class PaymentHistoryBloc extends Bloc<PaymentHistoryEvent, PaymentHistoryState> 
     LoadPaymentHistory event,
     Emitter<PaymentHistoryState> emit,
   ) async {
+    print('🔄 Iniciando carga de historial de pagos...');
     emit(PaymentHistoryLoading());
     try {
-      final payments = await _repository.getPaymentHistory(); 
+      final payments = await _repository.getPaymentHistory();
+      print('✅ Pagos obtenidos: ${payments.length}');
+      
+      if (payments.isEmpty) {
+        print('⚠️ No se encontraron pagos');
+      } else {
+        for (var payment in payments) {
+          print('💳 Pago: ${payment.id} - ${payment.description} - ${payment.formattedAmount}');
+        }
+      }
+      
       emit(PaymentHistoryLoaded(payments: payments));
     } catch (e) {
+      print('❌ Error en _onLoadPaymentHistory: $e');
+      print('Stack trace: ${StackTrace.current}');
       emit(PaymentHistoryError(message: e.toString()));
     }
   }
@@ -31,15 +44,19 @@ class PaymentHistoryBloc extends Bloc<PaymentHistoryEvent, PaymentHistoryState> 
     LoadPaymentDetails event,
     Emitter<PaymentHistoryState> emit,
   ) async {
+    print('🔄 Cargando detalles del pago: ${event.paymentId}');
     emit(PaymentDetailsLoading());
     try {
       final paymentDetails = await _repository.getPaymentDetails(event.paymentId);
       if (paymentDetails != null) {
+        print('✅ Detalles obtenidos para: ${event.paymentId}');
         emit(PaymentDetailsLoaded(paymentDetails: paymentDetails));
       } else {
+        print('⚠️ No se encontraron detalles para: ${event.paymentId}');
         emit(PaymentHistoryError(message: 'Detalles del pago no encontrados.'));
       }
     } catch (e) {
+      print('❌ Error en _onLoadPaymentDetails: $e');
       emit(PaymentHistoryError(message: e.toString()));
     }
   }
