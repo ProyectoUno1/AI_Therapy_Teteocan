@@ -6,11 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
+import 'package:ai_therapy_teteocan/core/services/basic_encryption_service.dart';
 
 class ChatRepository {
   static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+    final _encryption = BasicEncryptionService();
 
   ChatRepository();
 
@@ -102,41 +104,43 @@ class ChatRepository {
     required String content,
   }) async {
     try {
-      print('📤 Enviando mensaje humano...');
-      print('   - Chat ID: $chatId');
-      print('   - De: $senderId');
-      print('   - Para: $receiverId');
-      print('   - Contenido: ${content.substring(0, content.length > 30 ? 30 : content.length)}...');
-
-      final url = Uri.parse('$_baseUrl/chats/messages');
+      print('📤 Enviando mensaje: $content');
       
-      final response = await http.post(
-        url,
-        headers: await _getHeaders(),
-        body: jsonEncode({
-          'chatId': chatId,
-          'senderId': senderId,
-          'receiverId': receiverId,
-          'content': content, // Texto plano, se encripta en backend
-        }),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        String errorMessage = 'Error al enviar el mensaje. Código: ${response.statusCode}';
-        
-        try {
-          final body = jsonDecode(response.body);
-          errorMessage = body['error'] ?? errorMessage;
-        } catch (_) {
-          // Respuesta HTML, usar mensaje por defecto
-        }
-        
-        throw Exception(errorMessage);
-      }
+      // ✅ Cifrar el mensaje antes de enviar
+      final encryptedContent = _encryption.encryptMessage(content);
+      final isEncrypted = _encryption.isEncrypted(encryptedContent);
       
-      print('✅ Mensaje enviado correctamente');
+      print('   - Contenido cifrado: ${encryptedContent.substring(0, 30)}...');
+      print('   - Está cifrado: $isEncrypted');
+
+      final messageData = {
+        'content': encryptedContent, // Mensaje cifrado
+        'senderId': senderId,
+        'receiverId': receiverId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'isEncrypted': isEncrypted,
+      };
+
+      // Guardar en Firestore
+      await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .add(messageData);
+
+      // Actualizar último mensaje en el chat
+      await _firestore.collection('chats').doc(chatId).set({
+        'lastMessage': isEncrypted ? '[Mensaje cifrado]' : content,
+        'lastTimestamp': FieldValue.serverTimestamp(),
+        'participants': [senderId, receiverId]..sort(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'isEncrypted': isEncrypted,
+      }, SetOptions(merge: true));
+
+      print('✅ Mensaje enviado y cifrado correctamente');
     } catch (e) {
-      print('❌ Error enviando mensaje humano: $e');
+      print('❌ Error enviando mensaje: $e');
       rethrow;
     }
   }
