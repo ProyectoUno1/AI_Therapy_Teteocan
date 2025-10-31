@@ -4,6 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import stripe from "stripe";
 import { db } from '../firebase-admin.js';
 import { createNotification } from './notifications.js'; 
+import { verifyFirebaseToken } from '../middlewares/auth_middleware.js';
 
 dotenv.config();
 
@@ -1062,7 +1063,7 @@ async function handlePaymentFailed(invoice) {
 }
 
 // Endpoint para obtener estado de suscripción del usuario
-stripeRouter.get("/subscription-status/:userId", async (req, res) => {
+stripeRouter.get("/subscription-status/:userId", verifyFirebaseToken, async (req, res) => {
   const { userId } = req.params;
   if (!userId) {
     return res.status(400).json({ error: "userId is required" });
