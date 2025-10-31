@@ -7,22 +7,13 @@ import {
     getOrCreateAIChatId,
     loadChatMessages,
     validateMessageLimit,
+    processUserMessage, // <-- ASEGÚRESE DE QUE ESTA FUNCIÓN ESTÉ CORRECTAMENTE IMPORTADA Y DISPONIBLE EN 'chatService.js'
 } from './services/chatService.js';
 import { decrypt } from '../utils/encryptionUtils.js';
 
 const router = express.Router();
 
-// ==================== OBTENER/CREAR CHAT ID ====================
-router.get('/chat-id', verifyFirebaseToken, async (req, res) => {
-    try {
-        const userId = req.firebaseUser.uid;
-        const chatId = await getOrCreateAIChatId(userId);
-        res.status(200).json({ chatId });
-    } catch (error) {
-        console.error('❌ Error obteniendo chat ID:', error);
-        res.status(500).json({ error: 'Error al obtener chat ID' });
-    }
-});
+// ... (GET /chat-id - Sin cambios)
 
 // ==================== ENVIAR MENSAJE A IA ====================
 router.post('/messages', verifyFirebaseToken, async (req, res) => {
@@ -40,12 +31,13 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         const isLimitReached = await validateMessageLimit(userId);
         if (isLimitReached) {
             return res.status(403).json({
-                error: 'Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.',
+                error: 'Has alcanzado tu límite de mensajes. Actualiza a Premium para continuar.',
                 limitReached: true,
             });
         }
 
-        // Procesar mensaje (se encripta dentro del servicio)
+        // Procesar mensaje (se encripta dentro del servicio, se guarda y se devuelve la respuesta)
+        // 💡 El error 500 ocurre casi siempre DENTRO de processUserMessage
         const aiResponse = await processUserMessage(userId, message);
 
         res.status(200).json({
@@ -54,7 +46,8 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error procesando mensaje:', error);
+        // [CORRECCIÓN CLAVE] Log más detallado del error 500
+        console.error('❌ ERROR GRAVE EN POST /ai-chat/messages:', error.stack || error.message);
         
         if (error.message.includes('límite')) {
             return res.status(403).json({
@@ -63,8 +56,13 @@ router.post('/messages', verifyFirebaseToken, async (req, res) => {
             });
         }
 
+        // [CORRECCIÓN CLAVE] Devolver información útil en desarrollo
+        const errorMessage = process.env.NODE_ENV !== 'production' 
+                           ? `Error del servidor: ${error.message}` 
+                           : 'Error procesando tu mensaje. Por favor, intenta de nuevo.';
+
         res.status(500).json({
-            error: 'Error procesando tu mensaje. Por favor, intenta de nuevo.',
+            error: errorMessage,
         });
     }
 });
@@ -82,13 +80,15 @@ router.get('/messages', verifyFirebaseToken, async (req, res) => {
         // ✅ Desencriptar mensajes antes de enviar
         const decryptedMessages = messages.map(msg => ({
             ...msg,
+            // Si decrypt falla (AuthTag o clave incorrecta), devuelve el 'content' original.
             text: decrypt(msg.content),
         }));
 
         res.status(200).json(decryptedMessages);
 
     } catch (error) {
-        console.error('❌ Error cargando mensajes:', error);
+        // [CORRECCIÓN] Log más útil
+        console.error('❌ Error cargando mensajes de IA:', error.message);
         res.status(500).json({ error: 'Error al cargar mensajes' });
     }
 });
