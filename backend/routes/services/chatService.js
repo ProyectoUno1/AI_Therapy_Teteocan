@@ -1,8 +1,10 @@
-// backend/routes/services/chatService.js - VERSIÓN CORREGIDA COMPLETA
+// backend/routes/services/chatService.js - VERSIÓN CORREGIDA FINAL
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
+// [CORRECCIÓN 1] Importar la función de cifrado del backend
+import { encrypt } from '../../utils/encryptionUtils.js'; 
 
 const FREE_MESSAGE_LIMIT = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -84,9 +86,8 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
-//FUNCIÓN CON SOPORTE E2EE
-
-async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
+// [FUNCIÓN CORREGIDA D] Renombrada a la versión simple y con lógica de cifrado de backend
+async function processUserMessage(userId, plainMessage) { 
     const startTime = Date.now();
     try {
         const isLimitReached = await validateMessageLimit(userId);
@@ -98,14 +99,17 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // Guardar mensaje del usuario (cifrado si existe)
+        // [CORRECCIÓN E] Cifrar el mensaje del usuario antes de guardarlo en Firebase
+        const encryptedContent = encrypt(plainMessage);
+        
+        // Guardar mensaje del usuario (cifrado)
         const userMessageData = {
             senderId: userId,
-            content: encryptedMessage || plainMessage,
+            content: encryptedContent, // <-- ¡GUARDAR LA VERSIÓN CIFRADA!
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
-            isE2EE: !!encryptedMessage,
+            isE2EE: false, // <-- Marcar como false (cifrado de backend, no E2EE)
         };
         await messagesCollection.add(userMessageData);
 
@@ -133,7 +137,7 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
-            isE2EE: false,
+            isE2EE: false, // <-- Siempre false para la IA
         };
         await messagesCollection.add(aiMessageData);
 
@@ -154,7 +158,8 @@ async function processUserMessageE2EE(userId, plainMessage, encryptedMessage) {
             throw new Error("Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.");
         }
 
-        throw new Error('Error al procesar el mensaje con IA. Por favor, intenta de nuevo.');
+        // [CORRECCIÓN F] Lanza el error capturado en el try-catch de la ruta
+        throw error; 
     }
 }
 
@@ -181,7 +186,7 @@ async function loadChatMessages(chatId) {
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
-                isE2EE: data.isE2EE || false, // ← IMPORTANTE: Incluir este flag
+                isE2EE: data.isE2EE || false, // ← Se mantiene para compatibilidad
             };
         });
 
@@ -290,7 +295,7 @@ Ni urgente ni importante: Elimina"
 📞 **LÍNEAS DE CRISIS 24/7 EN MÉXICO:**
 
 **Línea de la Vida:** 800 911 2000
-**SAPTEL:** 55 5259 8121  
+**SAPTEL:** 55 5259 8121  
 **Emergencias:** 911
 **Locatel CDMX:** 55 5658 1111
 
@@ -420,7 +425,7 @@ Estoy aquí cuando me necesites. 💙"
 
 export {
     getOrCreateAIChatId,
-    processUserMessageE2EE,
+    processUserMessage, // [CORRECCIÓN G] Exportación de la función simple
     loadChatMessages,
     validateMessageLimit,
 };
