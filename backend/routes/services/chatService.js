@@ -1,3 +1,6 @@
+// backend/services/chatService.js
+// ✅ VERSIÓN CORREGIDA: Sin encriptación + manejo robusto de errores
+
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
@@ -24,18 +27,22 @@ const validateMessageLimit = async (userId) => {
         const isPremium = userData.isPremium || false;
         const messageCount = userData.messageCount || 0;
 
+        console.log(`📊 Usuario ${userId}: isPremium=${isPremium}, messageCount=${messageCount}`);
+
         if (isPremium) return false;
         return messageCount >= FREE_MESSAGE_LIMIT;
 
     } catch (error) {
-        console.error('Error validando límite de mensajes:', error);
-        return true;
+        console.error('❌ Error validando límite de mensajes:', error);
+        return true; // Fallback seguro para limitar
     }
 };
 
 // ==================== OBTENER O CREAR CHAT ID ====================
 async function getOrCreateAIChatId(userId) {
     try {
+        console.log(`📋 Obteniendo/creando chat ID para usuario: ${userId}`);
+        
         const chatRef = db.collection('ai_chats').doc(userId);
         const doc = await chatRef.get();
 
@@ -46,10 +53,12 @@ async function getOrCreateAIChatId(userId) {
                 userName = userDoc.data().username.split(' ')[0];
             }
         } catch (error) {
-            console.warn(`[ChatService] No se pudo obtener nombre: ${error.message}`);
+            console.warn(`⚠️ No se pudo obtener nombre: ${error.message}`);
         }
 
         if (!doc.exists) {
+            console.log('📝 Creando nuevo chat de IA...');
+            
             const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
             
             await chatRef.set({
@@ -57,8 +66,9 @@ async function getOrCreateAIChatId(userId) {
                 patientId: userId,
                 chatType: 'ai_chat',
                 status: 'active',
-                lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
                 lastMessage: welcomeMessageContent, // ✅ TEXTO PLANO
+                lastSenderId: 'aurora',
             });
 
             const messagesCollection = chatRef.collection('messages');
@@ -72,50 +82,66 @@ async function getOrCreateAIChatId(userId) {
                 isWelcomeMessage: true,
             };
             await messagesCollection.add(welcomeMessage);
+            
+            console.log('✅ Chat de IA creado exitosamente');
         } else {
+            console.log('✅ Chat de IA ya existe, actualizando timestamp...');
             await chatRef.update({
-                lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
 
         return userId;
 
     } catch (error) {
+        console.error('❌ Error en getOrCreateAIChatId:', error);
         throw error;
     }
 }
 
-// ==================== PROCESAR MENSAJE DE USUARIO (SIN ENCRIPTACIÓN) ====================
+// ==================== PROCESAR MENSAJE DE USUARIO ====================
 async function processUserMessage(userId, plainMessage) { 
     const startTime = Date.now();
+    
     try {
+        console.log(`📨 Procesando mensaje de usuario ${userId}`);
+        console.log(`💬 Mensaje: "${plainMessage.substring(0, 50)}..."`);
+        
+        // 1. Validar límite
         const isLimitReached = await validateMessageLimit(userId);
         if (isLimitReached) {
             throw new Error("LIMIT_REACHED");
         }
 
+        // 2. Obtener/crear chat
         const chatId = userId;
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // ✅ GUARDAR mensaje del usuario en TEXTO PLANO
+        // 3. Guardar mensaje del usuario (texto plano)
+        console.log('💾 Guardando mensaje del usuario...');
         const userMessageData = {
             senderId: userId,
-            content: plainMessage, // ✅ SIN ENCRIPTAR
+            content: plainMessage, // ✅ TEXTO PLANO
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
         };
         await messagesCollection.add(userMessageData);
+        console.log('✅ Mensaje del usuario guardado');
         
-        // ✅ ACTUALIZAR documento principal con texto plano
-        await chatRef.update({
+        // 4. Actualizar documento principal (usar SET con merge por si no existe)
+        await chatRef.set({
             lastMessage: plainMessage, // ✅ TEXTO PLANO
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: userId,
-        });
+            patientId: userId,
+            chatType: 'ai_chat',
+            status: 'active',
+        }, { merge: true });
 
-        // Obtener respuesta de Gemini
+        // 5. Obtener respuesta de Gemini
+        console.log('🤖 Solicitando respuesta de Gemini...');
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),
@@ -129,10 +155,13 @@ async function processUserMessage(userId, plainMessage) {
         const aiResponseContent = await getGeminiChatResponse(messagesForGemini);
 
         if (!aiResponseContent || aiResponseContent.trim() === '') {
+            console.error('❌ Respuesta vacía de Gemini');
             throw new Error('Respuesta vacía de Gemini');
         }
 
-        // ✅ GUARDAR respuesta de IA en TEXTO PLANO
+        console.log(`✅ Respuesta de IA recibida: "${aiResponseContent.substring(0, 50)}..."`);
+
+        // 6. Guardar respuesta de IA (texto plano)
         const aiMessageData = {
             senderId: 'aurora',
             content: aiResponseContent, // ✅ TEXTO PLANO
@@ -141,37 +170,45 @@ async function processUserMessage(userId, plainMessage) {
             type: 'text',
         };
         await messagesCollection.add(aiMessageData);
+        console.log('✅ Respuesta de IA guardada');
         
-        // ✅ ACTUALIZAR documento principal con respuesta de IA
+        // 7. Actualizar documento principal con respuesta de IA
         await chatRef.update({
             lastMessage: aiResponseContent, // ✅ TEXTO PLANO
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: 'aurora',
         });
 
-        // Actualizar contador de mensajes
+        // 8. Actualizar contador de mensajes
         const userRef = db.collection('patients').doc(userId);
         await userRef.update({
             messageCount: admin.firestore.FieldValue.increment(1),
             lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
+        const processingTime = Date.now() - startTime;
+        console.log(`✅ Mensaje procesado exitosamente en ${processingTime}ms`);
+
         return aiResponseContent;
 
     } catch (error) {
         const processingTime = Date.now() - startTime;
-        console.error(`Error después de ${processingTime}ms:`, error.message);
+        console.error(`❌ Error después de ${processingTime}ms:`, error.message);
+        console.error('Stack trace:', error.stack);
 
         if (error.message === 'LIMIT_REACHED') {
             throw new Error("Has alcanzado tu límite de mensajes gratuitos. Actualiza a Premium para continuar.");
         }
+        
         throw error; 
     }
 }
 
-// ==================== CARGAR MENSAJES (SIN DESENCRIPTACIÓN) ====================
+// ==================== CARGAR MENSAJES ====================
 async function loadChatMessages(chatId) {
     try {
+        console.log(`📥 Cargando mensajes del chat: ${chatId}`);
+        
         const messagesCollection = db
             .collection('ai_chats')
             .doc(chatId)
@@ -181,9 +218,9 @@ async function loadChatMessages(chatId) {
             .orderBy('timestamp', 'asc')
             .get();
 
-        console.log(`[ChatService] 📥 Cargando ${snapshot.size} mensajes para chat: ${chatId}`);
+        console.log(`✅ ${snapshot.size} mensajes encontrados`);
 
-        // ✅ DEVOLVER mensajes tal como están (texto plano)
+        // ✅ Devolver mensajes en texto plano
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
 
@@ -200,11 +237,10 @@ async function loadChatMessages(chatId) {
         return messages;
 
     } catch (error) {
-        console.error('Error cargando mensajes:', error);
+        console.error('❌ Error cargando mensajes:', error);
         throw error;
     }
 }
-
 function getAuroraSystemPrompt() {
     return `# AURORA - Asistente Terapéutica de IA Especializada
 
