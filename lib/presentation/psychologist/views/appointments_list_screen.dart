@@ -13,6 +13,7 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/appointment_
 import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
+import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
 
 class AppointmentsListScreen extends StatefulWidget {
   final String psychologistId;
@@ -84,7 +85,17 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen>
             Icons.arrow_back,
             color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ⭐ CORRECCIÓN: Reemplazar pop por pushReplacement
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                // Navega directamente a la pantalla principal del psicólogo
+                // (asumiendo que quieres volver a la pestaña 'Home', índice 0)
+                builder: (context) => const PsychologistHomeScreen(), 
+              ),
+            );
+          }, // <-- CAMBIO AQUÍ
           onLongPress: _loadAppointments,
         ),
         title: Text(
