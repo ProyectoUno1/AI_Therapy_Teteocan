@@ -99,7 +99,7 @@ class ChatRepository {
     }
   }
 
-  // ============== CHAT CON HUMANOS ==============
+
 
   Future<void> sendHumanMessage({
     required String chatId,
@@ -108,12 +108,6 @@ class ChatRepository {
     required String content,
   }) async {
     try {
-      print('📤 Enviando mensaje humano...');
-      print('   - Chat ID: $chatId');
-      print('   - De: $senderId');
-      print('   - Para: $receiverId');
-      print('   - Contenido: ${content.substring(0, content.length > 30 ? 30 : content.length)}...');
-
       final url = Uri.parse('$_baseUrl/chats/messages');
       
       final response = await http.post(
@@ -123,7 +117,7 @@ class ChatRepository {
           'chatId': chatId,
           'senderId': senderId,
           'receiverId': receiverId,
-          'content': content, // ✅ TEXTO PLANO
+          'content': content, 
         }),
       );
 
@@ -134,27 +128,20 @@ class ChatRepository {
           final body = jsonDecode(response.body);
           errorMessage = body['error'] ?? errorMessage;
         } catch (_) {
-          // Respuesta HTML, usar mensaje por defecto
         }
         
         throw Exception(errorMessage);
       }
-      
-      print('✅ Mensaje enviado correctamente');
     } catch (e) {
-      print('❌ Error enviando mensaje humano: $e');
       rethrow;
     }
   }
 
   Future<List<MessageModel>> loadMessages(String chatId) async {
     try {
-      // Si es chat con IA, usar método específico
       if (chatId == _auth.currentUser?.uid || chatId.contains('ai')) {
         return await loadAIChatMessages();
       }
-
-      print('📥 Cargando mensajes del chat: $chatId');
 
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/$chatId/messages'),
@@ -163,18 +150,13 @@ class ChatRepository {
       
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(response.body);
-        print('✅ ${jsonList.length} mensajes recibidos del backend');
-        
-        // ✅ Los mensajes ya vienen en texto plano
+
         return jsonList.map((json) {
           final content = json['content'] ?? '';
           
-          print('📦 Mensaje ID: ${json['id']}');
-          print('   - Contenido: ${content.substring(0, content.length > 30 ? 30 : content.length)}...');
-          
           return MessageModel.fromJson({
             'id': json['id'] ?? '',
-            'text': content, // ✅ YA ES TEXTO PLANO
+            'text': content, 
             'isUser': json['senderId'] == _auth.currentUser?.uid,
             'senderId': json['senderId'] ?? '',
             'receiverId': json['receiverId'],
@@ -186,7 +168,7 @@ class ChatRepository {
         throw Exception('Error al cargar mensajes: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error cargando mensajes: $e');
+      print(' Error cargando mensajes: $e');
       rethrow;
     }
   }
@@ -213,15 +195,13 @@ class ChatRepository {
           final body = jsonDecode(response.body);
           errorMessage = body['error'] ?? errorMessage;
         } catch (_) {
-          // Captura FormatException si la respuesta es HTML
         }
         
         throw Exception(errorMessage);
       }
-      
-      print('✅ Mensajes marcados como leídos');
+
     } catch (e) {
-      print('❌ Error marcando mensajes como leídos: $e');
+      print('Error marcando mensajes como leídos: $e');
       rethrow;
     }
   }
@@ -239,10 +219,6 @@ class ChatRepository {
           .where('isRead', isEqualTo: false)
           .get();
 
-      if (messagesSnapshot.docs.isEmpty) {
-        print('ℹ️ No hay mensajes sin leer');
-        return;
-      }
 
       final batch = _firestore.batch();
       
@@ -251,15 +227,13 @@ class ChatRepository {
       }
       
       await batch.commit();
-      print('✅ ${messagesSnapshot.docs.length} mensajes marcados como leídos en Firestore');
     } catch (e) {
-      print('❌ Error en markMessagesAsReadFirestore: $e');
+      print('Error en markMessagesAsReadFirestore: $e');
     }
   }
 
   Future<String> getOrCreateChatId(String userId) async {
     try {
-      print('📋 Obteniendo/creando chat ID para usuario: $userId');
 
       final response = await http.get(
         Uri.parse('$_baseUrl/chats/ai-chat/chat-id'),
@@ -269,23 +243,18 @@ class ChatRepository {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final chatId = data['chatId'];
-        print('✅ Chat ID obtenido: $chatId');
         return chatId;
       } else {
         throw Exception('Fallo al obtener/crear el ID del chat de IA');
       }
     } catch (e) {
-      print('❌ Error al obtener el ID del chat de IA: $e');
       throw Exception('Error al obtener el ID del chat de IA: $e');
     }
   }
 
-  // ============== MÉTODOS DE LIMPIEZA (OPCIONAL) ==============
 
-  /// Elimina todos los mensajes de un chat (útil para desarrollo/testing)
   Future<void> clearChatMessages(String chatId) async {
     try {
-      print('🗑️ Eliminando mensajes del chat: $chatId');
 
       final url = Uri.parse('$_baseUrl/chats/$chatId/messages');
       
@@ -296,12 +265,10 @@ class ChatRepository {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('✅ ${data['count']} mensajes eliminados');
       } else {
         throw Exception('Error eliminando mensajes: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error eliminando mensajes: $e');
       rethrow;
     }
   }
