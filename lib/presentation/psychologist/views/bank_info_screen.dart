@@ -27,11 +27,9 @@ class _BankInfoScreenState extends State<BankInfoScreen>
 
   late TabController _tabController;
 
-  final TextEditingController _accountHolderController =
-      TextEditingController();
+  final TextEditingController _accountHolderController = TextEditingController();
   final TextEditingController _bankNameController = TextEditingController();
-  final TextEditingController _accountNumberController =
-      TextEditingController();
+  final TextEditingController _accountNumberController = TextEditingController();
   final TextEditingController _clabeController = TextEditingController();
   final TextEditingController _swiftController = TextEditingController();
 
@@ -150,10 +148,12 @@ class _BankInfoScreenState extends State<BankInfoScreen>
           title: const Text(
             'Información de Pagos',
             style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
           backgroundColor: accentColor,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
           bottom: TabBar(
@@ -165,14 +165,17 @@ class _BankInfoScreenState extends State<BankInfoScreen>
             labelStyle: const TextStyle(
               fontFamily: 'Poppins',
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontSize: 13,
             ),
             tabs: const [
               Tab(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                text: 'Datos Bancarios',
+                icon: Icon(Icons.account_balance_wallet_outlined, size: 18),
+                child: Text('Datos', overflow: TextOverflow.ellipsis, maxLines: 1),
               ),
-              Tab(icon: Icon(Icons.history), text: 'Historial'),
+              Tab(
+                icon: Icon(Icons.history, size: 18),
+                child: Text('Historial', overflow: TextOverflow.ellipsis, maxLines: 1),
+              ),
             ],
           ),
         ),
@@ -180,7 +183,6 @@ class _BankInfoScreenState extends State<BankInfoScreen>
           controller: _tabController,
           children: [_buildBankDataTab(), _buildPaymentHistoryTab()],
         ),
-        
       ),
     );
   }
@@ -193,177 +195,204 @@ class _BankInfoScreenState extends State<BankInfoScreen>
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Info banner
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: lightAccentColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: lightAccentColor.withOpacity(0.3)),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: accentColor, size: 24),
-                    const SizedBox(width: 12),
+                    Icon(Icons.info_outline, color: accentColor, size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Ingresa tus datos bancarios para recibir los pagos de tus consultas de forma segura.',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                           fontFamily: 'Poppins',
                         ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
+              
+              // Título sección
               Text(
                 'DATOS DE LA CUENTA',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: primaryColor,
                   letterSpacing: 0.8,
                   fontFamily: 'Poppins',
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+              
+              // Campos de texto
               _buildTextField(
                 controller: _accountHolderController,
                 label: 'Nombre del titular',
-                hint: 'Nombre completo como aparece en la cuenta',
+                hint: 'Nombre completo',
                 icon: Icons.person_outline,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildTextField(
                 controller: _bankNameController,
                 label: 'Nombre del banco',
-                hint: 'Ej: BBVA, Santander, Banorte',
+                hint: 'Ej: BBVA, Santander',
                 icon: Icons.account_balance,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              
+              // Tipo de cuenta
               Text(
                 'Tipo de cuenta',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: Colors.grey[600],
                   fontFamily: 'Poppins',
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
+              
+              // Selector de tipo de cuenta mejorado
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () =>
-                            setState(() => _selectedAccountType = 'checking'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedAccountType == 'checking'
-                                ? lightAccentColor
-                                : Colors.transparent,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              bottomLeft: Radius.circular(8),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.account_balance_wallet,
-                                size: 18,
-                                color: _selectedAccountType == 'checking'
-                                    ? Colors.white
-                                    : Colors.grey[600],
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      // Opción Corriente
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedAccountType = 'checking'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedAccountType == 'checking'
+                                  ? lightAccentColor
+                                  : Colors.transparent,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(7),
+                                bottomLeft: Radius.circular(7),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Corriente',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet,
+                                  size: 18,
                                   color: _selectedAccountType == 'checking'
                                       ? Colors.white
                                       : Colors.grey[600],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Corriente',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: _selectedAccountType == 'checking'
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.grey.shade300,
-                    ),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () =>
-                            setState(() => _selectedAccountType = 'savings'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedAccountType == 'savings'
-                                ? lightAccentColor
-                                : Colors.transparent,
-                            borderRadius: const BorderRadius.only(
-                              topRight: Radius.circular(8),
-                              bottomRight: Radius.circular(8),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.savings_outlined,
-                                size: 18,
-                                color: _selectedAccountType == 'savings'
-                                    ? Colors.white
-                                    : Colors.grey[600],
+                      
+                      // Divider
+                      Container(
+                        width: 1,
+                        color: Colors.grey.shade300,
+                      ),
+                      
+                      // Opción Ahorro
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedAccountType = 'savings'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: _selectedAccountType == 'savings'
+                                  ? lightAccentColor
+                                  : Colors.transparent,
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(7),
+                                bottomRight: Radius.circular(7),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Ahorro',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.savings_outlined,
+                                  size: 18,
                                   color: _selectedAccountType == 'savings'
                                       ? Colors.white
                                       : Colors.grey[600],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Ahorro',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: _selectedAccountType == 'savings'
+                                        ? Colors.white
+                                        : Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              
+              const SizedBox(height: 16),
               _buildTextField(
                 controller: _accountNumberController,
                 label: 'Número de cuenta',
-                hint: 'Ingresa tu número de cuenta',
+                hint: 'Número de cuenta',
                 icon: Icons.numbers,
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildTextField(
                 controller: _clabeController,
                 label: 'CLABE Interbancaria',
@@ -372,9 +401,11 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                 keyboardType: TextInputType.number,
                 maxLength: 18,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              
+              // Switch cuenta internacional
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(12),
@@ -384,8 +415,8 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.public, color: accentColor, size: 24),
-                    const SizedBox(width: 12),
+                    Icon(Icons.public, color: accentColor, size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,21 +424,23 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                           Text(
                             'Cuenta internacional',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
                               fontFamily: 'Poppins',
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Activa si tu cuenta es de otro país',
+                            'Activa si es de otro país',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: Colors.grey[600],
                               fontFamily: 'Poppins',
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -421,8 +454,9 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                   ],
                 ),
               ),
+              
               if (_hasInternationalAccount) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 _buildTextField(
                   controller: _swiftController,
                   label: 'Código SWIFT/BIC',
@@ -430,10 +464,13 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                   icon: Icons.code,
                 ),
               ],
-              const SizedBox(height: 40),
+              
+              const SizedBox(height: 32),
+              
+              // Botón guardar
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: state.status == BankInfoStatus.loading
                       ? null
@@ -448,47 +485,55 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                   ),
                   child: state.status == BankInfoStatus.loading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
                             color: Colors.white,
                             strokeWidth: 2,
                           ),
                         )
                       : const Text(
-                          'Guardar Información Bancaria',
+                          'Guardar Información',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             fontFamily: 'Poppins',
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
+              
+              const SizedBox(height: 14),
+              
+              // Mensaje de seguridad
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.green.shade200),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       Icons.lock_outline,
                       color: Colors.green.shade700,
-                      size: 20,
+                      size: 18,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Tus datos bancarios están protegidos con encriptación de alto nivel',
+                        'Tus datos están protegidos con encriptación de alto nivel',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Colors.green.shade700,
                           fontFamily: 'Poppins',
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -502,8 +547,6 @@ class _BankInfoScreenState extends State<BankInfoScreen>
     );
   }
 
-  // Reemplaza el método _buildPaymentHistoryTab en bank_info_screen.dart
-
   Widget _buildPaymentHistoryTab() {
     return BlocBuilder<BankInfoBloc, BankInfoState>(
       builder: (context, state) {
@@ -512,83 +555,121 @@ class _BankInfoScreenState extends State<BankInfoScreen>
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSummaryCard(
-                      title: 'Total Ganado',
-                      amount:
-                          '\$${state.totalEarned.toStringAsFixed(2)}', // ✅ Interpolación correcta
-                      icon: Icons.attach_money,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSummaryCard(
-                      title: 'Pendiente',
-                      amount:
-                          '\$${state.pendingAmount.toStringAsFixed(2)}', // ✅ Interpolación correcta
-                      icon: Icons.pending_outlined,
-                      color: Colors.orange,
-                    ),
-                  ),
-                ],
+              // Cards de resumen responsive
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 400) {
+                    return Column(
+                      children: [
+                        _buildSummaryCard(
+                          title: 'Total Ganado',
+                          amount: '\$${state.totalEarned.toStringAsFixed(2)}',
+                          icon: Icons.attach_money,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryCard(
+                          title: 'Pendiente',
+                          amount: '\$${state.pendingAmount.toStringAsFixed(2)}',
+                          icon: Icons.pending_outlined,
+                          color: Colors.orange,
+                        ),
+                      ],
+                    );
+                  }
+                  
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: 'Total Ganado',
+                          amount: '\$${state.totalEarned.toStringAsFixed(2)}',
+                          icon: Icons.attach_money,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          title: 'Pendiente',
+                          amount: '\$${state.pendingAmount.toStringAsFixed(2)}',
+                          icon: Icons.pending_outlined,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 24),
+              
+              const SizedBox(height: 20),
+              
+              // Header historial con filtro
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'HISTORIAL DE PAGOS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                      letterSpacing: 0.8,
-                      fontFamily: 'Poppins',
+                  Expanded(
+                    child: Text(
+                      'HISTORIAL DE PAGOS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                        letterSpacing: 0.8,
+                        fontFamily: 'Poppins',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.filter_list, color: accentColor),
+                    icon: Icon(Icons.filter_list, color: accentColor, size: 20),
                     onPressed: () => _showFilterDialog(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              
+              const SizedBox(height: 14),
+              
+              // Lista de pagos o estado vacío
               if (state.filteredPayments.isEmpty)
                 Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(48.0),
+                    padding: const EdgeInsets.all(40.0),
                     child: Column(
                       children: [
                         Icon(
                           Icons.receipt_long_outlined,
-                          size: 64,
+                          size: 56,
                           color: Colors.grey[400],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         Text(
                           'No hay pagos registrados',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             color: Colors.grey[600],
                             fontFamily: 'Poppins',
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Los pagos aparecerán aquí cuando se procesen',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: Colors.grey[500],
                             fontFamily: 'Poppins',
                           ),
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -599,8 +680,7 @@ class _BankInfoScreenState extends State<BankInfoScreen>
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: state.filteredPayments.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     return _buildPaymentCard(state.filteredPayments[index]);
                   },
@@ -613,8 +693,6 @@ class _BankInfoScreenState extends State<BankInfoScreen>
     );
   }
 
-  // Reemplaza el método _buildSummaryCard en bank_info_screen.dart
-
   Widget _buildSummaryCard({
     required String title,
     required String amount,
@@ -622,7 +700,7 @@ class _BankInfoScreenState extends State<BankInfoScreen>
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -633,29 +711,35 @@ class _BankInfoScreenState extends State<BankInfoScreen>
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: color, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: color.withOpacity(0.8),
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontFamily: 'Poppins',
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              amount,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontFamily: 'Poppins',
+              ),
             ),
           ),
         ],
@@ -664,138 +748,135 @@ class _BankInfoScreenState extends State<BankInfoScreen>
   }
 
   Widget _buildPaymentCard(PaymentModel payment) {
-  final bool isCompleted = payment.status == 'completed';
-  final Color statusColor = isCompleted ? Colors.green : Colors.orange;
+    final bool isCompleted = payment.status == 'completed';
+    final Color statusColor = isCompleted ? Colors.green : Colors.orange;
 
-  return InkWell(
-    onTap: () => _showPaymentDetailsDialog(context, payment),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isCompleted ? Icons.check_circle : Icons.schedule,
-                  color: statusColor,
-                  size: 20,
-                ),
+    return InkWell(
+      onTap: () => _showPaymentDetailsDialog(context, payment),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icono de estado
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      payment.patientName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontFamily: 'Poppins',
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.event_note, size: 12, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            '${payment.sessions} sesión${payment.sessions > 1 ? 'es' : ''}',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600], fontFamily: 'Poppins'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            _formatDate(payment.date),
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600], fontFamily: 'Poppins'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              child: Icon(
+                isCompleted ? Icons.check_circle : Icons.schedule,
+                color: statusColor,
+                size: 18,
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            
+            const SizedBox(width: 10),
+            
+            // Información del paciente (flexible)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Nombre del paciente
                   Text(
+                    payment.patientName,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                      fontFamily: 'Poppins',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  
+                  const SizedBox(height: 3),
+                  
+                  // Sesiones (sin icono)
+                  Text(
+                    '${payment.sessions} sesión${payment.sessions > 1 ? 'es' : ''}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[600],
+                      fontFamily: 'Poppins',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  
+                  const SizedBox(height: 2),
+                  
+                  // Fecha (sin icono)
+                  Text(
+                    _formatDate(payment.date),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[600],
+                      fontFamily: 'Poppins',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(width: 8),
+            
+            // Monto y estado (ancho fijo)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
                     '\$${payment.amount.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).textTheme.bodyMedium?.color,
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      isCompleted ? 'Pagado' : 'Pendiente',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                      ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isCompleted ? 'Pagado' : 'Pendiente',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-        ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatDate(DateTime date) {
     final months = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -814,30 +895,32 @@ class _BankInfoScreenState extends State<BankInfoScreen>
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: Colors.grey[600],
             fontFamily: 'Poppins',
             fontWeight: FontWeight.w500,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: keyboardType,
           maxLength: maxLength,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             color: Theme.of(context).textTheme.bodyMedium?.color,
             fontFamily: 'Poppins',
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-            prefixIcon: Icon(icon, color: accentColor, size: 20),
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+            prefixIcon: Icon(icon, color: accentColor, size: 18),
             counterText: '',
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
+              horizontal: 14,
+              vertical: 12,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -858,187 +941,249 @@ class _BankInfoScreenState extends State<BankInfoScreen>
   }
 
   void _showPaymentDetailsDialog(BuildContext context, PaymentModel payment) {
-  final bool isCompleted = payment.status == 'completed';
+    final bool isCompleted = payment.status == 'completed';
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Detalles del Pago',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow('Psicólogo:', payment.psychologistName),
-              _buildDetailRow('Email:', payment.psychologistEmail),
-              const Divider(height: 24),
-              _buildDetailRow('Fecha de pago:', _formatDate(payment.paidAt)),
-              _buildDetailRow('Fecha de registro:', _formatDate(payment.registeredAt)),
-              _buildDetailRow('Sesiones:', '${payment.sessions}'),
-              const Divider(height: 24),
-              _buildDetailRow('Monto:', '\$${payment.amount.toStringAsFixed(2)}'),
-              _buildDetailRow('Monto calculado:', '\$${payment.calculatedAmount.toStringAsFixed(2)}'),
-              _buildDetailRowFlexible('Método de pago:', _getPaymentMethodName(payment.paymentMethod)),  // ✅ Cambiado
-              _buildDetailRow('Referencia:', payment.reference),
-              _buildDetailRow('Estado:', isCompleted ? 'Completado' : 'Pendiente'),
-              
-              if (payment.bankInfo != null) ...[
-                const Divider(height: 24),
-                Text(
-                  'Información Bancaria',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildDetailRow('Titular:', payment.bankInfo!.accountHolder),
-                _buildDetailRow('Banco:', payment.bankInfo!.bankName),
-                _buildDetailRow('CLABE:', payment.bankInfo!.clabe),
-              ],
-
-              if (payment.notes.isNotEmpty) ...[
-                const Divider(height: 24),
-                Text(
-                  'Notas:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  payment.notes,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isCompleted ? Colors.green.shade50 : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      isCompleted ? Icons.check_circle : Icons.info_outline,
-                      color: isCompleted ? Colors.green : Colors.orange,
-                      size: 20,
+                    // Título
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Detalles del Pago',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        isCompleted
-                            ? 'El pago fue transferido a tu cuenta'
-                            : 'El pago se procesará en 2-3 días hábiles',
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Información básica
+                    _buildDetailRow('Psicólogo:', payment.psychologistName),
+                    _buildDetailRow('Email:', payment.psychologistEmail),
+                    
+                    const Divider(height: 20),
+                    
+                    // Fechas y sesiones
+                    _buildDetailRow('Fecha de pago:', _formatDate(payment.paidAt)),
+                    _buildDetailRow('Fecha de registro:', _formatDate(payment.registeredAt)),
+                    _buildDetailRow('Sesiones:', '${payment.sessions}'),
+                    
+                    const Divider(height: 20),
+                    
+                    // Montos y método
+                    _buildDetailRow('Monto:', '\${payment.amount.toStringAsFixed(2)}'),
+                    _buildDetailRow('Monto calculado:', '\${payment.calculatedAmount.toStringAsFixed(2)}'),
+                    _buildDetailRowWrapped('Método:', _getPaymentMethodName(payment.paymentMethod)),
+                    _buildDetailRow('Referencia:', payment.reference),
+                    _buildDetailRow('Estado:', isCompleted ? 'Completado' : 'Pendiente'),
+                    
+                    // Información bancaria
+                    if (payment.bankInfo != null) ...[
+                      const Divider(height: 20),
+                      Text(
+                        'Información Bancaria',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: isCompleted ? Colors.green.shade700 : Colors.orange.shade700,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
                           fontFamily: 'Poppins',
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Titular:', payment.bankInfo!.accountHolder),
+                      _buildDetailRow('Banco:', payment.bankInfo!.bankName),
+                      _buildDetailRow('CLABE:', payment.bankInfo!.clabe),
+                    ],
+
+                    // Notas
+                    if (payment.notes.isNotEmpty) ...[
+                      const Divider(height: 20),
+                      Text(
+                        'Notas:',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[700],
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        payment.notes,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                          fontFamily: 'Poppins',
+                        ),
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
+                    
+                    // Banner de estado
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isCompleted ? Colors.green.shade50 : Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            isCompleted ? Icons.check_circle : Icons.info_outline,
+                            color: isCompleted ? Colors.green : Colors.orange,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isCompleted
+                                  ? 'El pago fue transferido a tu cuenta'
+                                  : 'El pago se procesará en 2-3 días hábiles',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isCompleted ? Colors.green.shade700 : Colors.orange.shade700,
+                                fontFamily: 'Poppins',
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
+                    // Botón de comprobante
+                    if (payment.receipt != null) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showReceiptDialog(context, payment.receipt!),
+                          icon: const Icon(Icons.receipt_long, size: 16),
+                          label: const Text(
+                            'Ver comprobante',
+                            style: TextStyle(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: lightAccentColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-
-              if (payment.receipt != null) ...[
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showReceiptDialog(context, payment.receipt!),
-                  icon: const Icon(Icons.receipt_long),
-                  label: const Text('Ver comprobante'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: lightAccentColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cerrar', style: TextStyle(color: accentColor, fontFamily: 'Poppins')),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+                fontFamily: 'Poppins',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
-      );
-    },
-  );
-}
+      ),
+    );
+  }
 
-// ✅ Nuevo método para filas con texto flexible
-Widget _buildDetailRowFlexible(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label, 
-          style: TextStyle(
-            fontSize: 14, 
-            color: Colors.grey[600], 
-            fontFamily: 'Poppins',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            value, 
-            style: const TextStyle(
-              fontSize: 14, 
-              fontWeight: FontWeight.w600, 
+  Widget _buildDetailRowWrapped(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
               fontFamily: 'Poppins',
             ),
-            textAlign: TextAlign.right,
-            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
             maxLines: 2,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-Widget _buildDetailRow(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600], fontFamily: 'Poppins')),
-        Flexible(
-          child: Text(
-            value, 
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, fontFamily: 'Poppins'),
-            textAlign: TextAlign.right,
             overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   String _getPaymentMethodName(String method) {
     switch (method) {
@@ -1053,185 +1198,211 @@ Widget _buildDetailRow(String label, String value) {
     }
   }
 
- void _showReceiptDialog(BuildContext context, ReceiptData receipt) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Comprobante de Pago',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (receipt.base64.isNotEmpty)
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      base64Decode(receipt.base64.split(',').last),
-                      height: 300,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              _buildReceiptDetailRow('Archivo:', receipt.fileName),
-              _buildReceiptDetailRow('Tamaño:', '${(receipt.fileSize / 1024).toStringAsFixed(2)} KB'),
-              _buildReceiptDetailRow('Tipo:', receipt.fileType),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cerrar', style: TextStyle(color: accentColor, fontFamily: 'Poppins')),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-// ✅ Nuevo método específico para el diálogo de comprobante
-Widget _buildReceiptDetailRow(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    ),
-  );
-}
- 
-
-  void _showFilterDialog(BuildContext context) {
+  void _showReceiptDialog(BuildContext context, ReceiptData receipt) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Filtrar Pagos',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Título
+                    Row(
+                      children: [
+                        Expanded(
+                          child: const Text(
+                            'Comprobante de Pago',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 14),
+                    
+                    // Imagen del comprobante
+                    if (receipt.base64.isNotEmpty)
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            base64Decode(receipt.base64.split(',').last),
+                            height: 280,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 14),
+                    
+                    // Detalles del archivo
+                    _buildReceiptDetailRow('Archivo:', receipt.fileName),
+                    _buildReceiptDetailRow('Tamaño:', '${(receipt.fileSize / 1024).toStringAsFixed(2)} KB'),
+                    _buildReceiptDetailRow('Tipo:', receipt.fileType),
+                  ],
+                ),
+              ),
             ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.all_inclusive),
-                title: const Text(
-                  'Todos',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                ),
-                onTap: () {
-                  context.read<BankInfoBloc>().add(const FilterPayments('all'));
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.check_circle, color: Colors.green[600]),
-                title: const Text(
-                  'Completados',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                ),
-                onTap: () {
-                  context.read<BankInfoBloc>().add(
-                    const FilterPayments('completed'),
-                  );
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.pending, color: Colors.orange[600]),
-                title: const Text(
-                  'Pendientes',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                ),
-                onTap: () {
-                  context.read<BankInfoBloc>().add(
-                    const FilterPayments('pending'),
-                  );
-                  Navigator.pop(context);
-                },
-              ),
-            ],
           ),
         );
       },
     );
   }
 
-  void _showHelpDialog(BuildContext context) {
+  Widget _buildReceiptDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            'Ayuda - Información de Pagos',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filtrar Pagos',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                
+                // Opción: Todos
+                InkWell(
+                  onTap: () {
+                    context.read<BankInfoBloc>().add(const FilterPayments('all'));
+                    Navigator.pop(context);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.all_inclusive, size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Todos',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Opción: Completados
+                InkWell(
+                  onTap: () {
+                    context.read<BankInfoBloc>().add(const FilterPayments('completed'));
+                    Navigator.pop(context);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green[600], size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Completados',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Opción: Pendientes
+                InkWell(
+                  onTap: () {
+                    context.read<BankInfoBloc>().add(const FilterPayments('pending'));
+                    Navigator.pop(context);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.pending, color: Colors.orange[600], size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Pendientes',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          content: const SingleChildScrollView(
-            child: Text(
-              'DATOS BANCARIOS:\n'
-              'Aquí puedes registrar tus datos bancarios para recibir los pagos de tus consultas.\n\n'
-              '• Titular: Nombre completo del dueño de la cuenta\n'
-              '• CLABE: Número de 18 dígitos para transferencias\n'
-              '• Cuenta internacional: Activa si tu banco está fuera de México\n'
-              '• SWIFT/BIC: Código internacional del banco\n\n'
-              'HISTORIAL:\n'
-              'Visualiza todos los pagos recibidos y pendientes.\n\n'
-              '• Pagos completados: Transferidos a tu cuenta\n'
-              '• Pagos pendientes: Se procesarán en 2-3 días hábiles\n\n'
-              'Tus datos están protegidos y encriptados.',
-              style: TextStyle(fontFamily: 'Poppins'),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Entendido',
-                style: TextStyle(color: accentColor, fontFamily: 'Poppins'),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
         );
       },
     );

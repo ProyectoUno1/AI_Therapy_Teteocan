@@ -22,6 +22,12 @@ import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/widgets/article_limit_card.dart';
 import 'package:ai_therapy_teteocan/data/models/article_limit_info.dart';
 
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
+
 class PsychologistHomeContent extends StatefulWidget {
   const PsychologistHomeContent({super.key});
 
@@ -46,10 +52,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
     }
   }
 
-  // ============================================
-  // MÉTODOS AUXILIARES PARA RESPONSIVIDAD
-  // ============================================
-  
   EdgeInsets _getResponsivePadding(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < 360) {
@@ -64,20 +66,14 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
   }
 
   double _getResponsiveFontSize(BuildContext context, double baseSize) {
-    final textScaleFactor = MediaQuery.of(context).textScaleFactor;
     final width = MediaQuery.of(context).size.width;
-    
     double scaledSize = baseSize;
-    
     if (width < 360) {
       scaledSize = baseSize * 0.9;
     } else if (width > 900) {
       scaledSize = baseSize * 1.05;
     }
-    
-    final limitedScale = textScaleFactor.clamp(0.8, 1.3);
-    
-    return scaledSize * limitedScale;
+    return scaledSize;
   }
 
   double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
@@ -99,122 +95,123 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
     return baseSize;
   }
 
-  // ============================================
-  // DIÁLOGOS Y MODALES
-  // ============================================
-
   void _showArticleLimitDialog(BuildContext context, ArticleLimitInfo limitInfo) {
     final screenWidth = MediaQuery.of(context).size.width;
     
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: _getConstrainedTextScaleFactor(context),
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(screenWidth < 360 ? 6 : 8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(screenWidth < 360 ? 6 : 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: _getResponsiveIconSize(context, 28),
+                  ),
                 ),
-                child: Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: _getResponsiveIconSize(context, 28),
+                SizedBox(width: _getResponsiveSpacing(context, 12)),
+                Expanded(
+                  child: Text(
+                    'Límite alcanzado',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: _getResponsiveFontSize(context, 18),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Has alcanzado el límite de ${limitInfo.maxLimit} artículos activos.',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: _getResponsiveFontSize(context, 14),
+                    ),
+                  ),
+                  SizedBox(height: _getResponsiveSpacing(context, 16)),
+                  Container(
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
+                    decoration: BoxDecoration(
+                      color: AppConstants.secondaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppConstants.secondaryColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline,
+                              size: _getResponsiveIconSize(context, 20),
+                              color: AppConstants.secondaryColor,
+                            ),
+                            SizedBox(width: _getResponsiveSpacing(context, 8)),
+                            Expanded(
+                              child: Text(
+                                'Para crear un nuevo artículo:',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: _getResponsiveFontSize(context, 13),
+                                  fontWeight: FontWeight.w600,
+                                  color: AppConstants.secondaryColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: _getResponsiveSpacing(context, 8)),
+                        Text(
+                          '• Elimina artículos antiguos\n• Archiva borradores no utilizados',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: _getResponsiveFontSize(context, 12),
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: _getResponsiveSpacing(context, 12)),
-              Expanded(
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: Text(
-                  'Límite alcanzado',
+                  'Entendido',
                   style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: _getResponsiveFontSize(context, 18),
-                    fontWeight: FontWeight.bold,
+                    color: AppConstants.secondaryColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: _getResponsiveFontSize(context, 14),
                   ),
                 ),
               ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Has alcanzado el límite de ${limitInfo.maxLimit} artículos activos.',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: _getResponsiveFontSize(context, 14),
-                  ),
-                ),
-                SizedBox(height: _getResponsiveSpacing(context, 16)),
-                Container(
-                  padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
-                  decoration: BoxDecoration(
-                    color: AppConstants.secondaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppConstants.secondaryColor.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline,
-                            size: _getResponsiveIconSize(context, 20),
-                            color: AppConstants.secondaryColor,
-                          ),
-                          SizedBox(width: _getResponsiveSpacing(context, 8)),
-                          Expanded(
-                            child: Text(
-                              'Para crear un nuevo artículo:',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: _getResponsiveFontSize(context, 13),
-                                fontWeight: FontWeight.w600,
-                                color: AppConstants.secondaryColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: _getResponsiveSpacing(context, 8)),
-                      Text(
-                        '• Elimina artículos antiguos\n• Archiva borradores no utilizados',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: _getResponsiveFontSize(context, 12),
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Entendido',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: AppConstants.secondaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: _getResponsiveFontSize(context, 14),
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -231,250 +228,253 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext bottomSheetContext) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: _getConstrainedTextScaleFactor(context),
           ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: _getResponsivePadding(context),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: _getResponsivePadding(context),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: _getResponsiveSpacing(context, 20)),
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(_getResponsiveSpacing(context, 10)),
-                        decoration: BoxDecoration(
-                          color: AppConstants.secondaryColor.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.analytics_outlined,
-                          color: AppConstants.secondaryColor,
-                          size: _getResponsiveIconSize(context, 24),
-                        ),
-                      ),
-                      SizedBox(width: _getResponsiveSpacing(context, 12)),
-                      Expanded(
-                        child: Text(
-                          'Límite de Artículos',
-                          style: TextStyle(
-                            fontSize: _getResponsiveFontSize(context, 20),
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
+                    SizedBox(height: _getResponsiveSpacing(context, 20)),
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(_getResponsiveSpacing(context, 10)),
+                          decoration: BoxDecoration(
+                            color: AppConstants.secondaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.analytics_outlined,
+                            color: AppConstants.secondaryColor,
+                            size: _getResponsiveIconSize(context, 24),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: _getResponsiveSpacing(context, 24)),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isCompact = screenWidth < 600;
-                      
-                      if (isCompact) {
-                        return Column(
-                          children: [
-                            _StatCard(
-                              label: 'Publicados',
-                              value: '${limitInfo.currentCount}',
-                              icon: Icons.article,
-                              color: AppConstants.secondaryColor,
+                        SizedBox(width: _getResponsiveSpacing(context, 12)),
+                        Expanded(
+                          child: Text(
+                            'Límite de Artículos',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 20),
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Poppins',
                             ),
-                            SizedBox(height: _getResponsiveSpacing(context, 12)),
-                            _StatCard(
-                              label: 'Disponibles',
-                              value: '${limitInfo.remaining}',
-                              icon: Icons.add_circle_outline,
-                              color: Colors.green,
-                            ),
-                            SizedBox(height: _getResponsiveSpacing(context, 12)),
-                            _StatCard(
-                              label: 'Límite Total',
-                              value: '${limitInfo.maxLimit}',
-                              icon: Icons.workspace_premium,
-                              color: Colors.orange,
-                            ),
-                          ],
-                        );
-                      } else {
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: _StatCard(
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = screenWidth < 600;
+                        
+                        if (isCompact) {
+                          return Column(
+                            children: [
+                              _StatCard(
                                 label: 'Publicados',
                                 value: '${limitInfo.currentCount}',
                                 icon: Icons.article,
                                 color: AppConstants.secondaryColor,
                               ),
-                            ),
-                            SizedBox(width: _getResponsiveSpacing(context, 12)),
-                            Expanded(
-                              child: _StatCard(
+                              SizedBox(height: _getResponsiveSpacing(context, 12)),
+                              _StatCard(
                                 label: 'Disponibles',
                                 value: '${limitInfo.remaining}',
                                 icon: Icons.add_circle_outline,
                                 color: Colors.green,
                               ),
-                            ),
-                            SizedBox(width: _getResponsiveSpacing(context, 12)),
-                            Expanded(
-                              child: _StatCard(
+                              SizedBox(height: _getResponsiveSpacing(context, 12)),
+                              _StatCard(
                                 label: 'Límite Total',
                                 value: '${limitInfo.maxLimit}',
                                 icon: Icons.workspace_premium,
                                 color: Colors.orange,
                               ),
-                            ),
-                          ],
-                        );
-                      }
-                    },
-                  ),
-                  SizedBox(height: _getResponsiveSpacing(context, 24)),
-                  Container(
-                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Uso actual',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 14),
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'Poppins',
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '${limitInfo.percentage}%',
-                              style: TextStyle(
-                                fontSize: _getResponsiveFontSize(context, 18),
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                                color: _getLimitColor(limitInfo.percentage),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: _getResponsiveSpacing(context, 12)),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: limitInfo.percentage / 100,
-                            minHeight: 10,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _getLimitColor(limitInfo.percentage),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: _getResponsiveSpacing(context, 24)),
-                  Container(
-                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
-                    decoration: BoxDecoration(
-                      color: AppConstants.secondaryColor.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppConstants.secondaryColor.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: _getResponsiveIconSize(context, 20),
-                              color: AppConstants.secondaryColor,
-                            ),
-                            SizedBox(width: _getResponsiveSpacing(context, 8)),
-                            Expanded(
-                              child: Text(
-                                '¿Por qué hay un límite?',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 14),
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'Poppins',
+                            ],
+                          );
+                        } else {
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _StatCard(
+                                  label: 'Publicados',
+                                  value: '${limitInfo.currentCount}',
+                                  icon: Icons.article,
                                   color: AppConstants.secondaryColor,
                                 ),
                               ),
+                              SizedBox(width: _getResponsiveSpacing(context, 12)),
+                              Expanded(
+                                child: _StatCard(
+                                  label: 'Disponibles',
+                                  value: '${limitInfo.remaining}',
+                                  icon: Icons.add_circle_outline,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              SizedBox(width: _getResponsiveSpacing(context, 12)),
+                              Expanded(
+                                child: _StatCard(
+                                  label: 'Límite Total',
+                                  value: '${limitInfo.maxLimit}',
+                                  icon: Icons.workspace_premium,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+                    Container(
+                      padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Uso actual',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(context, 14),
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Poppins',
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${limitInfo.percentage}%',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 18),
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Poppins',
+                                  color: _getLimitColor(limitInfo.percentage),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 12)),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: limitInfo.percentage / 100,
+                              minHeight: 10,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _getLimitColor(limitInfo.percentage),
+                              ),
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+                    Container(
+                      padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                      decoration: BoxDecoration(
+                        color: AppConstants.secondaryColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppConstants.secondaryColor.withOpacity(0.2),
                         ),
-                        SizedBox(height: _getResponsiveSpacing(context, 8)),
-                        Text(
-                          'El límite de artículos ayuda a mantener contenido de calidad y relevante. '
-                          'Puedes eliminar artículos antiguos para crear nuevos.',
-                          style: TextStyle(
-                            fontSize: _getResponsiveFontSize(context, 12),
-                            fontFamily: 'Poppins',
-                            color: Colors.grey[700],
-                            height: 1.4,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: _getResponsiveIconSize(context, 20),
+                                color: AppConstants.secondaryColor,
+                              ),
+                              SizedBox(width: _getResponsiveSpacing(context, 8)),
+                              Expanded(
+                                child: Text(
+                                  '¿Por qué hay un límite?',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(context, 14),
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Poppins',
+                                    color: AppConstants.secondaryColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
+                          Text(
+                            'El límite de artículos ayuda a mantener contenido de calidad y relevante. '
+                            'Puedes eliminar artículos antiguos para crear nuevos.',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 12),
+                              fontFamily: 'Poppins',
+                              color: Colors.grey[700],
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(bottomSheetContext),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.secondaryColor,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            vertical: _getResponsiveSpacing(context, 16),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: _getResponsiveSpacing(context, 24)),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(bottomSheetContext);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.secondaryColor,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          vertical: _getResponsiveSpacing(context, 16),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Entendido',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: _getResponsiveFontSize(context, 16),
+                        child: Text(
+                          'Entendido',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600,
+                            fontSize: _getResponsiveFontSize(context, 16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
-                ],
+                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                  ],
+                ),
               ),
             ),
           ),
@@ -530,263 +530,222 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
       }
     }
   }
-// ============================================
-  // BUILD PRINCIPAL
-  // ============================================
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final screenWidth = mediaQuery.size.width;
-    final responsivePadding = _getResponsivePadding(context);
-    
-    return RefreshIndicator(
-      onRefresh: () async {
-        final String? psychologistId = context
-            .read<AuthBloc>()
-            .state
-            .psychologist
-            ?.uid;
-        if (psychologistId != null) {
-          context.read<ArticleBloc>().add(const LoadArticles());
-          context.read<DashboardBloc>().add(RefreshDashboard(psychologistId));
-        }
-      },
-      child: SingleChildScrollView(
-        padding: responsivePadding,
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ============================================
-            // SECCIÓN: RESUMEN DE HOY
-            // ============================================
-            BlocBuilder<DashboardBloc, DashboardState>(
-              builder: (context, dashboardState) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader(
-                      context,
-                      'Resumen de hoy',
-                      suffixWidget: Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: _getResponsiveIconSize(context, 14),
-                              color: AppConstants.secondaryColor,
-                            ),
-                            SizedBox(width: _getResponsiveSpacing(context, 4)),
-                            Flexible(
-                              child: Text(
-                                '${dashboardState.weekSessions} sesiones esta semana',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 12),
-                                  color: AppConstants.secondaryColor,
-                                  fontFamily: 'Poppins',
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: _getResponsiveSpacing(context, 8)),
-
-                    if (dashboardState.status == DashboardStatus.loading)
-                      Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(_getResponsiveSpacing(context, 32)),
-                          child: const CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (dashboardState.todaySessions.isEmpty)
-                      _buildEmptyTodaySessionsCard(context)
-                    else
-                      ...dashboardState.todaySessions
-                          .map((appointment) => _SessionCard(appointment: appointment))
-                          .toList(),
-                  ],
-                );
-              },
-            ),
-            SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-            // ============================================
-            // SECCIÓN: TU HORARIO
-            // ============================================
-            _buildSectionHeader(
-              context,
-              'Tu horario',
-              suffixWidget: CircleAvatar(
-                backgroundColor: AppConstants.secondaryColor,
-                radius: _getResponsiveIconSize(context, 16),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: _getResponsiveIconSize(context, 18),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Función de agregar sesión próximamente'),
-                      ),
-                    );
-                  },
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tight(
-                    Size(
-                      _getResponsiveIconSize(context, 32),
-                      _getResponsiveIconSize(context, 32),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: _getResponsiveSpacing(context, 8)),
-            _buildScheduleCalendar(),
-            SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-            // ============================================
-            // SECCIÓN: NOTAS Y SESIONES RECIENTES
-            // ============================================
-            BlocBuilder<DashboardBloc, DashboardState>(
-              builder: (context, dashboardState) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader(
-                      context,
-                      'Notas y sesiones recientes',
-                      suffixText: screenWidth > 600 ? 'Ver todas' : null,
-                      onTapSuffix: () {},
-                    ),
-                    SizedBox(height: _getResponsiveSpacing(context, 8)),
-
-                    if (dashboardState.recentSessions.isEmpty)
-                      _buildEmptyRecentSessionsCard(context)
-                    else
-                      ...dashboardState.recentSessions
-                          .map((appointment) => _NoteSessionCard(appointment: appointment))
-                          .toList(),
-                  ],
-                );
-              },
-            ),
-            SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-            // ============================================
-            // SECCIÓN: DISPONIBILIDAD
-            // ============================================
-            _buildSectionHeader(context, 'Disponibilidad'),
-            SizedBox(height: _getResponsiveSpacing(context, 8)),
-            _buildAvailabilityCard(),
-            SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-            // ============================================
-            // SECCIÓN: TUS ARTÍCULOS
-            // ============================================
-            BlocBuilder<ArticleBloc, ArticleState>(
-              builder: (context, state) {
-                final limitInfo = state is ArticlesLoaded ? state.limitInfo : null;
-                final canCreate = limitInfo?.canCreateMore ?? true;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader(
-                      context,
-                      'Tus artículos',
-                      suffixWidget: Row(
-                        mainAxisSize: MainAxisSize.min,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: Builder(
+        builder: (context) {
+          final responsivePadding = _getResponsivePadding(context);
+          
+          return RefreshIndicator(
+            onRefresh: () async {
+              final String? psychologistId = context
+                  .read<AuthBloc>()
+                  .state
+                  .psychologist
+                  ?.uid;
+              if (psychologistId != null) {
+                context.read<ArticleBloc>().add(const LoadArticles());
+                context.read<DashboardBloc>().add(RefreshDashboard(psychologistId));
+              }
+            },
+            child: SingleChildScrollView(
+              padding: responsivePadding,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BlocBuilder<DashboardBloc, DashboardState>(
+                    builder: (context, dashboardState) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (limitInfo != null) 
-                            ArticleLimitBadge(limitInfo: limitInfo),
-                          SizedBox(width: _getResponsiveSpacing(context, 8)),
-                          CircleAvatar(
-                            backgroundColor: canCreate
-                                ? AppConstants.secondaryColor
-                                : Colors.grey[400],
-                            radius: _getResponsiveIconSize(context, 16),
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: _getResponsiveIconSize(context, 18),
-                              ),
-                              onPressed: canCreate
-                                  ? () {
-                                      final String? currentUserId =
-                                          FirebaseAuth.instance.currentUser?.uid;
-                                      if (currentUserId != null) {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => AddArticleScreen(
-                                              psychologistId: currentUserId,
-                                            ),
-                                          ),
-                                        ).then((_) {
-                                          context.read<ArticleBloc>().add(
-                                            const LoadArticles(),
-                                          );
-                                        });
-                                      }
-                                    }
-                                  : () {
-                                      if (limitInfo != null) {
-                                        _showArticleLimitDialog(context, limitInfo);
-                                      }
-                                    },
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints.tight(
-                                Size(
-                                  _getResponsiveIconSize(context, 32),
-                                  _getResponsiveIconSize(context, 32),
-                                ),
+                          _buildSectionHeader(
+                            context,
+                            'Resumen de hoy',
+                            suffixWidget: Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: _getResponsiveIconSize(context, 14),
+                                    color: AppConstants.secondaryColor,
+                                  ),
+                                  SizedBox(width: _getResponsiveSpacing(context, 4)),
+                                  Flexible(
+                                    child: Text(
+                                      '${dashboardState.weekSessions} sesiones esta semana',
+                                      style: TextStyle(
+                                        fontSize: _getResponsiveFontSize(context, 12),
+                                        color: AppConstants.secondaryColor,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: _getResponsiveSpacing(context, 8)),
-                    if (limitInfo != null)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: _getResponsiveSpacing(context, 8),
-                        ),
-                        child: ArticleLimitCard(
-                          limitInfo: limitInfo,
-                          onTapDetails: () {
-                            _showArticleLimitDetailsBottomSheet(context, limitInfo);
-                          },
-                        ),
-                      ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
 
-                    _buildArticlesList(),
-                  ],
-                );
-              },
+                          if (dashboardState.status == DashboardStatus.loading)
+                            Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(_getResponsiveSpacing(context, 32)),
+                                child: const CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (dashboardState.todaySessions.isEmpty)
+                            _buildEmptyTodaySessionsCard(context)
+                          else
+                            ...dashboardState.todaySessions
+                                .map((appointment) => _SessionCard(appointment: appointment))
+                                .toList(),
+                        ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                  _buildSectionHeader(
+                    context,
+                    'Tu horario',
+                    
+                  ),
+                  SizedBox(height: _getResponsiveSpacing(context, 8)),
+                  _buildScheduleCalendar(),
+                  SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                  BlocBuilder<DashboardBloc, DashboardState>(
+                    builder: (context, dashboardState) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(
+                            context,
+                            'Notas y sesiones recientes',
+                            suffixText: MediaQuery.of(context).size.width > 600 ? 'Ver todas' : null,
+                            onTapSuffix: () {},
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
+
+                          if (dashboardState.recentSessions.isEmpty)
+                            _buildEmptyRecentSessionsCard(context)
+                          else
+                            ...dashboardState.recentSessions
+                                .map((appointment) => _NoteSessionCard(appointment: appointment))
+                                .toList(),
+                        ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                  _buildSectionHeader(context, 'Disponibilidad'),
+                  SizedBox(height: _getResponsiveSpacing(context, 8)),
+                  _buildAvailabilityCard(),
+                  SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                  BlocBuilder<ArticleBloc, ArticleState>(
+                    builder: (context, state) {
+                      final limitInfo = state is ArticlesLoaded ? state.limitInfo : null;
+                      final canCreate = limitInfo?.canCreateMore ?? true;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(
+                            context,
+                            'Tus artículos',
+                            suffixWidget: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (limitInfo != null) 
+                                  ArticleLimitBadge(limitInfo: limitInfo),
+                                SizedBox(width: _getResponsiveSpacing(context, 8)),
+                                CircleAvatar(
+                                  backgroundColor: canCreate
+                                      ? AppConstants.secondaryColor
+                                      : Colors.grey[400],
+                                  radius: _getResponsiveIconSize(context, 16),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.add,
+                                      color: Colors.white,
+                                      size: _getResponsiveIconSize(context, 18),
+                                    ),
+                                    onPressed: canCreate
+                                        ? () {
+                                            final String? currentUserId =
+                                                FirebaseAuth.instance.currentUser?.uid;
+                                            if (currentUserId != null) {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (context) => AddArticleScreen(
+                                                    psychologistId: currentUserId,
+                                                  ),
+                                                ),
+                                              ).then((_) {
+                                                context.read<ArticleBloc>().add(
+                                                  const LoadArticles(),
+                                                );
+                                              });
+                                            }
+                                          }
+                                        : () {
+                                            if (limitInfo != null) {
+                                              _showArticleLimitDialog(context, limitInfo);
+                                            }
+                                          },
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints.tight(
+                                      Size(
+                                        _getResponsiveIconSize(context, 32),
+                                        _getResponsiveIconSize(context, 32),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
+                          if (limitInfo != null)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: _getResponsiveSpacing(context, 8),
+                              ),
+                              child: ArticleLimitCard(
+                                limitInfo: limitInfo,
+                                onTapDetails: () {
+                                  _showArticleLimitDetailsBottomSheet(context, limitInfo);
+                                },
+                              ),
+                            ),
+
+                          _buildArticlesList(),
+                        ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: _getResponsiveSpacing(context, 24)),
+                ],
+              ),
             ),
-            SizedBox(height: _getResponsiveSpacing(context, 24)),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ============================================
-  // BUILDERS DE WIDGETS ESPECÍFICOS
-  // ============================================
-
   Widget _buildEmptyTodaySessionsCard(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
@@ -1063,9 +1022,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
       ),
     );
   }
-// ============================================
-  // CALENDARIO DE HORARIOS
-  // ============================================
 
   Widget _buildScheduleCalendar() {
     return BlocBuilder<DashboardBloc, DashboardState>(
@@ -1090,11 +1046,8 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
             padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
             child: Column(
               children: [
-                // Botones de toggle
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final buttonWidth = constraints.maxWidth / 3 - 8;
-                    
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -1103,7 +1056,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
                             label: 'Día',
                             isSelected: false,
                             onTap: () {},
-                            
                           ),
                         ),
                         SizedBox(width: _getResponsiveSpacing(context, 4)),
@@ -1112,7 +1064,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
                             label: 'Semana',
                             isSelected: true,
                             onTap: () {},
-                            
                           ),
                         ),
                         SizedBox(width: _getResponsiveSpacing(context, 4)),
@@ -1121,7 +1072,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
                             label: 'Mes',
                             isSelected: false,
                             onTap: () {},
-                            
                           ),
                         ),
                       ],
@@ -1130,7 +1080,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
                 ),
                 SizedBox(height: _getResponsiveSpacing(context, 16)),
                 
-                // Header del mes
                 Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: _getResponsiveSpacing(context, 8),
@@ -1165,7 +1114,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
                 ),
                 SizedBox(height: _getResponsiveSpacing(context, 16)),
 
-                // Días de la semana (headers)
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -1194,7 +1142,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
 
                 SizedBox(height: _getResponsiveSpacing(context, 8)),
 
-                // Días del mes
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -1276,7 +1223,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
 
                 SizedBox(height: _getResponsiveSpacing(context, 12)),
 
-                // Leyenda
                 Wrap(
                   alignment: WrapAlignment.center,
                   spacing: _getResponsiveSpacing(context, 16),
@@ -1299,10 +1245,6 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
       },
     );
   }
-
-  // ============================================
-  // CARD DE DISPONIBILIDAD
-  // ============================================
 
   Widget _buildAvailabilityCard() {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -1367,235 +1309,232 @@ class _PsychologistHomeContentState extends State<PsychologistHomeContent> {
     );
   }
 
-  // ============================================
-  // DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN
-  // ============================================
-
   void _showDeleteConfirmation(BuildContext context, Article article) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return BlocConsumer<ArticleBloc, ArticleState>(
-          listener: (context, state) {
-            if (state is ArticleOperationSuccess) {
-              Navigator.of(dialogContext).pop();
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: _getConstrainedTextScaleFactor(context),
+          ),
+          child: BlocConsumer<ArticleBloc, ArticleState>(
+            listener: (context, state) {
+              if (state is ArticleOperationSuccess) {
+                Navigator.of(dialogContext).pop();
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: _getResponsiveSpacing(context, 8)),
+                        const Expanded(
+                          child: Text('Artículo eliminado exitosamente'),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              } else if (state is ArticleOperationError) {
+                Navigator.of(dialogContext).pop();
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.white),
+                        SizedBox(width: _getResponsiveSpacing(context, 8)),
+                        Expanded(child: Text('Error: ${state.message}')),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            builder: (context, state) {
+              final isDeleting = state is ArticleOperationInProgress;
               
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: _getResponsiveSpacing(context, 8)),
-                      const Expanded(
-                        child: Text('Artículo eliminado exitosamente'),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              );
-            } else if (state is ArticleOperationError) {
-              Navigator.of(dialogContext).pop();
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.white),
-                      SizedBox(width: _getResponsiveSpacing(context, 8)),
-                      Expanded(child: Text('Error: ${state.message}')),
-                    ],
-                  ),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            }
-          },
-          builder: (context, state) {
-            final isDeleting = state is ArticleOperationInProgress;
-            
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 8)),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.delete_outline,
-                      color: Colors.red,
-                      size: _getResponsiveIconSize(context, 24),
-                    ),
-                  ),
-                  SizedBox(width: _getResponsiveSpacing(context, 12)),
-                  Expanded(
-                    child: Text(
-                      'Eliminar artículo',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: _getResponsiveFontSize(context, 18),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                title: Row(
                   children: [
-                    Text(
-                      '¿Estás seguro de que deseas eliminar este artículo?',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: _getResponsiveFontSize(context, 14),
+                    Container(
+                      padding: EdgeInsets.all(_getResponsiveSpacing(context, 8)),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: Colors.red,
+                        size: _getResponsiveIconSize(context, 24),
                       ),
                     ),
-                    SizedBox(height: _getResponsiveSpacing(context, 12)),
-                    Container(
-                      padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.article,
-                            color: Colors.grey[600],
-                            size: _getResponsiveIconSize(context, 20),
-                          ),
-                          SizedBox(width: _getResponsiveSpacing(context, 8)),
-                          Expanded(
-                            child: Text(
-                              article.title,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: _getResponsiveFontSize(context, 13),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: _getResponsiveSpacing(context, 12)),
-                    Container(
-                      padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.orange.withOpacity(0.3),
+                    SizedBox(width: _getResponsiveSpacing(context, 12)),
+                    Expanded(
+                      child: Text(
+                        'Eliminar artículo',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: _getResponsiveFontSize(context, 18),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.orange[700],
-                            size: _getResponsiveIconSize(context, 20),
-                          ),
-                          SizedBox(width: _getResponsiveSpacing(context, 8)),
-                          Expanded(
-                            child: Text(
-                              'Esta acción no se puede deshacer',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: _getResponsiveFontSize(context, 12),
-                                color: Colors.orange[900],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                    if (isDeleting) ...[
-                      SizedBox(height: _getResponsiveSpacing(context, 16)),
-                      Center(
-                        child: Column(
+                  ],
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '¿Estás seguro de que deseas eliminar este artículo?',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: _getResponsiveFontSize(context, 14),
+                        ),
+                      ),
+                      SizedBox(height: _getResponsiveSpacing(context, 12)),
+                      Container(
+                        padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
                           children: [
-                            SizedBox(
-                              width: _getResponsiveIconSize(context, 30),
-                              height: _getResponsiveIconSize(context, 30),
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 3,
-                              ),
+                            Icon(
+                              Icons.article,
+                              color: Colors.grey[600],
+                              size: _getResponsiveIconSize(context, 20),
                             ),
-                            SizedBox(height: _getResponsiveSpacing(context, 12)),
-                            Text(
-                              'Eliminando artículo...',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: _getResponsiveFontSize(context, 12),
-                                color: Colors.grey[600],
+                            SizedBox(width: _getResponsiveSpacing(context, 8)),
+                            Expanded(
+                              child: Text(
+                                article.title,
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: _getResponsiveFontSize(context, 13),
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      SizedBox(height: _getResponsiveSpacing(context, 12)),
+                      Container(
+                        padding: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange[700],
+                              size: _getResponsiveIconSize(context, 20),
+                            ),
+                            SizedBox(width: _getResponsiveSpacing(context, 8)),
+                            Expanded(
+                              child: Text(
+                                'Esta acción no se puede deshacer',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: _getResponsiveFontSize(context, 12),
+                                  color: Colors.orange[900],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isDeleting) ...[
+                        SizedBox(height: _getResponsiveSpacing(context, 16)),
+                        Center(
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                width: _getResponsiveIconSize(context, 30),
+                                height: _getResponsiveIconSize(context, 30),
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                ),
+                              ),
+                              SizedBox(height: _getResponsiveSpacing(context, 12)),
+                              Text(
+                                'Eliminando artículo...',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: _getResponsiveFontSize(context, 12),
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              actions: [
-                if (!isDeleting) ...[
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: Text(
-                      'Cancelar',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.grey,
-                        fontSize: _getResponsiveFontSize(context, 14),
+                actions: [
+                  if (!isDeleting) ...[
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.grey,
+                          fontSize: _getResponsiveFontSize(context, 14),
+                        ),
                       ),
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<ArticleBloc>().add(
-                        DeleteArticle(articleId: article.id!),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<ArticleBloc>().add(
+                          DeleteArticle(articleId: article.id!),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Eliminar',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          fontSize: _getResponsiveFontSize(context, 14),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      'Eliminar',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        fontSize: _getResponsiveFontSize(context, 14),
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
-              ],
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
   }
-
-  // ============================================
-  // HEADER DE SECCIÓN
-  // ============================================
 
   Widget _buildSectionHeader(
     BuildContext context,
@@ -1681,8 +1620,8 @@ class _StatCard extends StatelessWidget {
               fontFamily: 'Poppins',
               color: color,
             ),
-            maxLines: 1, // ✨ Responsive fix: Asegura que el valor no desborde horizontalmente
-            overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
@@ -1693,8 +1632,8 @@ class _StatCard extends StatelessWidget {
               fontFamily: 'Poppins',
               color: Colors.grey[700],
             ),
-            maxLines: 2, // ✨ Responsive fix: Permite que la etiqueta se envuelva, limitando a dos líneas
-            overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1723,7 +1662,7 @@ class _CalendarLegendItem extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        Flexible( // ✨ Responsive fix: Envuelve el texto para que pueda ser limitado
+        Flexible(
           child: Text(
             label,
             style: TextStyle(
@@ -1731,8 +1670,8 @@ class _CalendarLegendItem extends StatelessWidget {
               color: Colors.grey[700],
               fontFamily: 'Poppins',
             ),
-            maxLines: 1, // ✨ Responsive fix
-            overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -1763,8 +1702,8 @@ class _SessionCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Poppins',
               ),
-              maxLines: 1, // ✨ Responsive fix
-              overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(width: 16),
             CircleAvatar(
@@ -1816,8 +1755,8 @@ class _SessionCard extends StatelessWidget {
                   color: AppConstants.secondaryColor,
                   fontFamily: 'Poppins',
                 ),
-                maxLines: 1, // ✨ Responsive fix
-                overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1887,8 +1826,8 @@ class _NoteSessionCard extends StatelessWidget {
                     color: Colors.grey[500],
                     fontFamily: 'Poppins',
                   ),
-                  maxLines: 1, // ✨ Responsive fix: Asegura que la fecha no desborde
-                  overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1915,6 +1854,7 @@ class _ScheduleToggleButton extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  
   const _ScheduleToggleButton({
     required this.label,
     required this.isSelected,
@@ -1925,25 +1865,26 @@ class _ScheduleToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Flexible( // ✨ Responsive fix: Usa Flexible para que el botón pueda encogerse en una Row
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppConstants.secondaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected ? AppConstants.secondaryColor : Colors.grey[300]!,
-            ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppConstants.secondaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppConstants.secondaryColor : Colors.grey[300]!,
           ),
+        ),
+        child: Center(
           child: Text(
             label,
             style: TextStyle(
               color: isSelected ? Colors.white : Colors.black87,
               fontWeight: FontWeight.bold,
               fontFamily: 'Poppins',
+              fontSize: 14,
             ),
-            maxLines: 1, // ✨ Responsive fix
-            overflow: TextOverflow.ellipsis, // ✨ Responsive fix
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -1951,10 +1892,13 @@ class _ScheduleToggleButton extends StatelessWidget {
   }
 }
 
+// Reemplaza el widget _ArticleCard en psychologist_home_content.dart
+
 class _ArticleCard extends StatelessWidget {
   final Article article;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  
   const _ArticleCard({
     required this.article,
     required this.onEdit,
@@ -1963,8 +1907,10 @@ class _ArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 360;
+    
     return Container(
-      // width: 220, // ❌ ELIMINADO para permitir que la tarjeta se adapte a su contenedor padre (ej. Expanded o GridView)
       margin: const EdgeInsets.only(right: 16),
       child: Card(
         elevation: 2,
@@ -1973,17 +1919,19 @@ class _ArticleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // IMAGEN CON BADGES Y BOTONES
             Stack(
               children: [
+                // Imagen del artículo
                 article.imageUrl != null
                     ? Image.network(
                         article.imageUrl!,
-                        height: 120,
+                        height: isCompact ? 100 : 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
-                            height: 120,
+                            height: isCompact ? 100 : 120,
                             color: Colors.grey[300],
                             child: const Center(
                               child: Icon(
@@ -1996,7 +1944,7 @@ class _ArticleCard extends StatelessWidget {
                         },
                       )
                     : Container(
-                        height: 120,
+                        height: isCompact ? 100 : 120,
                         color: Colors.grey[300],
                         child: const Center(
                           child: Icon(
@@ -2006,6 +1954,8 @@ class _ArticleCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                
+                // Botones de editar/eliminar
                 Positioned(
                   top: 8,
                   right: 8,
@@ -2015,12 +1965,21 @@ class _ArticleCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.edit, size: 18),
+                          icon: Icon(Icons.edit, size: isCompact ? 16 : 18),
                           color: AppConstants.secondaryColor,
                           padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                           onPressed: onEdit,
                         ),
                       ),
@@ -2029,85 +1988,120 @@ class _ArticleCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.delete, size: 18),
+                          icon: Icon(Icons.delete, size: isCompact ? 16 : 18),
                           color: Colors.red,
                           padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
                           onPressed: onDelete,
                         ),
                       ),
                     ],
                   ),
                 ),
+                
+                // Badge de estado (Publicado/Borrador)
                 Positioned(
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 6 : 8,
+                      vertical: isCompact ? 2 : 4,
                     ),
                     decoration: BoxDecoration(
                       color: article.isPublished ? Colors.green : Colors.orange,
                       borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                     child: Text(
                       article.isPublished ? 'Publicado' : 'Borrador',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: isCompact ? 9 : 10,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Poppins',
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
               ],
             ),
+            
+            // CONTENIDO DEL ARTÍCULO
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: EdgeInsets.all(isCompact ? 10.0 : 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Título del artículo
                     Text(
                       article.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: isCompact ? 13 : 14,
                         fontFamily: 'Poppins',
+                        height: 1.2,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    
                     const SizedBox(height: 4),
-                    if (article.summary != null)
-                      Text(
-                        article.summary!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                          fontFamily: 'Poppins',
+                    
+                    // Resumen (si existe)
+                    if (article.summary != null && article.summary!.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          article.summary!,
+                          style: TextStyle(
+                            fontSize: isCompact ? 10 : 11,
+                            color: Colors.grey[600],
+                            fontFamily: 'Poppins',
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    const Spacer(),
+                    
+                    if (article.summary == null || article.summary!.isEmpty)
+                      const Spacer(),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Estadísticas (vistas y likes)
                     Row(
                       children: [
                         Icon(
                           Icons.remove_red_eye,
-                          size: 14,
+                          size: isCompact ? 12 : 14,
                           color: Colors.grey[600],
                         ),
                         const SizedBox(width: 4),
-                        Flexible( // ✨ Responsive fix
+                        Flexible(
                           child: Text(
                             '${article.views}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isCompact ? 10 : 11,
                               color: Colors.grey[600],
                               fontFamily: 'Poppins',
                             ),
@@ -2115,14 +2109,18 @@ class _ArticleCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Icon(Icons.favorite, size: 14, color: Colors.grey[600]),
+                        SizedBox(width: isCompact ? 8 : 12),
+                        Icon(
+                          Icons.favorite,
+                          size: isCompact ? 12 : 14,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
-                        Flexible( // ✨ Responsive fix
+                        Flexible(
                           child: Text(
                             '${article.likes}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isCompact ? 10 : 11,
                               color: Colors.grey[600],
                               fontFamily: 'Poppins',
                             ),
@@ -2132,19 +2130,20 @@ class _ArticleCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    
                     const SizedBox(height: 4),
+                    
+                    // Fecha de creación
                     if (article.createdAt != null)
-                      Flexible( // ✨ Responsive fix
-                        child: Text(
-                          DateFormat('dd MMM yyyy').format(article.createdAt!),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                            fontFamily: 'Poppins',
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        DateFormat('dd MMM yyyy').format(article.createdAt!),
+                        style: TextStyle(
+                          fontSize: isCompact ? 9 : 10,
+                          color: Colors.grey[500],
+                          fontFamily: 'Poppins',
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                   ],
                 ),
