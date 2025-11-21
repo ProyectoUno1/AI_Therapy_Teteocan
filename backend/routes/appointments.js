@@ -657,11 +657,10 @@ router.patch('/:id/cancel', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// Iniciar una sesión (por psicólogo)
+// Iniciar una sesión
 router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
     try {
         const { id } = req.params;
-        // ⭐ Corregido: Usamos userId del token como el ID del psicólogo
         const psychologistId = req.firebaseUser.uid; 
 
         const appointmentRef = db.collection('appointments').doc(id);
@@ -680,38 +679,26 @@ router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
         if (appointmentData.status !== 'confirmed') {
             return res.status(400).json({ error: 'La sesión solo se puede iniciar si está en estado "confirmed".' });
         }
-        
-        // ⭐ Corregido: Definimos patientId (faltaba)
         const patientId = appointmentData.patientId;
-        
-        // ⭐ Mejorado: Verificamos meetingLink (establecido en /confirm) o sessionLink
         const sessionLink = appointmentData.meetingLink || appointmentData.sessionLink || 'No se proporcionó un enlace.';
-
-        // 1. Actualizar el estado de la cita
         await appointmentRef.update({
             status: 'in_progress',
             sessionStartTime: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         });
-
-        // 2. ⭐ LÓGICA PRINCIPAL: ENVÍO DE MENSAJE DE CHAT
         const chatId = getChatId(psychologistId, patientId);
         const chatContent = `¡Tu sesión de terapia ha comenzado! Únete ahora a través del enlace: ${sessionLink}`;
 
         await sendSystemChatMessage(
             chatId, 
-            psychologistId, // El psicólogo (autenticado) es el remitente del mensaje del sistema
+            psychologistId, 
             patientId, 
             chatContent
         );
-        console.log(`Mensaje de inicio de sesión enviado al chat: ${chatId}`);
 
-
-        // 3. Notificación Push (Complemento: alerta inmediata)
         await createNotification({
             userId: patientId,
             title: '¡Sesión Iniciada!',
-            // Se dirige al paciente al chat para encontrar el enlace
             body: `Tu sesión ha comenzado. Revisa tu chat con el psicólogo para el enlace.`,
             type: 'session_started',
             data: {
@@ -720,10 +707,8 @@ router.patch('/:id/start-session', verifyFirebaseToken, async (req, res) => {
                 status: 'in_progress'
             }
         });
-        console.log(`Notificación push de sesión iniciada enviada al paciente: ${patientId}`);
 
 
-        // Enviamos la respuesta una sola vez
         res.status(200).json({ message: 'Sesión iniciada exitosamente.' }); 
 
     } catch (error) {

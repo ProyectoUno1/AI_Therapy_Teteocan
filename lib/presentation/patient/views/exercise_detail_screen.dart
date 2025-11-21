@@ -123,7 +123,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ),
         );
 
-        // Regresar a la pantalla anterior después de guardar
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) {
             Navigator.pop(context);
@@ -160,354 +159,558 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.exercise.title)),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                ),
-                child: Icon(
-                  Icons.fitness_center,
-                  size: 64,
-                  color: Theme.of(context).primaryColor,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool isLandscape = constraints.maxWidth > constraints.maxHeight;
+            final bool isTablet = constraints.maxWidth > 600;
+            final double paddingValue = isTablet ? 24.0 : 16.0;
+            final double iconSize = isTablet ? 80.0 : 64.0;
+            final double timerFontSize = isTablet ? 56.0 : 48.0;
+
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(paddingValue),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Section
+                    _buildHeaderSection(context, iconSize, isLandscape),
+                    SizedBox(height: isTablet ? 24.0 : 20.0),
+                    
+                    // Exercise Info
+                    _buildExerciseInfo(context),
+                    SizedBox(height: isTablet ? 24.0 : 20.0),
+                    
+                    // Description
+                    _buildDescriptionSection(isTablet),
+                    SizedBox(height: isTablet ? 30.0 : 24.0),
+
+                    // Dynamic Content based on exercise state
+                    _buildDynamicContent(
+                      context, 
+                      timerFontSize, 
+                      isLandscape, 
+                      isTablet
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection(BuildContext context, double iconSize, bool isLandscape) {
+    return Container(
+      height: isLandscape ? 150.0 : 200.0,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+      ),
+      child: Icon(
+        Icons.fitness_center,
+        size: iconSize,
+        color: Theme.of(context).primaryColor,
+      ),
+    );
+  }
+
+  Widget _buildExerciseInfo(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isCompact = constraints.maxWidth < 400;
+        
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.timer),
-                      const SizedBox(width: 8),
-                      Text('${widget.exercise.duration.inMinutes} minutos'),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+                  Icon(Icons.timer, size: isCompact ? 18.0 : 20.0),
+                  SizedBox(width: isCompact ? 6.0 : 8.0),
+                  Flexible(
                     child: Text(
-                      widget.exercise.difficulty,
-                      style: TextStyle(color: Theme.of(context).primaryColor),
+                      '${widget.exercise.duration.inMinutes} minutos',
+                      style: TextStyle(fontSize: isCompact ? 14.0 : 16.0),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Descripción',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Text(widget.exercise.description,
-                  style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 30),
-
-              // Sección del cronómetro
-              if (_isExerciseRunning || _isExerciseCompleted) ...[
-                const Text(
-                  'Progreso del Ejercicio',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(width: isCompact ? 8.0 : 12.0),
+            Flexible(
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 8.0 : 12.0,
+                  vertical: isCompact ? 4.0 : 6.0,
                 ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        _formatTime(_isExerciseRunning
-                            ? _elapsedSeconds
-                            : _totalSeconds),
-                        style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      LinearProgressIndicator(
-                        value: _getProgress(),
-                        backgroundColor: Colors.grey[300],
-                        color: Colors.blue,
-                        minHeight: 8,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${(_getProgress() * 100).toStringAsFixed(0)}% completado',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 20),
-                      if (_isExerciseRunning)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _pauseExercise,
-                              icon: const Icon(Icons.pause),
-                              label: const Text('Pausar'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                _timer?.cancel();
-                                setState(() {
-                                  _isExerciseRunning = false;
-                                  _elapsedSeconds = 0;
-                                });
-                              },
-                              icon: const Icon(Icons.stop),
-                              label: const Text('Detener'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (!_isExerciseRunning &&
-                          _elapsedSeconds > 0 &&
-                          !_isExerciseCompleted)
-                        ElevatedButton.icon(
-                          onPressed: _resumeExercise,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Continuar'),
-                        ),
-                    ],
-                  ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                const SizedBox(height: 30),
-              ],
-
-              if (!_isExerciseCompleted) ...[
-                const Text(
-                  'Instrucciones',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                _buildInstructionStep(
-                  1,
-                  'Encuentra un lugar tranquilo y cómodo.',
-                ),
-                _buildInstructionStep(
-                  2,
-                  'Asegúrate de tener el tiempo necesario sin interrupciones.',
-                ),
-                _buildInstructionStep(
-                  3,
-                  'Sigue las instrucciones del ejercicio paso a paso.',
-                ),
-                _buildInstructionStep(
-                  4,
-                  'Mantén una actitud abierta y receptiva.',
-                ),
-                const SizedBox(height: 30),
-              ],
-
-              if (_isExerciseCompleted) ...[
-                const Text(
-                  '¡Ejercicio Completado!',
+                child: Text(
+                  widget.exercise.difficulty,
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: Theme.of(context).primaryColor,
+                    fontSize: isCompact ? 12.0 : 14.0,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
-                
-                // Selector de sentimiento
-                const Text(
-                  '¿Cómo te sentiste durante el ejercicio?',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _feelings.entries.map((entry) {
-                    final isSelected = _selectedFeeling == entry.key;
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedFeeling = entry.key;
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey[200],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              entry.value,
-                              size: 32,
-                              color: isSelected ? Colors.white : Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _feelingLabels[entry.key]!,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isSelected
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey[600],
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Intensidad del sentimiento:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Text('1'),
-                    Expanded(
-                      child: Slider(
-                        value: _intensity.toDouble(),
-                        min: 1,
-                        max: 10,
-                        divisions: 9,
-                        label: _intensity.toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            _intensity = value.toInt();
-                          });
-                        },
-                      ),
-                    ),
-                    const Text('10'),
-                  ],
-                ),
-                Center(
-                  child: Text(
-                    'Intensidad: $_intensity',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // Campo de notas
-                const Text(
-                  'Comparte tus reflexiones y experiencias:',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _noteController,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText: 'Escribe aquí tus reflexiones...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // Botón guardar
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveNote,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Guardar Reflexión',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _isSaving
-                        ? null
-                        : () {
-                            Navigator.pop(context);
-                          },
-                    child: const Text(
-                      'Omitir y volver',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-              // Botón para comenzar ejercicio 
-              if (!_isExerciseRunning && !_isExerciseCompleted)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _startExercise,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Comenzar Ejercicio',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                  ),
+  Widget _buildDescriptionSection(bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Descripción',
+          style: TextStyle(
+            fontSize: isTablet ? 22.0 : 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          widget.exercise.description,
+          style: TextStyle(fontSize: isTablet ? 18.0 : 16.0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDynamicContent(BuildContext context, double timerFontSize, bool isLandscape, bool isTablet) {
+    if (_isExerciseRunning || _isExerciseCompleted) {
+      return _buildProgressSection(context, timerFontSize, isLandscape, isTablet);
+    } else if (!_isExerciseCompleted) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInstructionsSection(),
+          SizedBox(height: isTablet ? 30.0 : 24.0),
+          _buildStartButton(),
+        ],
+      );
+    } else {
+      return _buildCompletionSection(context, isLandscape, isTablet);
+    }
+  }
+
+  Widget _buildProgressSection(BuildContext context, double timerFontSize, bool isLandscape, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Progreso del Ejercicio',
+          style: TextStyle(
+            fontSize: isTablet ? 22.0 : 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: isTablet ? 24.0 : 20.0),
+        Container(
+          padding: EdgeInsets.all(isTablet ? 24.0 : 20.0),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            children: [
+              Text(
+                _formatTime(_isExerciseRunning ? _elapsedSeconds : _totalSeconds),
+                style: TextStyle(
+                  fontSize: timerFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
                 ),
+              ),
+              SizedBox(height: isTablet ? 24.0 : 20.0),
+              LinearProgressIndicator(
+                value: _getProgress(),
+                backgroundColor: Colors.grey[300],
+                color: Colors.blue,
+                minHeight: 8,
+              ),
+              SizedBox(height: 10),
+              Text(
+                '${(_getProgress() * 100).toStringAsFixed(0)}% completado',
+                style: TextStyle(fontSize: isTablet ? 18.0 : 16.0),
+              ),
+              SizedBox(height: isTablet ? 24.0 : 20.0),
+              if (_isExerciseRunning)
+                _buildExerciseControls(context, isLandscape),
+              if (!_isExerciseRunning && _elapsedSeconds > 0 && !_isExerciseCompleted)
+                _buildResumeButton(context),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildExerciseControls(BuildContext context, bool isLandscape) {
+    return OrientationBuilder(
+      builder: (context, orientation) {
+        final bool useHorizontalLayout = orientation == Orientation.landscape || isLandscape;
+        
+        if (useHorizontalLayout) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _buildControlButton(
+                  onPressed: _pauseExercise,
+                  icon: Icons.pause,
+                  label: 'Pausar',
+                  color: Colors.orange,
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: _buildControlButton(
+                  onPressed: () {
+                    _timer?.cancel();
+                    setState(() {
+                      _isExerciseRunning = false;
+                      _elapsedSeconds = 0;
+                    });
+                  },
+                  icon: Icons.stop,
+                  label: 'Detener',
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Column(
+            children: [
+              _buildControlButton(
+                onPressed: _pauseExercise,
+                icon: Icons.pause,
+                label: 'Pausar',
+                color: Colors.orange,
+                isFullWidth: true,
+              ),
+              SizedBox(height: 10),
+              _buildControlButton(
+                onPressed: () {
+                  _timer?.cancel();
+                  setState(() {
+                    _isExerciseRunning = false;
+                    _elapsedSeconds = 0;
+                  });
+                },
+                icon: Icons.stop,
+                label: 'Detener',
+                color: Colors.red,
+                isFullWidth: true,
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildControlButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool isFullWidth = false,
+  }) {
+    return SizedBox(
+      width: isFullWidth ? double.infinity : null,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        ),
       ),
+    );
+  }
+
+  Widget _buildResumeButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _resumeExercise,
+        icon: Icon(Icons.play_arrow),
+        label: Text('Continuar'),
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Instrucciones',
+          style: TextStyle(
+            fontSize: MediaQuery.of(context).size.width > 600 ? 22.0 : 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 10),
+        _buildInstructionStep(1, 'Encuentra un lugar tranquilo y cómodo.'),
+        _buildInstructionStep(2, 'Asegúrate de tener el tiempo necesario sin interrupciones.'),
+        _buildInstructionStep(3, 'Sigue las instrucciones del ejercicio paso a paso.'),
+        _buildInstructionStep(4, 'Mantén una actitud abierta y receptiva.'),
+      ],
+    );
+  }
+
+  Widget _buildStartButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _startExercise,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        child: Text(
+          'Comenzar Ejercicio',
+          style: TextStyle(fontSize: MediaQuery.of(context).size.width > 600 ? 20.0 : 18.0),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompletionSection(BuildContext context, bool isLandscape, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Text(
+            '¡Ejercicio Completado!',
+            style: TextStyle(
+              fontSize: isTablet ? 28.0 : 24.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        SizedBox(height: isTablet ? 24.0 : 20.0),
+        
+        // Feeling Selector
+        _buildFeelingSelector(context, isLandscape, isTablet),
+        SizedBox(height: isTablet ? 24.0 : 20.0),
+        
+        // Intensity Slider
+        _buildIntensitySlider(context, isTablet),
+        SizedBox(height: isTablet ? 24.0 : 20.0),
+        
+        // Notes Section
+        _buildNotesSection(context, isTablet),
+        SizedBox(height: isTablet ? 24.0 : 20.0),
+        
+        // Action Buttons
+        _buildActionButtons(context),
+      ],
+    );
+  }
+
+  Widget _buildFeelingSelector(BuildContext context, bool isLandscape, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '¿Cómo te sentiste durante el ejercicio?',
+          style: TextStyle(
+            fontSize: isTablet ? 20.0 : 18.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 15),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final bool useCompactLayout = constraints.maxWidth < 400;
+            final double iconSize = useCompactLayout ? 24.0 : 32.0;
+            final double spacing = useCompactLayout ? 8.0 : 12.0;
+
+            return Wrap(
+              alignment: WrapAlignment.spaceEvenly,
+              spacing: spacing,
+              runSpacing: spacing,
+              children: _feelings.entries.map((entry) {
+                final isSelected = _selectedFeeling == entry.key;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedFeeling = entry.key;
+                    });
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(useCompactLayout ? 8.0 : 12.0),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey[200],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          entry.value,
+                          size: iconSize,
+                          color: isSelected ? Colors.white : Colors.grey[600],
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _feelingLabels[entry.key]!,
+                        style: TextStyle(
+                          fontSize: useCompactLayout ? 10.0 : 12.0,
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey[600],
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntensitySlider(BuildContext context, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Intensidad del sentimiento:',
+          style: TextStyle(
+            fontSize: isTablet ? 18.0 : 16.0,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Text('1', style: TextStyle(fontSize: isTablet ? 16.0 : 14.0)),
+            Expanded(
+              child: Slider(
+                value: _intensity.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                label: _intensity.toString(),
+                onChanged: (value) {
+                  setState(() {
+                    _intensity = value.toInt();
+                  });
+                },
+              ),
+            ),
+            Text('10', style: TextStyle(fontSize: isTablet ? 16.0 : 14.0)),
+          ],
+        ),
+        Center(
+          child: Text(
+            'Intensidad: $_intensity',
+            style: TextStyle(
+              fontSize: isTablet ? 20.0 : 18.0,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotesSection(BuildContext context, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Comparte tus reflexiones y experiencias:',
+          style: TextStyle(
+            fontSize: isTablet ? 16.0 : 14.0,
+            color: Colors.grey,
+          ),
+        ),
+        SizedBox(height: 10),
+        TextField(
+          controller: _noteController,
+          maxLines: 5,
+          decoration: InputDecoration(
+            hintText: 'Escribe aquí tus reflexiones...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            filled: true,
+            fillColor: Colors.grey[50],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isSaving ? null : _saveNote,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              backgroundColor: Colors.green,
+            ),
+            child: _isSaving
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Guardar Reflexión',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+          ),
+        ),
+        SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: _isSaving ? null : () => Navigator.pop(context),
+            child: Text(
+              'Omitir y volver',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -520,23 +723,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           Container(
             width: 24,
             height: 24,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.blue,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 step.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
-            child: Text(instruction, style: const TextStyle(fontSize: 16)),
+            child: Text(instruction, style: TextStyle(fontSize: 16)),
           ),
         ],
       ),

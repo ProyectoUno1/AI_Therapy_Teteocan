@@ -1,14 +1,14 @@
-import 'dart:ui'; // Para aplicar desenfoque con ImageFilter (efecto blur)
-import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart'; // Barra de progreso personalizada
+import 'dart:ui';
+import 'package:ai_therapy_teteocan/presentation/shared/progress_bar_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // Gestión de estados con BLoC
-import 'package:ai_therapy_teteocan/core/constants/app_constants.dart'; // Colores y constantes generales
-import 'package:ai_therapy_teteocan/core/utils/input_validators.dart'; // Colores y constantes generales
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart'; // BLoC para autenticación
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/input_validators.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
+import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart'; // Campo de texto personalizado
-import 'package:ai_therapy_teteocan/presentation/auth/views/login_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/email_verification_screen.dart';
 
 class RegisterPatientScreen extends StatefulWidget {
@@ -20,40 +20,19 @@ class RegisterPatientScreen extends StatefulWidget {
 
 class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
   int currentStep = 1;
-  // Claves para validar cada paso del formulario
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
 
-  // Controladores de campos
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-
-  // Muestra el selector de fecha de nacimiento
   DateTime? _birthDate;
-  final TextEditingController _birthDateController = TextEditingController();
 
-  Future<void> _selectBirthDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _birthDate ?? DateTime(2000, 1, 1),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null && picked != _birthDate) {
-      setState(() {
-        _birthDate = picked;
-      });
-    }
-  }
-
-  // Valida que se haya elegido una fecha
   String? validateBirthDate(String? value) {
     if (_birthDate == null) {
       return 'Por favor selecciona tu fecha de nacimiento';
@@ -61,7 +40,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     return null;
   }
 
-  // Verifica que la contraseña coincida
   String? validateConfirmPassword(String? confirmPassword) {
     if (confirmPassword == null || confirmPassword.isEmpty) {
       return 'Por favor confirma tu contraseña';
@@ -69,12 +47,15 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     if (confirmPassword != _passwordController.text) {
       return 'Las contraseñas no coinciden';
     }
-    return null; // válido
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Container(
@@ -85,110 +66,93 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.fromARGB(255, 255, 255, 255), // Teal claro
-                  Color.fromARGB(255, 205, 223, 222), // Teal medio
-                  Color.fromARGB(255, 147, 213, 207), // Teal más fuerte
+                  Color.fromARGB(255, 255, 255, 255),
+                  Color.fromARGB(255, 205, 223, 222),
+                  Color.fromARGB(255, 147, 213, 207),
                 ],
               ),
             ),
           ),
 
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Botón atrás y navegación por pasos
-                  AppBar(
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    leading: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios,
-                        color: Colors.black54,
-                      ),
-                      onPressed: () {
-                        if (currentStep > 1) {
-                          setState(() => currentStep--);
-                        } else {
-                          Navigator.of(context).pop();
-                        }
-                      },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
-
-                  // Título e ícono según paso actual
-                  Builder(
-                    builder: (context) {
-                      String titulo = '';
-                      IconData icono = Icons.info_outline;
-
-                      switch (currentStep) {
-                        case 1:
-                          titulo = 'Ingresa tu correo y contraseña';
-                          icono = Icons.mail_outline;
-                          break;
-                        case 2:
-                          titulo = 'Completa tu perfil';
-                          icono = Icons.person_outline;
-                          break;
-                      }
-
-                      return Column(
-                        children: [
-                          ProgressBarWidget(
-                            stepText: 'Paso $currentStep de 2',
-                            currentStep: currentStep,
-                            totalSteps: 2,
-                          ),
-                          const SizedBox(height: 40),
-                          Text(
-                            titulo,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                              fontFamily: 'Poppins',
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          Icon(
-                            icono,
-                            size: 80,
-                            color: AppConstants.accentColor,
-                          ),
-                          const SizedBox(height: 30),
-                        ],
-                      );
-                    },
-                  ),
-
-                  // Contenedor con blur y contenido dinámico según el paso
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(40),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(
-                            255,
-                            255,
-                            255,
-                            255,
-                          ).withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(40),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveUtils.getHorizontalPadding(context),
                         ),
-                        child: currentStep == 1 ? _buildStep1() : _buildStep2(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // AppBar con botón atrás
+                            SizedBox(
+                              height: kToolbarHeight * 0.8,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.arrow_back_ios,
+                                      color: Colors.black54,
+                                    ),
+                                    iconSize: ResponsiveUtils.getIconSize(context, 22),
+                                    onPressed: () {
+                                      if (currentStep > 1) {
+                                        setState(() => currentStep--);
+                                      } else {
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(height: constraints.maxHeight * 0.02),
+
+                            // Progreso y título
+                            _buildStepHeader(context, constraints),
+
+                            SizedBox(height: constraints.maxHeight * 0.03),
+
+                            // Formulario
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                ResponsiveUtils.getBorderRadius(context, 32),
+                              ),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  padding: EdgeInsets.all(isMobile ? 20 : 28),
+                                  constraints: BoxConstraints(
+                                    maxWidth: ResponsiveUtils.getMaxContentWidth(context),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(255, 255, 255, 255)
+                                        .withOpacity(0.85),
+                                    borderRadius: BorderRadius.circular(
+                                      ResponsiveUtils.getBorderRadius(context, 32),
+                                    ),
+                                  ),
+                                  child: currentStep == 1 ? _buildStep1() : _buildStep2(),
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: constraints.maxHeight * 0.03),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 50),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -196,41 +160,87 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     );
   }
 
-  //Primer paso de formulario
+  Widget _buildStepHeader(BuildContext context, BoxConstraints constraints) {
+    String titulo = '';
+    IconData icono = Icons.info_outline;
+
+    switch (currentStep) {
+      case 1:
+        titulo = 'Ingresa tu correo y contraseña';
+        icono = Icons.mail_outline;
+        break;
+      case 2:
+        titulo = 'Completa tu perfil';
+        icono = Icons.person_outline;
+        break;
+    }
+
+    return Column(
+      children: [
+        ProgressBarWidget(
+          stepText: 'Paso $currentStep de 2',
+          currentStep: currentStep,
+          totalSteps: 2,
+        ),
+        SizedBox(height: constraints.maxHeight * 0.03),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            titulo,
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getFontSize(context, 20),
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+              fontFamily: 'Poppins',
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        SizedBox(height: constraints.maxHeight * 0.02),
+        Icon(
+          icono,
+          size: ResponsiveUtils.getIconSize(context, 60),
+          color: AppConstants.accentColor,
+        ),
+      ],
+    );
+  }
+
   Widget _buildStep1() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Form(
-      key: _formKeyStep1, // Llave para validar este formulario
+      key: _formKeyStep1,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           CustomTextField(
             controller: _emailController,
             hintText: 'Email',
             icon: Icons.mail_outline,
             keyboardType: TextInputType.emailAddress,
-            validator: InputValidators.validateEmail, // Validación email
+            validator: InputValidators.validateEmail,
             filled: true,
-            fillColor: Color(0xFF82c4c3),
-            borderRadius: 16,
+            fillColor: const Color(0xFF82c4c3),
+            borderRadius: 14,
             placeholderColor: Colors.white,
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile ? 18 : 24),
 
           CustomTextField(
             controller: _passwordController,
             hintText: 'Password',
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
-            toggleVisibility: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
+            toggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
             validator: InputValidators.validatePassword,
             filled: true,
-            fillColor: Color(0xFF82c4c3),
-            borderRadius: 16,
+            fillColor: const Color(0xFF82c4c3),
+            borderRadius: 14,
             placeholderColor: Colors.white,
-            helperText:
-                'Mínimo 8 caracteres. Incluye mayúsculas, minúsculas y números.',
+            helperText: 'Mínimo 8 caracteres. Incluye mayúsculas, minúsculas y números.',
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 14 : 18),
 
           CustomTextField(
             controller: _confirmPasswordController,
@@ -238,26 +248,22 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             icon: Icons.lock_outline,
             obscureText: _obscureConfirmPassword,
             toggleVisibility: () {
-              setState(() {
-                _obscureConfirmPassword = !_obscureConfirmPassword;
-              });
+              setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
             },
-            validator:
-                validateConfirmPassword, // Valida que coincida con password
+            validator: validateConfirmPassword,
             filled: true,
-            fillColor: Color(0xFF82c4c3),
-            borderRadius: 16,
+            fillColor: const Color(0xFF82c4c3),
+            borderRadius: 14,
             placeholderColor: Colors.white,
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: isMobile ? 20 : 28),
 
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: ResponsiveUtils.getButtonHeight(context),
             child: ElevatedButton(
               onPressed: () {
-                // Si formulario válido, avanzar al siguiente paso
                 if (_formKeyStep1.currentState?.validate() ?? false) {
                   setState(() => currentStep = 2);
                 }
@@ -266,7 +272,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                 elevation: 4,
                 backgroundColor: null,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 padding: EdgeInsets.zero,
               ),
@@ -277,13 +283,13 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'Continuar',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: ResponsiveUtils.getFontSize(context, 16),
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                       fontFamily: 'Poppins',
@@ -293,16 +299,18 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   Widget _buildStep2() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Form(
-      key: _formKeyStep2, // Llave para validar segundo formulario
+      key: _formKeyStep2,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           CustomTextField(
             controller: _usernameController,
@@ -310,11 +318,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             icon: Icons.person_outline,
             validator: InputValidators.validateUsername,
             filled: true,
-            fillColor: Color(0xFF82c4c3),
-            borderRadius: 16,
+            fillColor: const Color(0xFF82c4c3),
+            borderRadius: 14,
             placeholderColor: Colors.white,
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile ? 18 : 24),
 
           CustomTextField(
             controller: _phoneController,
@@ -323,19 +331,17 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             keyboardType: TextInputType.phone,
             validator: InputValidators.validatePhoneNumber,
             filled: true,
-            fillColor: Color(0xFF82c4c3),
-            borderRadius: 16,
+            fillColor: const Color(0xFF82c4c3),
+            borderRadius: 14,
             placeholderColor: Colors.white,
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isMobile ? 18 : 24),
 
           GestureDetector(
             onTap: () async {
               final now = DateTime.now();
-              final firstDate = DateTime(
-                now.year - 120,
-              ); // límite mínimo: hace 120 años
-              final lastDate = now; // límite máximo: hoy
+              final firstDate = DateTime(now.year - 120);
+              final lastDate = now;
 
               final pickedDate = await showDatePicker(
                 context: context,
@@ -346,13 +352,10 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
               );
 
               if (pickedDate != null) {
-                setState(() {
-                  _birthDate = pickedDate;
-                });
+                setState(() => _birthDate = pickedDate);
               }
             },
             child: AbsorbPointer(
-              // Para que el TextField no reciba foco y no permita escribir directamente
               child: CustomTextField(
                 controller: TextEditingController(
                   text: _birthDate != null
@@ -371,36 +374,16 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   return null;
                 },
                 filled: true,
-                fillColor: Color(0xFF82c4c3),
-                borderRadius: 16,
+                fillColor: const Color(0xFF82c4c3),
+                borderRadius: 14,
                 placeholderColor: Colors.white,
                 readOnly: true,
-                onTap: () async {
-                  // Igual que el GestureDetector para mostrar el date picker
-                  final now = DateTime.now();
-                  final firstDate = DateTime(now.year - 120);
-                  final lastDate = now;
-
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: _birthDate ?? DateTime(now.year - 18),
-                    firstDate: firstDate,
-                    lastDate: lastDate,
-                    helpText: 'Selecciona tu fecha de nacimiento',
-                  );
-
-                  if (pickedDate != null) {
-                    setState(() {
-                      _birthDate = pickedDate;
-                    });
-                  }
-                },
               ),
             ),
           ),
-          const SizedBox(height: 40),
 
-          // Botón para crear cuenta con estado cargando y manejo de errores con Bloc
+          SizedBox(height: isMobile ? 24 : 32),
+
           BlocConsumer<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state.status == AuthStatus.error) {
@@ -408,6 +391,11 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   SnackBar(
                     content: Text(state.errorMessage ?? 'Error desconocido'),
                     backgroundColor: AppConstants.errorColor,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    margin: const EdgeInsets.all(16),
                   ),
                 );
               }
@@ -416,12 +404,12 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                   const SnackBar(
                     content: Text('Registro exitoso'),
                     backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
 
                 if (!context.mounted) return;
 
-                // Redirigir a la pantalla de verificación de email
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (context) => EmailVerificationScreen(
@@ -435,7 +423,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
             builder: (context, state) {
               return SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: ResponsiveUtils.getButtonHeight(context),
                 child: ElevatedButton(
                   onPressed: state.status == AuthStatus.loading
                       ? null
@@ -456,7 +444,7 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                     elevation: 4,
                     backgroundColor: null,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     padding: EdgeInsets.zero,
                   ),
@@ -467,15 +455,15 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Center(
                       child: state.status == AuthStatus.loading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
+                          : Text(
                               'Crear cuenta',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: ResponsiveUtils.getFontSize(context, 16),
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                                 fontFamily: 'Poppins',
@@ -492,7 +480,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     );
   }
 
-  //libera los controladores al cerrar el widget
   @override
   void dispose() {
     _emailController.dispose();
@@ -500,7 +487,6 @@ class _RegisterPatientScreenState extends State<RegisterPatientScreen> {
     _confirmPasswordController.dispose();
     _usernameController.dispose();
     _phoneController.dispose();
-    _birthDateController.dispose();
     super.dispose();
   }
 }

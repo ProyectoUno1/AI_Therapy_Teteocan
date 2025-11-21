@@ -1,46 +1,39 @@
 // lib/presentation/patient/bloc/home_content_state.dart
+
+import 'package:equatable/equatable.dart';
 import 'package:ai_therapy_teteocan/data/models/feeling_model.dart';
 
-class HomeContentState {
-  final Feeling selectedFeeling;
+class HomeContentState extends Equatable {
+  final Feeling? selectedFeeling;
   final bool isLoading;
-  final String? error;
 
   const HomeContentState({
-    required this.selectedFeeling,
-    required this.isLoading,
-    this.error,
+    this.selectedFeeling,
+    this.isLoading = false,
   });
 
+  /// Estado inicial
   factory HomeContentState.initial() {
     return const HomeContentState(
-      selectedFeeling: Feeling.neutral,
+      selectedFeeling: null,
       isLoading: false,
     );
   }
 
+  /// Copia el estado con nuevos valores
   HomeContentState copyWith({
     Feeling? selectedFeeling,
     bool? isLoading,
-    String? error,
   }) {
     return HomeContentState(
       selectedFeeling: selectedFeeling ?? this.selectedFeeling,
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
     );
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    
-    return other is HomeContentState &&
-        other.selectedFeeling == selectedFeeling &&
-        other.isLoading == isLoading &&
-        other.error == error;
-  }
+  List<Object?> get props => [selectedFeeling, isLoading];
 
   @override
-  int get hashCode => selectedFeeling.hashCode ^ isLoading.hashCode ^ error.hashCode;
+  String toString() => 'HomeContentState(selectedFeeling: $selectedFeeling, isLoading: $isLoading)';
 }

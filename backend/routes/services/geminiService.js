@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const GEMINI_MODEL = "gemini-2.0-flash-exp"; 
+const GEMINI_MODEL = "gemini-2.5-flash"; 
 
 /**
  * Genera una respuesta de chat usando Gemini AI
@@ -20,32 +20,39 @@ async function getGeminiChatResponse(messages) {
         const conversationHistory = messages.slice(1, -1); 
         const currentUserMessage = messages[messages.length - 1]; 
 
-        // Configurar el modelo con la instrucción del sistema
+        // Configurar el modelo
         const model = genAI.getGenerativeModel({ 
             model: GEMINI_MODEL,
             systemInstruction: systemInstruction.content, 
         });
 
-        // Convertir historial a formato Gemini y limpiar
+        // ✅ Convertir y limpiar historial
         let geminiHistory = conversationHistory
-            .filter(msg => !msg.isWelcomeMessage) // 🔥 Excluir mensaje de bienvenida
+            .filter(msg => !msg.isWelcomeMessage)
             .map(msg => ({
                 role: msg.isAI ? 'model' : 'user',
                 parts: [{ text: msg.content }],
             }));
 
-        // ⚠️ CORRECCIÓN: Asegurar que el historial comience con 'user'
+        // ✅ CRÍTICO: Asegurar que comienza con 'user'
         while (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+            console.warn('⚠️ Eliminando mensaje "model" del inicio del historial');
             geminiHistory.shift();
         }
 
-        // ⚠️ CORRECCIÓN: Eliminar mensajes consecutivos del mismo rol
+        // ✅ Eliminar mensajes consecutivos del mismo rol
         geminiHistory = geminiHistory.filter((msg, index) => {
             if (index === 0) return true;
-            return msg.role !== geminiHistory[index - 1].role;
+            if (msg.role === geminiHistory[index - 1].role) {
+                console.warn(`⚠️ Eliminando mensaje duplicado del rol: ${msg.role}`);
+                return false;
+            }
+            return true;
         });
 
-        // Iniciar chat con historial limpio
+        console.log(`📊 Historial preparado: ${geminiHistory.length} mensajes`);
+
+        // Iniciar chat
         const chat = model.startChat({
             history: geminiHistory,
             generationConfig: {
@@ -58,7 +65,6 @@ async function getGeminiChatResponse(messages) {
 
         const result = await chat.sendMessage(currentUserMessage.content);
         const response = result.response;
-        let aiText = '';
 
         if (typeof response.text === 'function') {
             aiText = response.text();

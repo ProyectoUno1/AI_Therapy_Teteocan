@@ -95,19 +95,40 @@ class _PsychologistChatListScreenState
     );
   }
 
-  Widget _buildChatContent(BuildContext context, AuthState authState) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          _buildHeader(context, authState),
-          _buildSearchBar(context),
-          Expanded(child: _buildChatList(context)),
+  // MODIFICADO: Cambiado a CustomScrollView para permitir el scroll
+  // MODIFICADO: Envuelve el CustomScrollView en RefreshIndicator
+Widget _buildChatContent(BuildContext context, AuthState authState) {
+  return Scaffold(
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    body: RefreshIndicator( // <-- ¡AQUÍ SE COLOCA!
+      onRefresh: () async {
+        if (_currentUserId != null) {
+          // Reutilizamos la lógica de carga para el refresh
+          BlocProvider.of<ChatListBloc>(context).add(LoadChats(_currentUserId!));
+        }
+      },
+      color: AppConstants.secondaryColor,
+      child: CustomScrollView( 
+        slivers: [
+          // 1. Encabezado principal
+          SliverToBoxAdapter(
+            child: _buildHeader(context, authState),
+          ),
+          
+          // 2. Barra de búsqueda
+          SliverToBoxAdapter(
+            child: _buildSearchBar(context),
+          ),
+          
+          // 3. La lista de chats o estados (como un Sliver)
+          _buildChatListSliver(context), 
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
+  // MODIFICADO: Eliminado SafeArea para evitar doble padding con el Scaffold
   Widget _buildHeader(BuildContext context, AuthState authState) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -121,80 +142,86 @@ class _PsychologistChatListScreenState
           ),
         ],
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      // SafeArea ELIMINADO
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Esto soluciona el overflow horizontal de 22px
+          SafeArea(
+            bottom: false,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Mis Conversaciones',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                Expanded( // Añadido Expanded para evitar overflow horizontal
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mis Conversaciones',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    BlocBuilder<ChatListBloc, ChatListState>(
-                      builder: (context, state) {
-                        if (state is ChatListLoaded) {
-                          final totalChats = state.chats.length;
-                          final unreadCount = state.chats
-                              .where((chat) => chat.unreadCount > 0)
-                              .length;
-                          
-                          return Row(
-                            children: [
-                              Icon(
-                                Icons.chat_bubble_outline,
-                                size: 14,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '$totalChats ${totalChats == 1 ? 'paciente' : 'pacientes'}',
-                                style: TextStyle(
-                                  fontSize: 13,
+                      const SizedBox(height: 4),
+                      BlocBuilder<ChatListBloc, ChatListState>(
+                        builder: (context, state) {
+                          if (state is ChatListLoaded) {
+                            final totalChats = state.chats.length;
+                            final unreadCount = state.chats
+                                .where((chat) => chat.unreadCount > 0)
+                                .length;
+                            
+                            return Row(
+                              children: [
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 14,
                                   color: Colors.grey[600],
-                                  fontFamily: 'Poppins',
                                 ),
-                              ),
-                              if (unreadCount > 0) ...[
-                                const SizedBox(width: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$totalChats ${totalChats == 1 ? 'paciente' : 'pacientes'}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                    fontFamily: 'Poppins',
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: AppConstants.primaryColor,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '$unreadCount nuevo${unreadCount != 1 ? 's' : ''}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Poppins',
+                                ),
+                                if (unreadCount > 0) ...[
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppConstants.primaryColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '$unreadCount nuevo${unreadCount != 1 ? 's' : ''}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontFamily: 'Poppins',
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -213,8 +240,8 @@ class _PsychologistChatListScreenState
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -276,11 +303,17 @@ class _PsychologistChatListScreenState
     );
   }
 
-  Widget _buildChatList(BuildContext context) {
-    return BlocBuilder<ChatListBloc, ChatListState>(
-      builder: (context, state) {
-        if (state is ChatListLoading) {
-          return Center(
+ // lib/presentation/psychologist/views/psychologist_chat_list_screen.dart
+// ... (código anterior)
+
+// MODIFICADO: Se añade hasScrollBody: false a SliverFillRemaining
+Widget _buildChatListSliver(BuildContext context) {
+  return BlocBuilder<ChatListBloc, ChatListState>(
+    builder: (context, state) {
+      if (state is ChatListLoading) {
+        return SliverFillRemaining( 
+          hasScrollBody: false, // <-- CORRECCIÓN
+          child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -298,188 +331,207 @@ class _PsychologistChatListScreenState
                 ),
               ],
             ),
+          ),
+        );
+      }
+
+      if (state is ChatListError) {
+        return SliverFillRemaining(
+          hasScrollBody: false, // CORRECCIÓN: Aplicado también para consistencia
+          child: _buildErrorState(context, state.message),
+        );
+      }
+
+      if (state is ChatListLoaded) {
+        final isSearching = _searchController.text.isNotEmpty;
+        final chatsToShow = isSearching ? state.filteredChats : state.chats;
+
+        if (chatsToShow.isEmpty) {
+          return SliverFillRemaining(
+            hasScrollBody: false, // CORRECCIÓN: Aplicado también para consistencia
+            child: _buildEmptyState(isFiltered: isSearching),
           );
         }
 
-        if (state is ChatListError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline_rounded,
-                  size: 64,
-                  color: Colors.red[300],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Error al cargar chats',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    state.message,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (_currentUserId != null) {
-                      BlocProvider.of<ChatListBloc>(context)
-                          .add(LoadChats(_currentUserId!));
-                    }
-                  },
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reintentar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.secondaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (state is ChatListLoaded) {
-          final isSearching = _searchController.text.isNotEmpty;
-          final chatsToShow = isSearching ? state.filteredChats : state.chats;
-
-          if (chatsToShow.isEmpty) {
-            return _buildEmptyState(isFiltered: isSearching);
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              if (_currentUserId != null) {
-                BlocProvider.of<ChatListBloc>(context)
-                    .add(LoadChats(_currentUserId!));
-              }
-            },
-            color: AppConstants.secondaryColor,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: chatsToShow.length,
-              itemBuilder: (context, index) {
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          sliver: SliverList( 
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
                 final patient = chatsToShow[index];
                 return _buildPatientChatTile(patient, index);
               },
+              childCount: chatsToShow.length,
             ),
-          );
-        }
+          ),
+        );
+      }
 
-        return _buildEmptyState(isFiltered: false);
-      },
-    );
-  }
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    },
+  );
+}
 
-  Widget _buildEmptyState({required bool isFiltered}) {
+
+  
+  // Extraído el estado de error para ser llamado por SliverFillRemaining
+  Widget _buildErrorState(BuildContext context, String errorMessage) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView( // Permite scroll en caso de pantalla pequeña
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: AppConstants.secondaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isFiltered
-                    ? Icons.search_off_rounded
-                    : Icons.chat_bubble_outline_rounded,
-                size: 64,
-                color: AppConstants.secondaryColor.withOpacity(0.7),
-              ),
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: Colors.red[300],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Text(
-              isFiltered
-                  ? 'No se encontraron pacientes'
-                  : 'No tienes conversaciones',
+              'Error al cargar chats',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontFamily: 'Poppins',
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                isFiltered
-                    ? 'Intenta buscar con otro nombre o término'
-                    : 'Cuando los pacientes inicien conversaciones, aparecerán aquí',
+                errorMessage,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
                   color: Colors.grey[600],
                   fontFamily: 'Poppins',
-                  height: 1.5,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
-            if (!isFiltered) ...[
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppConstants.lightAccentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppConstants.lightAccentColor.withOpacity(0.3),
-                  ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                if (_currentUserId != null) {
+                  BlocProvider.of<ChatListBloc>(context)
+                      .add(LoadChats(_currentUserId!));
+                }
+              },
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.secondaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: AppConstants.lightAccentColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Los pacientes pueden contactarte desde su perfil',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppConstants.lightAccentColor,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ),
-                  ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  // Modificado: Envuelto en SingleChildScrollView para manejar overflow en modo 'SliverFillRemaining'
+  Widget _buildEmptyState({required bool isFiltered}) {
+    return Center(
+      child: SingleChildScrollView( // Permite scroll en caso de overflow
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, // Esto es importante dentro del SingleChildScrollView
+            children: [
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: AppConstants.secondaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isFiltered
+                      ? Icons.search_off_rounded
+                      : Icons.chat_bubble_outline_rounded,
+                  size: 64,
+                  color: AppConstants.secondaryColor.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isFiltered
+                    ? 'No se encontraron pacientes'
+                    : 'No tienes conversaciones',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  isFiltered
+                      ? 'Intenta buscar con otro nombre o término'
+                      : 'Cuando los pacientes inicien conversaciones, aparecerán aquí',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontFamily: 'Poppins',
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              if (!isFiltered) ...[
+                const SizedBox(height: 32),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppConstants.lightAccentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppConstants.lightAccentColor.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: AppConstants.lightAccentColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Los pacientes pueden contactarte desde su perfil',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppConstants.lightAccentColor,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildPatientChatTile(PatientChatItem patient, int index) {
   return TweenAnimationBuilder<double>(
@@ -570,7 +622,7 @@ class _PsychologistChatListScreenState
                       ),
                       const SizedBox(height: 6),
                       
-                      // ✅ SOLUCIÓN: Leer lastMessage directamente de Firestore
+                      // Solución de StreamBuilder
                       StreamBuilder<DocumentSnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('chats')
@@ -583,7 +635,6 @@ class _PsychologistChatListScreenState
                             final data = snapshot.data!.data() as Map<String, dynamic>?;
                             if (data != null && data['lastMessage'] != null) {
                               displayMessage = data['lastMessage'] as String;
-                              print('🔍 LastMessage desde Firestore: "$displayMessage"');
                             }
                           }
                           
@@ -618,7 +669,7 @@ class _PsychologistChatListScreenState
                                         ],
                                       )
                                     : Text(
-                                        displayMessage, // ✅ Usar el mensaje de Firestore
+                                        displayMessage, // Usar el mensaje de Firestore
                                         style: TextStyle(
                                           color: patient.unreadCount > 0
                                               ? Theme.of(context)
@@ -684,7 +735,7 @@ class _PsychologistChatListScreenState
   );
 }
 
-// ✅ Método helper para construir el chatId
+// Método helper para construir el chatId
 String _getChatId(String patientId) {
   if (_currentUserId == null) return '';
   final ids = [_currentUserId!, patientId]..sort();
@@ -776,10 +827,12 @@ String _getChatId(String patientId) {
     );
   }
 
+  // MODIFICADO: Añadido isScrollControlled y SingleChildScrollView para corregir el overflow vertical
   void _showFilterOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true, // ¡Permite al modal ocupar casi toda la altura y manejar el teclado!
       builder: (BuildContext bottomSheetContext) {
         return Container(
           decoration: BoxDecoration(
@@ -789,67 +842,71 @@ String _getChatId(String patientId) {
               topRight: Radius.circular(24),
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView( // ¡Permite el scroll del contenido!
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Filtrar conversaciones',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  const SizedBox(height: 24),
+                  Text(
+                    'Filtrar conversaciones',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                _buildFilterOption(
-                  context,
-                  icon: Icons.mark_chat_unread_rounded,
-                  title: 'Mensajes no leídos',
-                  subtitle: 'Mostrar solo chats con mensajes nuevos',
-                  onTap: () {
-                    Navigator.pop(bottomSheetContext);
-                    // TODO: Implementar filtro
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildFilterOption(
-                  context,
-                  icon: Icons.schedule_rounded,
-                  title: 'Más recientes',
-                  subtitle: 'Ordenar por última actividad',
-                  onTap: () {
-                    Navigator.pop(bottomSheetContext);
-                    // TODO: Implementar filtro
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildFilterOption(
-                  context,
-                  icon: Icons.sort_by_alpha_rounded,
-                  title: 'Orden alfabético',
-                  subtitle: 'Ordenar por nombre de paciente',
-                  onTap: () {
-                    Navigator.pop(bottomSheetContext);
-                    // TODO: Implementar filtro
-                  },
-                ),
-                SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 24),
-              ],
+                  const SizedBox(height: 20),
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.mark_chat_unread_rounded,
+                    title: 'Mensajes no leídos',
+                    subtitle: 'Mostrar solo chats con mensajes nuevos',
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      // TODO: Implementar filtro
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.schedule_rounded,
+                    title: 'Más recientes',
+                    subtitle: 'Ordenar por última actividad',
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      // TODO: Implementar filtro
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.sort_by_alpha_rounded,
+                    title: 'Orden alfabético',
+                    subtitle: 'Ordenar por nombre de paciente',
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      // TODO: Implementar filtro
+                    },
+                  ),
+                  // Se usa MediaQuery.of(context).viewInsets.bottom para dar espacio
+                  // al teclado sin causar overflow, gracias a SingleChildScrollView y isScrollControlled.
+                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 24), 
+                ],
+              ),
             ),
           ),
         );

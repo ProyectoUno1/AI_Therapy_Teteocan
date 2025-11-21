@@ -1,4 +1,5 @@
-// ai_chat_screen.dart - VERSIÓN CORREGIDA
+// ai_chat_screen.dart - VERSIÓN CORREGIDA CON SUSCRIPCIÓN
+
 import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,7 +10,17 @@ import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
-import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart'; 
+import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_bloc.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_state.dart';
+import 'package:ai_therapy_teteocan/presentation/subscription/bloc/subscription_event.dart';
+import 'package:ai_therapy_teteocan/data/repositories/subscription_repository.dart';
+
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -35,6 +46,48 @@ class _AIChatScreenState extends State<AIChatScreen> {
   int _messageLimit = 5;
   bool _isPremium = false;
 
+  // Función para obtener tamaño de fuente responsivo
+  double _getResponsiveFontSize(double baseSize) {
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final textScaleFactor = _getConstrainedTextScaleFactor(context);
+    
+    // Ajustar por orientación
+    double scale = isLandscape ? (width / 800) : (width / 375);
+    
+    // Limitar el escalado para texto grande
+    scale = scale.clamp(0.85, 1.2);
+    
+    // Reducir más en landscape con texto grande
+    if (isLandscape && textScaleFactor > 1.2) {
+      scale *= 0.85;
+    }
+    
+    return (baseSize * scale).clamp(baseSize * 0.75, baseSize * 1.15);
+  }
+
+  // Función para obtener padding responsivo
+  EdgeInsets _getResponsivePadding({
+    required double horizontal,
+    required double vertical,
+  }) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final width = MediaQuery.of(context).size.width;
+    
+    if (isLandscape) {
+      return EdgeInsets.symmetric(
+        horizontal: width < 600 ? horizontal * 0.75 : horizontal,
+        vertical: vertical * 0.6,
+      );
+    }
+    
+    return EdgeInsets.symmetric(
+      horizontal: horizontal,
+      vertical: vertical,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,9 +108,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
           final data = snapshot.data()!;
           setState(() {
             _usedMessages = data['messageCount'] ?? 0;
-            _messageLimit = data['isPremium'] == true ? 99999 : 5;
             _isPremium = data['isPremium'] == true;
+            _messageLimit = _isPremium ? 99999 : 5;
           });
+          print('📊 Estado de suscripción actualizado: Premium=$_isPremium, Mensajes usados=$_usedMessages, Límite=$_messageLimit');
         }
       });
     }
@@ -88,7 +142,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     });
     
     try {
-      print('🔄 Cargando mensajes desde API...');
+      print('📄 Cargando mensajes desde API...');
       final messages = await _chatRepository.loadAIChatMessages();
       
       print('✅ Mensajes cargados: ${messages.length}');
@@ -96,7 +150,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
         print('   💬 "${msg.content}" | isUser: ${msg.isUser} | Timestamp: ${msg.timestamp}');
       }
       
-      // ✅ CORREGIDO: Ordenar mensajes por timestamp (más antiguo primero)
       messages.sort((a, b) {
         final aTime = a.timestamp ?? DateTime(0);
         final bTime = b.timestamp ?? DateTime(0);
@@ -116,9 +169,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar mensajes: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar mensajes: $e')),
+        );
+      }
     }
   }
 
@@ -126,7 +181,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final message = _messageController.text.trim();
     if (message.isEmpty || _isSending) return;
 
-    // Verificar límite de mensajes
     if (!_isPremium && _usedMessages >= _messageLimit) {
       _showLimitReachedDialog();
       return;
@@ -136,7 +190,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
       _isSending = true;
     });
 
-    // Agregar mensaje usuario localmente
     final userMessage = MessageModel(
       id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
       content: message,
@@ -146,7 +199,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
     
     setState(() {
-      _messages.add(userMessage); // Se agrega al final (más reciente)
+      _messages.add(userMessage);
     });
     
     _messageController.clear();
@@ -158,11 +211,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
       
       print('✅ Respuesta IA: "$aiResponse"');
       
-      // Remover mensaje temporal y agregar mensajes reales
       setState(() {
         _messages.removeWhere((msg) => msg.id.startsWith('temp-'));
         
-        // Agregar mensaje usuario confirmado
         final userMessageReal = MessageModel(
           id: 'user-${DateTime.now().millisecondsSinceEpoch}',
           content: message,
@@ -171,7 +222,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           timestamp: DateTime.now(),
         );
         
-        // Agregar respuesta IA
         final aiMessage = MessageModel(
           id: 'ai-${DateTime.now().millisecondsSinceEpoch}',
           content: aiResponse,
@@ -180,7 +230,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           timestamp: DateTime.now(),
         );
         
-        // ✅ CORREGIDO: Agregar en orden cronológico (al final)
         _messages.add(userMessageReal);
         _messages.add(aiMessage);
       });
@@ -190,20 +239,21 @@ class _AIChatScreenState extends State<AIChatScreen> {
     } catch (e) {
       print('❌ Error enviando mensaje: $e');
       
-      // Remover mensaje temporal si falló
       setState(() {
         _messages.removeWhere((msg) => msg.id.startsWith('temp-'));
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al enviar mensaje: $e'),
-          action: SnackBarAction(
-            label: 'Reintentar',
-            onPressed: _sendMessage,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar mensaje: $e'),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: _sendMessage,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } finally {
       setState(() {
         _isSending = false;
@@ -214,40 +264,62 @@ class _AIChatScreenState extends State<AIChatScreen> {
   void _showLimitReachedDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.lock_outline, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Límite Alcanzado'),
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaleFactor: _getConstrainedTextScaleFactor(context),
+        ),
+        child: AlertDialog(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_outline,
+                color: Colors.orange,
+                size: _getResponsiveFontSize(24),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Límite Alcanzado',
+                  style: TextStyle(fontSize: _getResponsiveFontSize(18)),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            '¡Has alcanzado tu límite de mensajes diarios!\n\n'
+            'Actualiza a Premium para disfrutar de conversaciones ilimitadas con Aurora AI.',
+            style: TextStyle(fontSize: _getResponsiveFontSize(14)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cerrar',
+                style: TextStyle(fontSize: _getResponsiveFontSize(14)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.primaryColor,
+              ),
+              child: Text(
+                'Actualizar a Premium',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: _getResponsiveFontSize(14),
+                ),
+              ),
+            ),
           ],
         ),
-        content: const Text(
-          '¡Has alcanzado tu límite de mensajes diarios!\n\n'
-          'Actualiza a Premium para disfrutar de conversaciones ilimitadas con Aurora AI.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
-            ),
-            child: const Text(
-              'Actualizar a Premium',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -258,7 +330,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients && !_isUserScrolling) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent, // ✅ Ir al final (mensaje más reciente)
+          _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -268,11 +340,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Widget _buildTypingIndicator() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: _getResponsivePadding(horizontal: 16, vertical: 8),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: _getResponsivePadding(horizontal: 12, vertical: 8),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.7,
           ),
@@ -283,7 +355,15 @@ class _AIChatScreenState extends State<AIChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Aurora está escribiendo...'),
+              Flexible(
+                child: Text(
+                  'Aurora está escribiendo...',
+                  style: TextStyle(
+                    fontSize: _getResponsiveFontSize(14),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(width: 8),
               SizedBox(
                 width: 20,
@@ -303,32 +383,44 @@ class _AIChatScreenState extends State<AIChatScreen> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.psychology,
-            size: 64,
-            color: Colors.grey,
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: _getResponsivePadding(horizontal: 24, vertical: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.psychology,
+                size: isLandscape ? 48 : 64,
+                color: Colors.grey,
+              ),
+              SizedBox(height: isLandscape ? 12 : 16),
+              Text(
+                'Hola! Soy Aurora 🌟',
+                style: TextStyle(
+                  fontSize: _getResponsiveFontSize(18),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: isLandscape ? 4 : 8),
+              Text(
+                _isPremium 
+                    ? '¡Eres usuario Premium! Disfruta de conversaciones ilimitadas.'
+                    : 'Tienes $_messageLimit mensajes disponibles hoy.',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: _getResponsiveFontSize(14),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          SizedBox(height: 16),
-          Text(
-            'Hola! Soy Aurora 🌟',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Inicia la conversación para comenzar',
-            style: TextStyle(
-              color: Colors.grey,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -336,16 +428,15 @@ class _AIChatScreenState extends State<AIChatScreen> {
   Widget _buildMessagesList(List<MessageModel> messages) {
     return ListView.builder(
       controller: _scrollController,
-      reverse: false, // ✅ NO invertir - orden natural
+      reverse: false,
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: _getResponsivePadding(horizontal: 0, vertical: 16),
       itemCount: messages.length + (_isSending ? 1 : 0),
       itemBuilder: (context, index) {
-        // Si está enviando, mostrar indicador al FINAL de la lista
         if (_isSending && index == messages.length) {
           return _buildTypingIndicator();
         }
 
-        // Mensajes normales en orden cronológico
         if (index < messages.length) {
           final message = messages[index];
           return MessageBubble(
@@ -362,18 +453,21 @@ class _AIChatScreenState extends State<AIChatScreen> {
   Widget _buildMessageInput() {
     final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
     final bool showWarning = !_isPremium && _usedMessages >= _messageLimit - 1;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: _getResponsivePadding(horizontal: 16, vertical: 8),
       color: Colors.white,
       child: SafeArea(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Mostrar advertencia cuando queda 1 mensaje
             if (showWarning && !_isSending && !isLimitReached)
               Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 8),
+                padding: _getResponsivePadding(horizontal: 12, vertical: 8),
+                margin: EdgeInsets.only(
+                  bottom: isLandscape ? 4 : 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -381,21 +475,28 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+                    Icon(
+                      Icons.warning_amber,
+                      color: Colors.orange,
+                      size: _getResponsiveFontSize(20),
+                    ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         '¡Te queda 1 mensaje! Actualiza a Premium para conversaciones ilimitadas.',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: _getResponsiveFontSize(12),
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: TextField(
@@ -414,6 +515,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                                 ? Colors.grey.shade400 
                                 : Colors.grey,
                         fontFamily: 'Poppins',
+                        fontSize: _getResponsiveFontSize(14),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -425,18 +527,22 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           : _isSending 
                               ? Colors.grey[200] 
                               : Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: MediaQuery.of(context).size.width * 0.05,
+                        vertical: 12,
                       ),
                     ),
                     onSubmitted: (_isSending || isLimitReached) ? null : (_) => _sendMessage(),
-                    maxLines: null,
+                    maxLines: isLandscape ? 2 : 4,
+                    minLines: 1,
                     textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(fontSize: _getResponsiveFontSize(14)),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: (_isSending || isLimitReached)
                         ? Colors.grey 
@@ -444,6 +550,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
+                    iconSize: 24,
+                    padding: EdgeInsets.zero,
                     icon: _isSending 
                         ? const SizedBox(
                             width: 20,
@@ -469,75 +577,88 @@ class _AIChatScreenState extends State<AIChatScreen> {
   }
 
   Widget _buildSubscriptionPrompt(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppConstants.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppConstants.primaryColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.lock_outline,
-            size: 48,
-            color: AppConstants.primaryColor,
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
+    return SingleChildScrollView(
+      child: Container(
+        padding: _getResponsivePadding(horizontal: 16, vertical: 16),
+        margin: _getResponsivePadding(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppConstants.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppConstants.primaryColor.withOpacity(0.3),
+            width: 1,
           ),
-          const SizedBox(height: 12),
-          Text(
-            '¡Has usado $_usedMessages de $_messageLimit mensajes!',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: isLandscape ? 36 : 48,
               color: AppConstants.primaryColor,
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Actualiza tu plan a Premium para disfrutar de conversaciones ilimitadas con Aurora AI.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SubscriptionScreen(),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.workspace_premium_outlined,
-              color: Colors.white,
-            ),
-            label: const Text(
-              'Actualizar a Premium',
+            SizedBox(height: isLandscape ? 8 : 12),
+            Text(
+              '¡Has usado $_usedMessages de $_messageLimit mensajes!',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                fontSize: _getResponsiveFontSize(16),
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                color: AppConstants.primaryColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: isLandscape ? 4 : 8),
+            Text(
+              'Actualiza tu plan a Premium para disfrutar de conversaciones ilimitadas con Aurora AI.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: _getResponsiveFontSize(14),
+                color: Colors.grey,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: isLandscape ? 12 : 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SubscriptionScreen(),
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.workspace_premium_outlined,
+                color: Colors.white,
+                size: _getResponsiveFontSize(20),
+              ),
+              label: Text(
+                'Actualizar a Premium',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: _getResponsiveFontSize(16),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.primaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: MediaQuery.of(context).size.width * 0.08,
+                  vertical: 12,
+                ),
+                elevation: 2,
               ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              elevation: 2,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -545,83 +666,99 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isLimitReached = !_isPremium && _usedMessages >= _messageLimit;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: AppConstants.lightAccentColor,
-              child: const Icon(
-                Icons.psychology,
-                color: Colors.white,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          toolbarHeight: isLandscape ? 48 : 56,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            iconSize: _getResponsiveFontSize(24),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: isLandscape ? 14 : 20,
+                backgroundColor: AppConstants.lightAccentColor,
+                child: Icon(
+                  Icons.psychology,
+                  color: Colors.white,
+                  size: isLandscape ? 16 : 20,
+                ),
               ),
+              SizedBox(width: isLandscape ? 8 : 12),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Aurora AI',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: _getResponsiveFontSize(16),
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _isPremium ? 'Premium - Ilimitado' : 'Gratis - $_usedMessages/$_messageLimit',
+                      style: TextStyle(
+                        color: _isPremium ? Colors.green : Colors.grey,
+                        fontSize: _getResponsiveFontSize(12),
+                        fontFamily: 'Poppins',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.grey),
+              iconSize: _getResponsiveFontSize(24),
+              onPressed: _loadMessages,
+              tooltip: 'Recargar mensajes',
             ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Aurora AI',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                Text(
-                  'Siempre disponible',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
+            IconButton(
+              icon: Icon(Icons.more_vert, color: Colors.grey[700]),
+              iconSize: _getResponsiveFontSize(24),
+              onPressed: () {},
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.grey),
-            onPressed: _loadMessages,
-            tooltip: 'Recargar mensajes',
-          ),
-          IconButton(
-            icon: Icon(Icons.more_vert, color: Colors.grey[700]),
-            onPressed: () {
-              // Opciones adicionales
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_isLoading && _messages.isEmpty)
-            const LinearProgressIndicator(),
-            
-          Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: _isLoading && _messages.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : _messages.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMessagesList(_messages),
+        body: Column(
+          children: [
+            if (_isLoading && _messages.isEmpty)
+              const LinearProgressIndicator(),
+              
+            Expanded(
+              child: Container(
+                color: Colors.grey[50],
+                child: _isLoading && _messages.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _messages.isEmpty
+                        ? _buildEmptyState()
+                        : _buildMessagesList(_messages),
+              ),
             ),
-          ),
-          
-          isLimitReached 
-              ? _buildSubscriptionPrompt(context)
-              : _buildMessageInput(),
-        ],
+            
+            isLimitReached 
+                ? _buildSubscriptionPrompt(context)
+                : _buildMessageInput(),
+          ],
+        ),
       ),
     );
   }

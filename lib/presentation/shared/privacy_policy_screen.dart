@@ -35,7 +35,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
+            _buildHeader(), // Contiene la nueva información de la entidad y alcance
             const SizedBox(height: 24),
             _buildSection(
               title: '1. Información que Recopilamos',
@@ -172,7 +172,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 _buildSubsection(
                   subtitle: 'Ejercicio de Derechos',
                   text:
-                      'Para ejercer estos derechos, contacte a: [TU_EMAIL_DE_CONTACTO]',
+                      'Para ejercer estos derechos, contacte a: contacto@teteocan.com',
                 ),
               ],
             ),
@@ -187,10 +187,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     'Datos de pago: según requisitos fiscales (generalmente 5 años)'),
                 _buildBulletPoint(
                     'Registros de auditoría: hasta 7 años para cumplimiento legal'),
+                _buildBulletPoint(
+                    'La retención total de datos personales es por el tiempo necesario para cumplir con las finalidades y 2 años después de la terminación contractual.'),
                 _buildSubsection(
                   subtitle: '',
                   text:
-                      'Después de estos períodos, los datos son eliminados de forma segura o anonimizados para análisis estadísticos.',
+                      'En el caso de datos sensibles (estado emocional, interacciones con IA o psicólogos), estos se conservarán únicamente el tiempo indispensable para el seguimiento terapéutico y serán eliminados o anonimizados de manera segura una vez cumplida su finalidad. Después de estos períodos, los datos son eliminados de forma segura o anonimizados para análisis estadísticos.',
                 ),
               ],
             ),
@@ -210,7 +212,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 _buildSubsection(
                   subtitle: '',
                   text:
-                      'Sus datos pueden ser transferidos y procesados en servidores ubicados fuera de México, particularmente en Estados Unidos (Firebase/Google Cloud). Estas transferencias cumplen con las cláusulas contractuales estándar y medidas de seguridad apropiadas.',
+                      'Sus datos pueden ser transferidos y procesados en servidores ubicados fuera de México, particularmente en Estados Unidos (Firebase/Google Cloud). Estas transferencias cumplen con las cláusulas contractuales estándar y medidas de seguridad apropiadas, asegurando que el receptor brinde un nivel de protección equivalente al exigido por la LFPDPPP en México.',
                 ),
               ],
             ),
@@ -245,15 +247,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
               content: [
                 _buildSubsection(
                   subtitle: 'Responsable de Datos',
-                  text: 'Aurora AI Therapy S.A. de C.V.',
+                  text: 'Teteocan Technologies S.A.S. de C.V.',
                 ),
                 _buildSubsection(
                   subtitle: 'Dirección',
-                  text: 'México',
+                  text: 'Cuautitlán Izcalli, Estado de México, México',
                 ),
                 _buildSubsection(
                   subtitle: 'Email',
-                  text: 'contacto@auroraaiterapi.com',
+                  text: 'contacto@teteocan.com',
                 ),
                 _buildSubsection(
                   subtitle: 'Teléfono',
@@ -266,7 +268,17 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ],
             ),
             _buildSection(
-              title: '13. Información Específica para Psicólogos',
+              title: '13. Uso de la IA',
+              content: [
+                _buildSubsection(
+                  subtitle: '',
+                  text:
+                      'Aurora IA utiliza algoritmos de inteligencia artificial con fines de acompañamiento emocional. La IA no sustituye un diagnóstico, tratamiento médico ni atención psicológica de emergencia. En caso de crisis, el usuario será redirigido a líneas de apoyo oficiales.',
+                ),
+              ],
+            ),
+            _buildSection(
+              title: '14. Información Específica para Psicólogos',
               content: [
                 _buildSubsection(
                   subtitle: 'Confidencialidad Profesional',
@@ -286,7 +298,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ],
             ),
             _buildSection(
-              title: '14. Cumplimiento Normativo',
+              title: '15. Cumplimiento Normativo',
               content: [
                 _buildSubsection(
                   subtitle: '',
@@ -312,6 +324,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    // --- FUNCIÓN ACTUALIZADA CON LA INFORMACIÓN ESPECÍFICA ---
+    final introTextStyle = TextStyle(
+      fontSize: 14,
+      color: Colors.grey[800],
+      fontFamily: 'Poppins',
+      height: 1.5,
+    );
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -355,21 +375,33 @@ class PrivacyPolicyScreen extends StatelessWidget {
               fontStyle: FontStyle.italic,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // 1. Entidad y Responsabilidad
           Text(
-            'Este Aviso de Privacidad describe cómo recopilamos, usamos, compartimos y protegemos su información personal y de salud. Al usar nuestra aplicación, usted acepta las prácticas descritas en este documento.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[800],
-              fontFamily: 'Poppins',
-              height: 1.5,
-            ),
+            'Aurora: AI Therapy es un producto desarrollado y operado por Teteocan Technologies S.A.S. de C.V., con domicilio en Cuautitlán Izcalli, Estado de México, México, quien es responsable del tratamiento de sus datos personales conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).',
+            style: introTextStyle,
+            textAlign: TextAlign.justify,
+          ),
+          const SizedBox(height: 12),
+          // 2. Referencias y Alcance (AURORA IA)
+          Text(
+            'Las referencias a "AURORA IA: THERAPY" en este Aviso se refieren a TETEOCAN TECHNOLOGIES de México, S.A.S de C.V. y a cualquier empresa directa o indirectamente de su propiedad y/o controlada por tal sociedad o que esté bajo un controlante común, con la que usted esté interactuando o con la que tenga una relación comercial (en adelante, "AURORA IA").',
+            style: introTextStyle,
+            textAlign: TextAlign.justify,
+          ),
+          const SizedBox(height: 12),
+          // 3. Alcance de Marketing
+          Text(
+            'Este Aviso de Privacidad también se aplica al contenido de marketing de Aurora IA, incluidas las recomendaciones, promociones, campañas informativas y anuncios relacionados con nuestros servicios de acompañamiento emocional y sesiones psicológicas, que nosotros (o un proveedor de servicios que actúe en nuestro nombre) podamos enviarle en sitios web, plataformas o aplicaciones de terceros, con base en su interacción y uso de la aplicación. Dichos sitios web o aplicaciones de terceros cuentan generalmente con su propio Aviso de Privacidad y Términos y Condiciones, por lo que le recomendamos revisarlos antes de utilizarlos.',
+            style: introTextStyle,
+            textAlign: TextAlign.justify,
           ),
         ],
       ),
     );
   }
 
+  // --- El resto de las funciones auxiliares se mantienen iguales ---
   Widget _buildSection({
     required String title,
     required List<Widget> content,

@@ -1,9 +1,8 @@
-// lib/presentation/patient/views/psychologists_list_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/data/models/psychologist_model.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/appointment_booking_screen.dart';
@@ -64,7 +63,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
   }
 
   Future<List<PsychologistModel>>
-      _fetchPsychologistsWithProfessionalInfo() async {
+  _fetchPsychologistsWithProfessionalInfo() async {
     try {
       final firestore = FirebaseFirestore.instance;
       final psychologistsRef = firestore.collection('psychologists');
@@ -111,16 +110,18 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
   void _applyFilters() {
     List<PsychologistModel> filtered = _allPsychologists.where((psychologist) {
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           (psychologist.fullName ?? '').toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ) ||
+            _searchQuery.toLowerCase(),
+          ) ||
           (psychologist.specialty?.toLowerCase().contains(
-                    _searchQuery.toLowerCase(),
-                  ) ??
+                _searchQuery.toLowerCase(),
+              ) ??
               false);
 
-      final matchesSpecialty = _selectedSpecialty == 'Todas' ||
+      final matchesSpecialty =
+          _selectedSpecialty == 'Todas' ||
           (psychologist.specialty == _selectedSpecialty);
 
       return matchesSearch && matchesSpecialty;
@@ -142,7 +143,6 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
     });
 
     try {
-
       final hasConnection = await PsychologistRatingService.testConnection();
       if (!hasConnection) {
         throw Exception('No se pudo conectar al servidor');
@@ -151,14 +151,12 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
       final psychologistIds = _allPsychologists.map((p) => p.uid).toList();
       final ratingsData =
           await PsychologistRatingService.getPsychologistsRatings(
-        psychologistIds,
-      );
+            psychologistIds,
+          );
 
       setState(() {
         _ratings = ratingsData;
         _isLoadingRatings = false;
-      });
-      _ratings.forEach((id, rating) {
       });
     } catch (e) {
       setState(() {
@@ -183,194 +181,336 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Psicólogos Disponibles',
-          style: Theme.of(context).appBarTheme.titleTextStyle,
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).iconTheme.color),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.filter_list, color: Theme.of(context).iconTheme.color),
-            onPressed: _showFilterBottomSheet,
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final screenHeight = screenSize.height;
+    final isLandscape = ResponsiveUtils.isLandscapeMode(context);
+    final isVerySmallScreen = screenHeight < 400;
+
+    return Builder(
+      builder: (context) {
+        final constrainedTextScale = MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.1);
+        
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: constrainedTextScale,
           ),
-          IconButton(
-            icon: Icon(
-              Icons.refresh,
-              color: _isLoadingRatings ? Colors.orange : Theme.of(context).iconTheme.color,
-            ),
-            onPressed: _isLoadingRatings ? null : _loadRatings,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_isLoadingRatings || _ratingsError != null)
-            Container(
-              width: double.infinity,
-               color: _ratingsError != null
-                  ? Theme.of(context).colorScheme.error.withOpacity(0.1)
-                  : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  if (_isLoadingRatings)
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else
-                    Icon(Icons.warning, size: 16, color: Colors.red[600]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _isLoadingRatings
-                          ? 'Cargando calificaciones...'
-                          : 'Error: $_ratingsError',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _ratingsError != null
-                            ? Colors.red[600]
-                            : Colors.blue[600],
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ),
-                  if (_ratingsError != null)
-                    TextButton(
-                      onPressed: _loadRatings,
-                      child: const Text(
-                        'Reintentar',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: (value) {
-                _searchQuery = value;
-                _applyFilters();
-              },
-              decoration: InputDecoration(
-                hintText: 'Buscar psicólogos o especialidades...',
-                hintStyle: const TextStyle(
-                  color: Colors.grey,
-                  fontFamily: 'Poppins',
-                ),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              toolbarHeight: isLandscape || isVerySmallScreen ? 48 : 56,
+              title: Text(
+                'Psicólogos Disponibles',
+                style: TextStyle(
+                  fontSize: isLandscape ? 16 : 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ),
-          Container(
-            color: Colors.white,
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _specialties.length,
-              itemBuilder: (context, index) {
-                final specialty = _specialties[index];
-                final isSelected = specialty == _selectedSpecialty;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(
-                      specialty,
-                      style: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : AppConstants.lightAccentColor,
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: AppConstants.lightAccentColor,
-                    backgroundColor: AppConstants.lightAccentColor.withOpacity(
-                      0.1,
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedSpecialty = specialty;
-                      });
-                      _applyFilters();
-                    },
+              leading: IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios,
+                  color: Theme.of(context).iconTheme.color,
+                  size: isLandscape ? 18 : 20,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: Theme.of(context).iconTheme.color,
+                    size: isLandscape ? 20 : 24,
                   ),
-                );
-              },
+                  onPressed: _showFilterBottomSheet,
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.refresh,
+                    color: _isLoadingRatings
+                        ? Colors.orange
+                        : Theme.of(context).iconTheme.color,
+                    size: isLandscape ? 20 : 24,
+                  ),
+                  onPressed: _isLoadingRatings ? null : _loadRatings,
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: FutureBuilder<List<PsychologistModel>>(
+            body: FutureBuilder<List<PsychologistModel>>(
               future: _psychologistsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text('Ocurrió un error: ${snapshot.error}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadPsychologists,
-                          child: const Text('Reintentar'),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildErrorState(snapshot.error);
                 }
 
-                if (_filteredPsychologists.isEmpty) {
+                final psychologists =
+                    _filteredPsychologists.isEmpty &&
+                        _searchQuery.isEmpty &&
+                        _selectedSpecialty == 'Todas'
+                    ? _allPsychologists
+                    : _filteredPsychologists;
+
+                if (psychologists.isEmpty) {
                   return _buildEmptyState();
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _filteredPsychologists.length,
-                  itemBuilder: (context, index) {
-                    final psychologist = _filteredPsychologists[index];
-                    final rating = _ratings[psychologist.uid];
-                    return _PsychologistCard(
-                      psychologist: psychologist,
-                      rating: rating,
-                      onTap: () => _onPsychologistSelected(psychologist),
-                    );
-                  },
-                );
+                if (isLandscape) {
+                  return _buildLandscapeView(psychologists, isVerySmallScreen);
+                }
+
+                return _buildPortraitView(psychologists);
               },
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLandscapeView(List<PsychologistModel> psychologists, bool isVerySmallScreen) {
+    return CustomScrollView(
+      slivers: [
+        SliverPersistentHeader(
+          pinned: false,
+          floating: true,
+          delegate: _SearchHeaderDelegate(
+            maxExtent: isVerySmallScreen ? 56 : 64,
+            minExtent: 0,
+            onSearchChanged: (value) {
+              setState(() => _searchQuery = value);
+              _applyFilters();
+            },
+            isCompact: isVerySmallScreen,
+          ),
+        ),
+
+        SliverPersistentHeader(
+          pinned: false,
+          floating: true,
+          delegate: _FiltersHeaderDelegate(
+            maxExtent: isVerySmallScreen ? 36 : 40,
+            minExtent: 0,
+            selectedSpecialty: _selectedSpecialty,
+            specialties: _specialties,
+            onSpecialtyChanged: (specialty) {
+              setState(() => _selectedSpecialty = specialty);
+              _applyFilters();
+            },
+            isCompact: isVerySmallScreen,
+          ),
+        ),
+
+        if (_isLoadingRatings || _ratingsError != null)
+          SliverToBoxAdapter(
+            child: _buildRatingsBanner(isVerySmallScreen),
+          ),
+
+        SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final psychologist = psychologists[index];
+                final rating = _ratings[psychologist.uid];
+                return _PsychologistCard(
+                  psychologist: psychologist,
+                  rating: rating,
+                  onTap: () => _onPsychologistSelected(psychologist),
+                  isCompact: true,
+                );
+              },
+              childCount: psychologists.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPortraitView(List<PsychologistModel> psychologists) {
+    return Column(
+      children: [
+        if (_isLoadingRatings || _ratingsError != null) 
+          _buildRatingsBanner(false),
+
+        Container(
+          color: Colors.white,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSearchBar(false),
+              _buildSpecialtyFilters(false),
+            ],
+          ),
+        ),
+
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: psychologists.length,
+            itemBuilder: (context, index) {
+              final psychologist = psychologists[index];
+              final rating = _ratings[psychologist.uid];
+              return _PsychologistCard(
+                psychologist: psychologist,
+                rating: rating,
+                onTap: () => _onPsychologistSelected(psychologist),
+                isCompact: false,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar(bool isCompact) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: isCompact ? 4 : 8,
+      ),
+      child: TextField(
+        onChanged: (value) {
+          setState(() => _searchQuery = value);
+          _applyFilters();
+        },
+        decoration: InputDecoration(
+          hintText: 'Buscar psicólogos...',
+          hintStyle: TextStyle(
+            color: Colors.grey,
+            fontFamily: 'Poppins',
+            fontSize: isCompact ? 12 : 14,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.grey,
+            size: isCompact ? 18 : 20,
+          ),
+          filled: true,
+          fillColor: Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: isCompact ? 8 : 12,
+          ),
+          isDense: isCompact,
+        ),
+        style: TextStyle(fontSize: isCompact ? 12 : 14),
+      ),
+    );
+  }
+
+  Widget _buildSpecialtyFilters(bool isCompact) {
+    return Container(
+      height: isCompact ? 36 : 45,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompact ? 2 : 4),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _specialties.length,
+        itemBuilder: (context, index) {
+          final specialty = _specialties[index];
+          final isSelected = specialty == _selectedSpecialty;
+          return Padding(
+            padding: EdgeInsets.only(right: 6),
+            child: FilterChip(
+              label: Text(
+                specialty,
+                style: TextStyle(
+                  fontSize: isCompact ? 10 : 12,
+                  color: isSelected ? Colors.white : AppConstants.lightAccentColor,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: AppConstants.lightAccentColor,
+              backgroundColor: AppConstants.lightAccentColor.withOpacity(0.1),
+              onSelected: (selected) {
+                setState(() => _selectedSpecialty = specialty);
+                _applyFilters();
+              },
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 6 : 8,
+                vertical: isCompact ? 0 : 2,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRatingsBanner(bool isCompact) {
+    return Container(
+      width: double.infinity,
+      color: _ratingsError != null
+          ? Theme.of(context).colorScheme.error.withOpacity(0.1)
+          : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+      padding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: isCompact ? 4 : 8,
+      ),
+      child: Row(
+        children: [
+          if (_isLoadingRatings)
+            SizedBox(
+              width: isCompact ? 12 : 16,
+              height: isCompact ? 12 : 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Icon(
+              Icons.warning,
+              size: isCompact ? 14 : 16,
+              color: Colors.red[600],
+            ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _isLoadingRatings
+                  ? 'Cargando calificaciones...'
+                  : 'Error: $_ratingsError',
+              style: TextStyle(fontSize: isCompact ? 10 : 12),
+            ),
+          ),
+          if (_ratingsError != null)
+            TextButton(
+              onPressed: _loadRatings,
+              child: Text(
+                'Reintentar',
+                style: TextStyle(fontSize: isCompact ? 10 : 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object? error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+          SizedBox(height: 16),
+          Text('Error de conexión', style: TextStyle(fontSize: 18)),
+          SizedBox(height: 8),
+          Text(
+            'No se pudieron cargar los psicólogos',
+            style: TextStyle(fontSize: 14),
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _loadPsychologists,
+            child: Text('Reintentar'),
           ),
         ],
       ),
@@ -383,24 +523,12 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.psychology_outlined, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No se encontraron psicólogos',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
+          SizedBox(height: 16),
+          Text('No se encontraron psicólogos', style: TextStyle(fontSize: 18)),
+          SizedBox(height: 8),
           Text(
             'Intenta cambiar los filtros de búsqueda',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-              fontFamily: 'Poppins',
-            ),
+            style: TextStyle(fontSize: 14),
           ),
         ],
       ),
@@ -410,50 +538,40 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Filtros',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 'Disponibilidad',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'Poppins',
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
                   FilterChip(
-                    label: const Text('Disponible ahora'),
+                    label: Text('Disponible ahora'),
                     onSelected: (selected) {},
                   ),
-                  FilterChip(
-                    label: const Text('Todas'),
-                    onSelected: (selected) {},
-                  ),
+                  FilterChip(label: Text('Todas'), onSelected: (selected) {}),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
@@ -462,12 +580,9 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Aplicar Filtros',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
@@ -486,7 +601,7 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
@@ -520,101 +635,266 @@ class _PsychologistsListScreenState extends State<PsychologistsListScreen> {
   }
 }
 
+// Delegado del header de búsqueda
+class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double _maxExtent;
+  final double _minExtent;
+  final ValueChanged<String> onSearchChanged;
+  final bool isCompact;
+
+  _SearchHeaderDelegate({
+    required double maxExtent,
+    required double minExtent,
+    required this.onSearchChanged,
+    required this.isCompact,
+  })  : _maxExtent = maxExtent,
+        _minExtent = minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final visibleFraction = 1.0 - (shrinkOffset / _maxExtent).clamp(0.0, 1.0);
+
+    return Opacity(
+      opacity: visibleFraction,
+      child: Container(
+        color: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: isCompact ? 4 : 8,
+        ),
+        child: TextField(
+          onChanged: onSearchChanged,
+          decoration: InputDecoration(
+            hintText: 'Buscar psicólogos...',
+            hintStyle: TextStyle(
+              color: Colors.grey,
+              fontFamily: 'Poppins',
+              fontSize: isCompact ? 12 : 14,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: Colors.grey,
+              size: isCompact ? 18 : 20,
+            ),
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: isCompact ? 8 : 12,
+            ),
+            isDense: isCompact,
+          ),
+          style: TextStyle(fontSize: isCompact ? 12 : 14),
+        ),
+      ),
+    );
+  }
+
+  @override
+  double get maxExtent => _maxExtent;
+
+  @override
+  double get minExtent => _minExtent;
+
+  @override
+  bool shouldRebuild(covariant _SearchHeaderDelegate oldDelegate) =>
+      oldDelegate._maxExtent != _maxExtent ||
+      oldDelegate._minExtent != _minExtent ||
+      oldDelegate.isCompact != isCompact;
+}
+
+// Delegado del header de filtros
+class _FiltersHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double _maxExtent;
+  final double _minExtent;
+  final String selectedSpecialty;
+  final List<String> specialties;
+  final ValueChanged<String> onSpecialtyChanged;
+  final bool isCompact;
+
+  _FiltersHeaderDelegate({
+    required double maxExtent,
+    required double minExtent,
+    required this.selectedSpecialty,
+    required this.specialties,
+    required this.onSpecialtyChanged,
+    required this.isCompact,
+  })  : _maxExtent = maxExtent,
+        _minExtent = minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final visibleFraction = 1.0 - (shrinkOffset / _maxExtent).clamp(0.0, 1.0);
+
+    return Opacity(
+      opacity: visibleFraction,
+      child: Container(
+        color: Colors.white,
+        height: _maxExtent,
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: isCompact ? 2 : 4,
+        ),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: specialties.length,
+          itemBuilder: (context, index) {
+            final specialty = specialties[index];
+            final isSelected = specialty == selectedSpecialty;
+            return Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Text(
+                  specialty,
+                  style: TextStyle(
+                    fontSize: isCompact ? 10 : 12,
+                    color: isSelected
+                        ? Colors.white
+                        : AppConstants.lightAccentColor,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: AppConstants.lightAccentColor,
+                backgroundColor:
+                    AppConstants.lightAccentColor.withOpacity(0.1),
+                onSelected: (selected) => onSpecialtyChanged(specialty),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 6 : 8,
+                  vertical: isCompact ? 0 : 2,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  double get maxExtent => _maxExtent;
+
+  @override
+  double get minExtent => _minExtent;
+
+  @override
+  bool shouldRebuild(covariant _FiltersHeaderDelegate oldDelegate) =>
+      selectedSpecialty != oldDelegate.selectedSpecialty ||
+      oldDelegate._maxExtent != _maxExtent ||
+      oldDelegate._minExtent != _minExtent ||
+      oldDelegate.isCompact != isCompact;
+}
+
+// Tarjeta de psicólogo
 class _PsychologistCard extends StatelessWidget {
   final PsychologistModel psychologist;
   final PsychologistRatingModel? rating;
   final VoidCallback onTap;
+  final bool isCompact;
 
   const _PsychologistCard({
     required this.psychologist,
     this.rating,
     required this.onTap,
+    required this.isCompact,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Convertir el precio a double de forma segura
+    final price = (psychologist.price ?? 0.0).toDouble();
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: isCompact ? 8 : 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isCompact ? 12 : 16),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 30,
+                radius: isCompact ? 20 : 25,
                 backgroundImage: psychologist.profilePictureUrl != null
                     ? NetworkImage(psychologist.profilePictureUrl!)
                     : null,
-                backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+                backgroundColor:
+                    AppConstants.lightAccentColor.withOpacity(0.3),
                 child: psychologist.profilePictureUrl == null
-                    ? const Icon(Icons.person, size: 30, color: Colors.white)
+                    ? Icon(
+                        Icons.person,
+                        size: isCompact ? 20 : 25,
+                        color: Colors.white,
+                      )
                     : null,
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isCompact ? 8 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       psychologist.fullName ?? 'Psicólogo sin nombre',
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: isCompact ? 13 : 16,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       psychologist.specialty ?? 'Especialidad no especificada',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isCompact ? 11 : 14,
                         color: AppConstants.lightAccentColor,
-                        fontFamily: 'Poppins',
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        StarRatingDisplay(
-                          rating: rating?.averageRating ?? 0.0,
-                          totalRatings: rating?.totalRatings ?? 0,
-                          size: 14,
-                          showRatingText: true,
-                          showRatingCount: true,
-                        ),
-                        if (rating?.error != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.error_outline,
-                            size: 14,
-                            color: Colors.red[300],
-                          ),
-                        ],
-                      ],
+                    SizedBox(height: isCompact ? 4 : 8),
+                    StarRatingDisplay(
+                      rating: rating?.averageRating ?? 0.0,
+                      totalRatings: rating?.totalRatings ?? 0,
+                      size: isCompact ? 11 : 14,
+                      showRatingText: true,
+                      showRatingCount: !isCompact,
                     ),
                   ],
                 ),
               ),
+              SizedBox(width: 8),
               Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '\$${(psychologist.price ?? 0.0).toInt()}',
-                    style: const TextStyle(
-                      fontSize: 18,
+                    '\$${price.toInt()}',
+                    style: TextStyle(
+                      fontSize: isCompact ? 14 : 18,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
                     ),
                   ),
-                  const Text(
+                  Text(
                     '/hora',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isCompact ? 10 : 12,
                       color: Colors.grey,
-                      fontFamily: 'Poppins',
                     ),
                   ),
                 ],
@@ -642,15 +922,22 @@ class _PsychologistDetailsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final isLandscape = ResponsiveUtils.isLandscapeMode(context);
+    final isSmallScreen = screenWidth < 360;
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
       ),
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 8),
+            margin: EdgeInsets.only(top: 8),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
@@ -661,205 +948,413 @@ class _PsychologistDetailsModal extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               controller: scrollController,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: EdgeInsets.all(isSmallScreen ? 12 : 20),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: mediaQuery.size.height * 0.5,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header con información del psicólogo
+                    _buildPsychologistHeader(context, isLandscape, isSmallScreen),
+                    
+                    SizedBox(height: isSmallScreen ? 16 : 24),
+                    
+                    // Descripción
+                    _buildDescriptionSection(isLandscape, isSmallScreen),
+                    
+                    SizedBox(height: isSmallScreen ? 16 : 24),
+                    
+                    // Información de horarios y precio - MEJORADO PARA EVITAR OVERFLOW
+                    _buildInfoCards(context, isLandscape, isSmallScreen),
+                    
+                    // Reseñas recientes
+                    if ((rating?.totalRatings ?? 0) > 0) 
+                      _buildRecentReviewsSection(context, isSmallScreen),
+                    
+                    SizedBox(height: isSmallScreen ? 16 : 32),
+                    
+                    // Botón de agendar cita
+                    _buildBookAppointmentButton(context),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPsychologistHeader(BuildContext context, bool isLandscape, bool isSmallScreen) {
+    final avatarSize = isSmallScreen ? 32.0 : (isLandscape ? 32.0 : 40.0);
+    final nameFontSize = isSmallScreen ? 16.0 : (isLandscape ? 16.0 : 20.0);
+    final specialtyFontSize = isSmallScreen ? 13.0 : (isLandscape ? 13.0 : 16.0);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: avatarSize,
+          backgroundImage: psychologist.profilePictureUrl != null
+              ? NetworkImage(psychologist.profilePictureUrl!)
+              : null,
+          backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
+          child: psychologist.profilePictureUrl == null
+              ? Icon(
+                  Icons.person,
+                  size: avatarSize,
+                  color: Colors.white,
+                )
+              : null,
+        ),
+        SizedBox(width: isSmallScreen ? 12 : 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Nombre con auto-ajuste
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  psychologist.fullName ?? 'Psicólogo sin nombre',
+                  style: TextStyle(
+                    fontSize: nameFontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(height: 4),
+              // Especialidad con auto-ajuste
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  psychologist.specialty ?? 'Especialidad general',
+                  style: TextStyle(
+                    fontSize: specialtyFontSize,
+                    color: AppConstants.lightAccentColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(height: isSmallScreen ? 4 : 8),
+              // Rating y botón de ver reseñas
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: psychologist.profilePictureUrl != null
-                            ? NetworkImage(psychologist.profilePictureUrl!)
-                            : null,
-                        backgroundColor:
-                            AppConstants.lightAccentColor.withOpacity(0.3),
-                        child: psychologist.profilePictureUrl == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 40,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              psychologist.fullName ?? 'Psicólogo sin nombre',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                            Text(
-                              psychologist.specialty ?? 'Especialidad general',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppConstants.lightAccentColor,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: StarRatingDisplay(
-                                    rating: rating?.averageRating ?? 0.0,
-                                    totalRatings: rating?.totalRatings ?? 0,
-                                    size: 16,
-                                    showRatingText: true,
-                                    showRatingCount: true,
-                                  ),
-                                ),
-                                if ((rating?.totalRatings ?? 0) > 0)
-                                  TextButton(
-                                    onPressed: onViewReviews,
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: const Size(0, 0),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'Ver todas',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppConstants.lightAccentColor,
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Sobre el profesional',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
+                  Expanded(
+                    flex: 3,
+                    child: StarRatingDisplay(
+                      rating: rating?.averageRating ?? 0.0,
+                      totalRatings: rating?.totalRatings ?? 0,
+                      size: isSmallScreen ? 12.0 : (isLandscape ? 14.0 : 16.0),
+                      showRatingText: true,
+                      showRatingCount: !isLandscape,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    psychologist.description ?? 'Descripción no disponible',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InfoCard(
-                          icon: Icons.schedule,
-                          title: 'Horarios',
-                          subtitle: psychologist.schedule != null &&
-                                  psychologist.schedule!.isNotEmpty
-                              ? psychologist.schedule!.entries
-                                  .map((entry) {
-                                    final day = entry.key;
-                                    final scheduleForDay =
-                                        entry.value as Map<String, dynamic>;
-                                    final startTime =
-                                        scheduleForDay['startTime'] ?? '';
-                                    final endTime =
-                                        scheduleForDay['endTime'] ?? '';
-                                    return '$day: $startTime - $endTime';
-                                  })
-                                  .join('\n')
-                              : 'Horario no definido',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _InfoCard(
-                          icon: Icons.attach_money,
-                          title: 'Precio',
-                          subtitle:
-                              '\$${(psychologist.price ?? 0.0).toInt()}/hora',
-                        ),
-                      ),
-                    ],
                   ),
                   if ((rating?.totalRatings ?? 0) > 0) ...[
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Últimas Reseñas',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
-                          ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextButton(
+                        onPressed: onViewReviews,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        TextButton(
-                          onPressed: onViewReviews,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
                           child: Text(
                             'Ver todas',
                             style: TextStyle(
+                              fontSize: isSmallScreen ? 10.0 : 12.0,
                               color: AppConstants.lightAccentColor,
-                              fontFamily: 'Poppins',
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    _RecentReviewsPreview(psychologistId: psychologist.uid),
                   ],
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                BlocProvider<AppointmentBloc>(
-                              create: (context) => AppointmentBloc(),
-                              child: AppointmentBookingScreen(
-                                psychologist: psychologist,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.lightAccentColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text(
-                        'Agendar Cita',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionSection(bool isLandscape, bool isSmallScreen) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sobre el profesional',
+          style: TextStyle(
+            fontSize: isSmallScreen ? 15.0 : (isLandscape ? 15.0 : 18.0),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: isSmallScreen ? 6 : 8),
+        Text(
+          psychologist.description ?? 'Descripción no disponible',
+          style: TextStyle(
+            fontSize: isSmallScreen ? 12.0 : (isLandscape ? 12.0 : 14.0),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCards(BuildContext context, bool isLandscape, bool isSmallScreen) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final isVeryNarrow = availableWidth < 300;
+        final isExtremelyNarrow = availableWidth < 250;
+        
+        if (isExtremelyNarrow) {
+          // Para pantallas extremadamente estrechas, mostrar en columna con scroll
+          return Column(
+            children: [
+              _ScheduleInfoCard(
+                scheduleText: _getScheduleText(),
+                isLandscape: isLandscape,
+                isSmallScreen: isSmallScreen,
+              ),
+              SizedBox(height: 12),
+              _PriceInfoCard(
+                price: (psychologist.price ?? 0.0).toDouble(),
+                isLandscape: isLandscape,
+                isSmallScreen: isSmallScreen,
+              ),
+            ],
+          );
+        } else if (isVeryNarrow) {
+          // Para pantallas muy estrechas, mostrar en columna
+          return Column(
+            children: [
+              _ScheduleInfoCard(
+                scheduleText: _getScheduleText(),
+                isLandscape: isLandscape,
+                isSmallScreen: isSmallScreen,
+              ),
+              SizedBox(height: 12),
+              _PriceInfoCard(
+                price: (psychologist.price ?? 0.0).toDouble(),
+                isLandscape: isLandscape,
+                isSmallScreen: isSmallScreen,
+              ),
+            ],
+          );
+        } else {
+          // Para pantallas normales, mostrar en fila
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _ScheduleInfoCard(
+                  scheduleText: _getScheduleText(),
+                  isLandscape: isLandscape,
+                  isSmallScreen: isSmallScreen,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _PriceInfoCard(
+                  price: (psychologist.price ?? 0.0).toDouble(),
+                  isLandscape: isLandscape,
+                  isSmallScreen: isSmallScreen,
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  String _getScheduleText() {
+    if (psychologist.schedule != null && psychologist.schedule!.isNotEmpty) {
+      final scheduleEntries = psychologist.schedule!.entries.take(2); // Reducido a 2 días
+      final scheduleList = scheduleEntries.map((entry) {
+        final day = _getShortDayName(entry.key);
+        final scheduleForDay = entry.value as Map<String, dynamic>;
+        final startTime = scheduleForDay['startTime'] ?? '';
+        final endTime = scheduleForDay['endTime'] ?? '';
+        return '$day: $startTime-$endTime';
+      }).toList();
+      
+      // Si hay más de 2 días, agregar "..."
+      if (psychologist.schedule!.length > 2) {
+        scheduleList.add('...');
+      }
+      
+      return scheduleList.join('\n');
+    }
+    return 'Horario no definido';
+  }
+
+  String _getShortDayName(String fullDayName) {
+    final dayMap = {
+      'Lunes': 'Lun',
+      'Martes': 'Mar',
+      'Miércoles': 'Mié',
+      'Miercoles': 'Mié',
+      'Jueves': 'Jue',
+      'Viernes': 'Vie',
+      'Sábado': 'Sáb',
+      'Sabado': 'Sáb',
+      'Domingo': 'Dom',
+    };
+    return dayMap[fullDayName] ?? fullDayName.substring(0, 3);
+  }
+
+  Widget _buildRecentReviewsSection(BuildContext context, bool isSmallScreen) {
+    return Column(
+      children: [
+        SizedBox(height: isSmallScreen ? 16 : 24),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  'Últimas Reseñas',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 16.0 : 18.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Flexible(
+                child: TextButton(
+                  onPressed: onViewReviews,
+                  child: Text(
+                    'Ver todas',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 12.0 : 14.0,
+                      color: AppConstants.lightAccentColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 8),
+        _RecentReviewsPreview(psychologistId: psychologist.uid),
+      ],
+    );
+  }
+
+  Widget _buildBookAppointmentButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BlocProvider<AppointmentBloc>(
+                create: (context) => AppointmentBloc(),
+                child: AppointmentBookingScreen(
+                  psychologist: psychologist,
+                ),
+              ),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppConstants.lightAccentColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          'Agendar Cita',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Card especializada para horarios con mejor manejo de texto
+class _ScheduleInfoCard extends StatelessWidget {
+  final String scheduleText;
+  final bool isLandscape;
+  final bool isSmallScreen;
+
+  const _ScheduleInfoCard({
+    required this.scheduleText,
+    required this.isLandscape,
+    required this.isSmallScreen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = isSmallScreen ? 18.0 : (isLandscape ? 20.0 : 24.0);
+    final titleFontSize = isSmallScreen ? 10.0 : (isLandscape ? 10.0 : 12.0);
+    final subtitleFontSize = isSmallScreen ? 9.0 : (isLandscape ? 10.0 : 12.0);
+
+    return Container(
+      padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.schedule,
+            color: AppConstants.lightAccentColor,
+            size: iconSize,
+          ),
+          SizedBox(height: isSmallScreen ? 4 : 8),
+          Text(
+            'Horarios',
+            style: TextStyle(
+              fontSize: titleFontSize,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: isSmallScreen ? 2 : 4),
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: isSmallScreen ? 40 : 60,
+            ),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Text(
+                scheduleText,
+                style: TextStyle(
+                  fontSize: subtitleFontSize,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -869,46 +1364,55 @@ class _PsychologistDetailsModal extends StatelessWidget {
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+// Card especializada para precio
+class _PriceInfoCard extends StatelessWidget {
+  final double price;
+  final bool isLandscape;
+  final bool isSmallScreen;
 
-  const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
+  const _PriceInfoCard({
+    required this.price,
+    required this.isLandscape,
+    required this.isSmallScreen,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = isSmallScreen ? 18.0 : (isLandscape ? 20.0 : 24.0);
+    final titleFontSize = isSmallScreen ? 10.0 : (isLandscape ? 10.0 : 12.0);
+    final subtitleFontSize = isSmallScreen ? 11.0 : (isLandscape ? 11.0 : 14.0);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: AppConstants.lightAccentColor, size: 24),
-          const SizedBox(height: 8),
+          Icon(
+            Icons.attach_money,
+            color: AppConstants.lightAccentColor,
+            size: iconSize,
+          ),
+          SizedBox(height: isSmallScreen ? 4 : 8),
           Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
+            'Precio',
+            style: TextStyle(
+              fontSize: titleFontSize,
               fontWeight: FontWeight.w500,
-              fontFamily: 'Poppins',
               color: Colors.grey,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isSmallScreen ? 2 : 4),
           Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 14,
+            '\$${price.toInt()}/hora',
+            style: TextStyle(
+              fontSize: subtitleFontSize,
               fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
             ),
             textAlign: TextAlign.center,
           ),
@@ -961,10 +1465,10 @@ class _RecentReviewsPreviewState extends State<_RecentReviewsPreview> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(),
+          child: const CircularProgressIndicator(),
         ),
       );
     }
@@ -976,8 +1480,8 @@ class _RecentReviewsPreviewState extends State<_RecentReviewsPreview> {
     return Column(
       children: _recentReviews.map((review) {
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
+          margin: EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
@@ -993,29 +1497,33 @@ class _RecentReviewsPreviewState extends State<_RecentReviewsPreview> {
                     backgroundImage: review.profile_picture_url != null
                         ? NetworkImage(review.profile_picture_url!)
                         : null,
-                    backgroundColor:
-                        AppConstants.lightAccentColor.withOpacity(0.2),
+                    backgroundColor: AppConstants.lightAccentColor.withOpacity(0.2),
                     child: review.profile_picture_url == null
-                        ? const Icon(Icons.person, size: 16, color: Colors.white)
+                        ? Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
                         : null,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           review.patientName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         StarRatingDisplay(
                           rating: review.rating.toDouble(),
                           totalRatings: 0,
-                          size: 12,
+                          size: 12.0,
                           showRatingText: false,
                           showRatingCount: false,
                         ),
@@ -1025,7 +1533,7 @@ class _RecentReviewsPreviewState extends State<_RecentReviewsPreview> {
                 ],
               ),
               if (review.comment != null && review.comment!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   review.comment!.length > 100
                       ? '${review.comment!.substring(0, 100)}...'
@@ -1033,8 +1541,6 @@ class _RecentReviewsPreviewState extends State<_RecentReviewsPreview> {
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[700],
-                    fontFamily: 'Poppins',
-                    height: 1.4,
                   ),
                 ),
               ],

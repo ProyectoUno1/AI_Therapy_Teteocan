@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ai_therapy_teteocan/core/constants/api_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_therapy_teteocan/main.dart';
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -63,21 +64,92 @@ class NotificationService {
   }
 
   static void _setupMessageHandlers() {
-    // App en primer plano - mostrar notificación in-app personalizada
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showInAppNotification(message);
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    if (onNotificationTap != null) {
+      onNotificationTap!(message.data);
+    }
+  });
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final notificationData = message.data;
+    final notification = message.notification;
+    final title = notification?.title ?? notificationData['title'] ?? 'Notificación';
+    final body = notification?.body ?? notificationData['body'] ?? 'Nuevo mensaje.';
+    final type = notificationData['type'] ?? 'general';
+
+    _showLocalNotificationOverlay(
+      title: title,
+      body: body,
+      type: type,
+      data: notificationData, 
+      onDismiss: () {
+      },
+    );
+  });
+  
+  _messaging.getInitialMessage().then((RemoteMessage? message) {
+    if (message != null) {
+      if (onNotificationTap != null) {
+        onNotificationTap!(message.data);
+      }
+    }
+  });
+}
+
+static void _showLocalNotificationOverlay({
+    required String title,
+    required String body,
+    required String type,
+    required Map<String, dynamic> data,
+    required VoidCallback onDismiss,
+  }) {
+    final context = navigatorKey.currentContext;
+    if (context == null || !context.mounted) {
+      print('No hay contexto disponible para mostrar el overlay de notificación.');
+      return;
+    }
+
+    OverlayEntry? overlayEntry;
+
+    // Función que elimina el overlay
+    void dismissOverlay() {
+      if (overlayEntry != null) {
+        overlayEntry!.remove();
+        overlayEntry = null;
+        onDismiss();
+      }
+    }
+
+    // Definición del overlay
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 10,
+        right: 10,
+        child: InAppNotificationWidget(
+          title: title,
+          body: body,
+          type: type,
+          // Al hacer tap en el banner, se elimina y se llama al handler de navegación
+          onTap: () {
+            dismissOverlay();
+            _handleNotificationTap(data);
+          },
+          onDismiss: dismissOverlay,
+        ),
+      ),
+    );
+
+    // Insertar el overlay en el árbol de widgets
+    Overlay.of(context).insert(overlayEntry!);
+
+    // Ocultar automáticamente después de 4 segundos
+    Future.delayed(const Duration(seconds: 4), () {
+      if (overlayEntry != null) {
+        dismissOverlay();
+      }
     });
-
-    // App en background/terminated - usuario hace tap
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      _handleNotificationClick(message.data);
-    });
-
-
-    // App completamente cerrada - verificar mensaje inicial
-    _checkInitialMessage();
   }
-
   static void _handleNotificationTap(Map<String, dynamic> data) {
     final type = data['type'] as String?;
     final appointmentId = data['appointmentId'] as String?;

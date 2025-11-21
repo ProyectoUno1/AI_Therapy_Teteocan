@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
-import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/register_patient_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_wrapper.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -67,7 +67,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               
               if (mounted) {
                 context.read<AuthBloc>().add(AuthCheckEmailVerification());
-                
                 await Future.delayed(const Duration(milliseconds: 500));
                 
                 if (mounted) {
@@ -79,11 +78,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 }
               }
             }
-          } else {
-            print(' Timer: Email aún no verificado, esperando...');
           }
         } catch (e) {
-          print('Timer ERROR: $e');
+          print('Error verificando email: $e');
         }
       },
     );
@@ -138,14 +135,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _checkVerificationManually() async {
-    
     try {
       await FirebaseAuth.instance.currentUser?.reload();
       final user = FirebaseAuth.instance.currentUser;
 
       if (user?.emailVerified ?? false) {
         if (mounted) {
-          // Cancelar los timers antes de navegar
           _verificationCheckTimer?.cancel();
           _resendTimer?.cancel();
           
@@ -157,7 +152,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ),
           );
           
-          // Esperar a que se vea el snackbar
           await Future.delayed(const Duration(milliseconds: 1000));
           
           if (mounted) {
@@ -241,20 +235,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Cancelar timers antes de eliminar
         _verificationCheckTimer?.cancel();
         _resendTimer?.cancel();
 
-        // Determinar colección según el rol
         final collection = widget.userRole == 'patient' ? 'patients' : 'psychologists';
         
-        // Eliminar documento de Firestore
         await FirebaseFirestore.instance
             .collection(collection)
             .doc(user.uid)
             .delete();
         
-        // Eliminar cuenta de Firebase Auth
         await user.delete();
         
         if (mounted) {
@@ -266,11 +256,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             ),
           );
           
-          // Esperar un momento para que se vea el mensaje
           await Future.delayed(const Duration(seconds: 1));
           
           if (mounted) {
-            // Redirigir al registro
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
                 builder: (context) => const RegisterPatientScreen(),
@@ -305,7 +293,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     }
   }
 
- Future<void> _signOut() async {
+  Future<void> _signOut() async {
     try {
       _verificationCheckTimer?.cancel();
       _resendTimer?.cancel();
@@ -336,6 +324,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Scaffold(
       body: Stack(
         children: [
@@ -356,196 +346,213 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           ),
 
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  
-                  Icon(
-                    Icons.mark_email_unread_outlined,
-                    size: 100,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  const Text(
-                    'Verifica tu correo',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      fontFamily: 'Poppins',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  const Text(
-                    'Hemos enviado un correo de verificación a:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black54,
-                      fontFamily: 'Poppins',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 10),
-                  
-                  // Email con botón editar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          widget.userEmail,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            fontFamily: 'Poppins',
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveUtils.getHorizontalPadding(context),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: _showEditEmailDialog,
-                        tooltip: 'Corregir email',
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Column(
-                      children: [
-                        Text(
-                          'Por favor, revisa tu correo y haz clic en el enlace de verificación.',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.black87,
-                            fontFamily: 'Poppins',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 15),
-                        Text(
-                          'Nota: Puede tardar unos minutos en llegar. Revisa tu carpeta de spam.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.black54,
-                            fontFamily: 'Poppins',
-                            fontStyle: FontStyle.italic,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _checkVerificationManually,
-                      icon: const Icon(Icons.refresh, color: Colors.white),
-                      label: const Text(
-                        'Ya verifiqué mi correo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 4,
-                        backgroundColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _canResendEmail ? _sendVerificationEmail : null,
-                      style: ElevatedButton.styleFrom(
-                        elevation: 4,
-                        backgroundColor: null,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        padding: const EdgeInsets.all(0),
-                      ),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: _canResendEmail
-                                ? [
-                                    Theme.of(context).colorScheme.primary,
-                                    Theme.of(context).colorScheme.primaryContainer,
-                                  ]
-                                : [Colors.grey, Colors.grey],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _canResendEmail
-                                ? 'Reenviar Correo'
-                                : 'Espera ${_resendCountdown}s',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                              fontFamily: 'Poppins',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(height: constraints.maxHeight * 0.05),
+                            
+                            Icon(
+                              Icons.mark_email_unread_outlined,
+                              size: ResponsiveUtils.getIconSize(context, 80),
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                          ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.03),
+                            
+                            Text(
+                              'Verifica tu correo',
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getFontSize(context, 24),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                fontFamily: 'Poppins',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.02),
+                            
+                            Text(
+                              'Hemos enviado un correo de verificación a:',
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getFontSize(context, 14),
+                                color: Colors.black54,
+                                fontFamily: 'Poppins',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    widget.userEmail,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveUtils.getFontSize(context, 16),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  onPressed: _showEditEmailDialog,
+                                  tooltip: 'Corregir email',
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.03),
+                            
+                            Container(
+                              padding: EdgeInsets.all(isMobile ? 16 : 20),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Por favor, revisa tu correo y haz clic en el enlace de verificación.',
+                                    style: TextStyle(
+                                      fontSize: ResponsiveUtils.getFontSize(context, 13),
+                                      color: Colors.black87,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Nota: Puede tardar unos minutos en llegar. Revisa tu carpeta de spam.',
+                                    style: TextStyle(
+                                      fontSize: ResponsiveUtils.getFontSize(context, 11),
+                                      color: Colors.black54,
+                                      fontFamily: 'Poppins',
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.04),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              height: ResponsiveUtils.getButtonHeight(context),
+                              child: ElevatedButton.icon(
+                                onPressed: _checkVerificationManually,
+                                icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
+                                label: Text(
+                                  'Ya verifiqué mi correo',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveUtils.getFontSize(context, 14),
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 4,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.02),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              height: ResponsiveUtils.getButtonHeight(context),
+                              child: ElevatedButton(
+                                onPressed: _canResendEmail ? _sendVerificationEmail : null,
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 4,
+                                  backgroundColor: null,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  padding: const EdgeInsets.all(0),
+                                ),
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: _canResendEmail
+                                          ? [
+                                              Theme.of(context).colorScheme.primary,
+                                              Theme.of(context).colorScheme.primaryContainer,
+                                            ]
+                                          : [Colors.grey, Colors.grey],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _canResendEmail
+                                          ? 'Reenviar Correo'
+                                          : 'Espera ${_resendCountdown}s',
+                                      style: TextStyle(
+                                        fontSize: ResponsiveUtils.getFontSize(context, 14),
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            
+                            SizedBox(height: constraints.maxHeight * 0.05),
+                            
+                            TextButton(
+                              onPressed: _signOut,
+                              child: Text(
+                                'Cerrar sesión',
+                                style: TextStyle(
+                                  fontSize: ResponsiveUtils.getFontSize(context, 14),
+                                  color: Colors.black54,
+                                  fontFamily: 'Poppins',
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 20),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  TextButton(
-                    onPressed: _signOut,
-                    child: const Text(
-                      'Cerrar sesión',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
-                        fontFamily: 'Poppins',
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

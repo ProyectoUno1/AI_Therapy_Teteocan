@@ -1,10 +1,11 @@
-// lib/presentation/psychologist/views/appointment_confirmation_screen.dart
+/// lib/presentation/psychologist/views
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/data/models/appointment_model.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/appointment_event.dart';
@@ -95,52 +96,70 @@ class _AppointmentConfirmationScreenState
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'Confirmar Cita',
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          centerTitle: true,
-        ),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatusBanner(),
-                const SizedBox(height: 24),
-                _buildPatientInfo(),
-                const SizedBox(height: 24),
-                _buildAppointmentDetails(),
-                const SizedBox(height: 24),
-                if (widget.appointment.patientNotes != null) ...[
-                  _buildPatientNotes(),
-                  const SizedBox(height: 24),
-                ],
-                if (widget.appointment.isPending) ...[
-                  _buildConfirmationForm(),
-                  const SizedBox(height: 24),
-                ],
-                _buildActionButtons(),
-              ],
-            ),
-          ),
-        ),
+        appBar: _buildAppBar(),
+        body: _buildBody(),
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      elevation: 0,
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_back,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+          size: ResponsiveUtils.getIconSize(context, 24),
+        ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: ResponsiveText(
+        'Confirmar Cita',
+        baseFontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).textTheme.bodyLarge?.color,
+      ),
+      centerTitle: true,
+    );
+  }
+
+  Widget _buildBody() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+            ),
+            child: ResponsiveContainer(
+              padding: ResponsiveUtils.getContentMargin(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatusBanner(),
+                  ResponsiveSpacing(24),
+                  _buildPatientInfo(),
+                  ResponsiveSpacing(24),
+                  _buildAppointmentDetails(),
+                  ResponsiveSpacing(24),
+                  if (widget.appointment.patientNotes != null) ...[
+                    _buildPatientNotes(),
+                    ResponsiveSpacing(24),
+                  ],
+                  if (widget.appointment.isPending) ...[
+                    _buildConfirmationForm(),
+                    ResponsiveSpacing(24),
+                  ],
+                  _buildActionButtons(),
+                  ResponsiveSpacing(24),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -152,65 +171,87 @@ class _AppointmentConfirmationScreenState
   }) {
     if (!mounted) return;
 
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => WillPopScope(
         onWillPop: () async => false,
-        child: AlertDialog(
+        child: Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 50,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontFamily: 'Poppins',
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (mounted) {
-                    Navigator.pop(context, true); 
-                  }
-                });
-              },
-              child: const Text('OK'),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
             ),
-          ],
+          ),
+          child: Container(
+            width: dialogWidth,
+            padding: ResponsiveUtils.getCardPadding(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: ResponsiveUtils.getIconSize(context, 80),
+                  height: ResponsiveUtils.getIconSize(context, 80),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: ResponsiveUtils.getIconSize(context, 50),
+                  ),
+                ),
+                ResponsiveSpacing(24),
+                ResponsiveText(
+                  title,
+                  baseFontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveSpacing(12),
+                ResponsiveText(
+                  message,
+                  baseFontSize: 14,
+                  color: Colors.grey[600],
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                ResponsiveSpacing(24),
+                SizedBox(
+                  width: double.infinity,
+                  height: ResponsiveUtils.getButtonHeight(context),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      Future.delayed(const Duration(milliseconds: 100), () {
+                        if (mounted) {
+                          Navigator.pop(context, true);
+                        }
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 12),
+                        ),
+                      ),
+                    ),
+                    child: ResponsiveText(
+                      'OK',
+                      baseFontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     ).then((_) {
@@ -225,58 +266,80 @@ class _AppointmentConfirmationScreenState
   void _showErrorDialog(String message) {
     if (!mounted) return;
 
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 50,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Error',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontFamily: 'Poppins',
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('OK'),
+          borderRadius: BorderRadius.circular(
+            ResponsiveUtils.getBorderRadius(context, 16),
           ),
-        ],
+        ),
+        child: Container(
+          width: dialogWidth,
+          padding: ResponsiveUtils.getCardPadding(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: ResponsiveUtils.getIconSize(context, 80),
+                height: ResponsiveUtils.getIconSize(context, 80),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: ResponsiveUtils.getIconSize(context, 50),
+                ),
+              ),
+              ResponsiveSpacing(24),
+              ResponsiveText(
+                'Error',
+                baseFontSize: 20,
+                fontWeight: FontWeight.bold,
+                textAlign: TextAlign.center,
+              ),
+              ResponsiveSpacing(12),
+              ResponsiveText(
+                message,
+                baseFontSize: 14,
+                color: Colors.grey[600],
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+              ResponsiveSpacing(24),
+              SizedBox(
+                width: double.infinity,
+                height: ResponsiveUtils.getButtonHeight(context),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getBorderRadius(context, 12),
+                      ),
+                    ),
+                  ),
+                  child: ResponsiveText(
+                    'OK',
+                    baseFontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     ).then((_) {
       if (mounted) {
@@ -321,36 +384,39 @@ class _AppointmentConfirmationScreenState
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: ResponsiveUtils.getCardPadding(context),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         border: Border.all(color: textColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: textColor, size: 24),
-          const SizedBox(width: 12),
+          Icon(
+            icon,
+            color: textColor,
+            size: ResponsiveUtils.getIconSize(context, 24),
+          ),
+          ResponsiveHorizontalSpacing(12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                ResponsiveText(
                   'Estado de la cita',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: textColor.withOpacity(0.8),
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 12,
+                  color: textColor.withOpacity(0.8),
                 ),
-                Text(
+                ResponsiveSpacing(2),
+                ResponsiveText(
                   text,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -360,12 +426,17 @@ class _AppointmentConfirmationScreenState
     );
   }
 
+ // lib/presentation/psychologist/views/appointment_confirmation_screen.dart
+// Versión completa mejorada
+
   Widget _buildPatientInfo() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveUtils.getCardPadding(context),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -379,86 +450,85 @@ class _AppointmentConfirmationScreenState
         children: [
           Row(
             children: [
-              Icon(Icons.person, color: AppConstants.primaryColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Información del Paciente',
-                style: TextStyle(
-                  fontSize: 16,
+              Icon(
+                Icons.person,
+                color: AppConstants.primaryColor,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
+              Expanded(
+                child: ResponsiveText(
+                  'Información del Paciente',
+                  baseFontSize: 16,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
                   color: AppConstants.primaryColor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          ResponsiveSpacing(16),
           Row(
             children: [
               CircleAvatar(
-                radius: 30,
+                radius: ResponsiveUtils.getAvatarRadius(
+                  context,
+                  ResponsiveUtils.isMobileSmall(context) ? 24 : 30,
+                ),
                 backgroundColor: AppConstants.lightAccentColor.withOpacity(0.3),
                 backgroundImage: widget.appointment.patientProfileUrl != null
                     ? NetworkImage(widget.appointment.patientProfileUrl!)
                     : null,
                 child: widget.appointment.patientProfileUrl == null
-                    ? Text(
+                    ? ResponsiveText(
                         widget.appointment.patientName.isNotEmpty
                             ? widget.appointment.patientName[0].toUpperCase()
                             : '?',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: AppConstants.lightAccentColor,
-                        ),
+                        baseFontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppConstants.lightAccentColor,
                       )
                     : null,
               ),
-              const SizedBox(width: 16),
+              ResponsiveHorizontalSpacing(16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    ResponsiveText(
                       widget.appointment.patientName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                      ),
+                      baseFontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
+                    ResponsiveSpacing(4),
+                    ResponsiveText(
                       widget.appointment.patientEmail,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                        fontFamily: 'Poppins',
-                      ),
+                      baseFontSize: 14,
+                      color: Colors.grey[600],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppConstants.lightAccentColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Nuevo Paciente',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppConstants.lightAccentColor,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
+                    ResponsiveSpacing(8),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: ResponsiveUtils.getHorizontalSpacing(context, 8),
+                        vertical: ResponsiveUtils.getVerticalSpacing(context, 4),
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppConstants.lightAccentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 12),
                         ),
-                      ],
+                      ),
+                      child: ResponsiveText(
+                        'Nuevo Paciente',
+                        baseFontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppConstants.lightAccentColor,
+                      ),
                     ),
                   ],
                 ),
@@ -472,10 +542,12 @@ class _AppointmentConfirmationScreenState
 
   Widget _buildAppointmentDetails() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveUtils.getCardPadding(context),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -489,38 +561,43 @@ class _AppointmentConfirmationScreenState
         children: [
           Row(
             children: [
-              Icon(Icons.event, color: AppConstants.primaryColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Detalles de la Cita',
-                style: TextStyle(
-                  fontSize: 16,
+              Icon(
+                Icons.event,
+                color: AppConstants.primaryColor,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
+              Expanded(
+                child: ResponsiveText(
+                  'Detalles de la Cita',
+                  baseFontSize: 16,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
                   color: AppConstants.primaryColor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          ResponsiveSpacing(16),
           _buildDetailRow(
             icon: Icons.calendar_today,
             label: 'Fecha',
             value: widget.appointment.formattedDate,
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           _buildDetailRow(
             icon: Icons.schedule,
             label: 'Hora',
             value: widget.appointment.timeRange,
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           _buildDetailRow(
             icon: Icons.access_time,
             label: 'Duración',
             value: widget.appointment.formattedDuration,
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           _buildDetailRow(
             icon: widget.appointment.type == AppointmentType.online
                 ? Icons.videocam
@@ -528,19 +605,24 @@ class _AppointmentConfirmationScreenState
             label: 'Modalidad',
             value: widget.appointment.type.displayName,
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           _buildDetailRow(
             icon: Icons.attach_money,
             label: 'Precio',
             value: '\$${widget.appointment.price.toInt()}',
           ),
           if (widget.appointment.isToday) ...[
-            const SizedBox(height: 16),
+            ResponsiveSpacing(16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: ResponsiveUtils.getCardPadding(context).copyWith(
+                top: 10,
+                bottom: 10,
+              ),
               decoration: BoxDecoration(
                 color: AppConstants.lightAccentColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 8),
+                ),
                 border: Border.all(
                   color: AppConstants.lightAccentColor.withOpacity(0.3),
                 ),
@@ -550,41 +632,52 @@ class _AppointmentConfirmationScreenState
                   Icon(
                     Icons.today,
                     color: AppConstants.lightAccentColor,
-                    size: 16,
+                    size: ResponsiveUtils.getIconSize(context, 16),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '¡Esta cita es HOY!',
-                    style: TextStyle(
+                  ResponsiveHorizontalSpacing(8),
+                  Expanded(
+                    child: ResponsiveText(
+                      '¡Esta cita es HOY!',
+                      baseFontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppConstants.lightAccentColor,
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
           ] else if (widget.appointment.isTomorrow) ...[
-            const SizedBox(height: 16),
+            ResponsiveSpacing(16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: ResponsiveUtils.getCardPadding(context).copyWith(
+                top: 10,
+                bottom: 10,
+              ),
               decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 8),
+                ),
                 border: Border.all(color: Colors.orange.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.event_available, color: Colors.orange, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Esta cita es mañana',
-                    style: TextStyle(
+                  Icon(
+                    Icons.event_available,
+                    color: Colors.orange,
+                    size: ResponsiveUtils.getIconSize(context, 16),
+                  ),
+                  ResponsiveHorizontalSpacing(8),
+                  Expanded(
+                    child: ResponsiveText(
+                      'Esta cita es mañana',
+                      baseFontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.orange,
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -602,28 +695,30 @@ class _AppointmentConfirmationScreenState
     required String value,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
-        const SizedBox(width: 12),
+        Icon(
+          icon,
+          size: ResponsiveUtils.getIconSize(context, 18),
+          color: Colors.grey[600],
+        ),
+        ResponsiveHorizontalSpacing(12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              ResponsiveText(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontFamily: 'Poppins',
-                ),
+                baseFontSize: 12,
+                color: Colors.grey[600],
               ),
-              Text(
+              ResponsiveSpacing(2),
+              ResponsiveText(
                 value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
-                ),
+                baseFontSize: 14,
+                fontWeight: FontWeight.w600,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -634,10 +729,12 @@ class _AppointmentConfirmationScreenState
 
   Widget _buildPatientNotes() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveUtils.getCardPadding(context),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -651,35 +748,39 @@ class _AppointmentConfirmationScreenState
         children: [
           Row(
             children: [
-              Icon(Icons.note, color: AppConstants.primaryColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Notas del Paciente',
-                style: TextStyle(
-                  fontSize: 16,
+              Icon(
+                Icons.note,
+                color: AppConstants.primaryColor,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
+              Expanded(
+                child: ResponsiveText(
+                  'Notas del Paciente',
+                  baseFontSize: 16,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
                   color: AppConstants.primaryColor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: ResponsiveUtils.getCardPadding(context),
             decoration: BoxDecoration(
               color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getBorderRadius(context, 8),
+              ),
               border: Border.all(color: Colors.grey[200]!),
             ),
-            child: Text(
+            child: ResponsiveText(
               widget.appointment.patientNotes!,
-              style: const TextStyle(
-                fontSize: 14,
-                fontFamily: 'Poppins',
-                height: 1.4,
-              ),
+              baseFontSize: 14,
+              color: Colors.grey[800],
             ),
           ),
         ],
@@ -689,10 +790,12 @@ class _AppointmentConfirmationScreenState
 
   Widget _buildConfirmationForm() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: ResponsiveUtils.getCardPadding(context),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -706,114 +809,133 @@ class _AppointmentConfirmationScreenState
         children: [
           Row(
             children: [
-              Icon(Icons.edit_note, color: AppConstants.primaryColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Confirmar Cita',
-                style: TextStyle(
-                  fontSize: 16,
+              Icon(
+                Icons.edit_note,
+                color: AppConstants.primaryColor,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
+              Expanded(
+                child: ResponsiveText(
+                  'Confirmar Cita',
+                  baseFontSize: 16,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
                   color: AppConstants.primaryColor,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
+          ResponsiveSpacing(16),
+          ResponsiveText(
             'Notas profesionales (opcional)',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-            ),
+            baseFontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(height: 8),
+          ResponsiveSpacing(8),
           TextField(
             controller: _notesController,
             maxLines: 3,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: ResponsiveUtils.getFontSize(context, 14),
+            ),
             decoration: InputDecoration(
               hintText:
                   'Agregar notas sobre la preparación de la sesión, recordatorios o instrucciones...',
               hintStyle: TextStyle(
                 color: Colors.grey[500],
                 fontFamily: 'Poppins',
-                fontSize: 12,
+                fontSize: ResponsiveUtils.getFontSize(context, 12),
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 8),
+                ),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 8),
+                ),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 8),
+                ),
                 borderSide: BorderSide(color: AppConstants.lightAccentColor),
               ),
               filled: true,
               fillColor: Colors.grey[50],
-              contentPadding: const EdgeInsets.all(12),
+              contentPadding: ResponsiveUtils.getCardPadding(context),
             ),
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
           ),
           if (widget.appointment.type == AppointmentType.online) ...[
-            const SizedBox(height: 16),
-            Text(
+            ResponsiveSpacing(16),
+            ResponsiveText(
               'Enlace de videollamada',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 8),
+            ResponsiveSpacing(8),
             TextField(
               controller: _meetingLinkController,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               decoration: InputDecoration(
                 hintText: 'https://meet.google.com/...',
                 hintStyle: TextStyle(
                   color: Colors.grey[500],
                   fontFamily: 'Poppins',
-                  fontSize: 14,
+                  fontSize: ResponsiveUtils.getFontSize(context, 14),
                 ),
                 prefixIcon: Icon(
                   Icons.videocam,
                   color: AppConstants.lightAccentColor,
-                  size: 20,
+                  size: ResponsiveUtils.getIconSize(context, 20),
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getBorderRadius(context, 8),
+                  ),
                   borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getBorderRadius(context, 8),
+                  ),
                   borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getBorderRadius(context, 8),
+                  ),
                   borderSide: BorderSide(color: AppConstants.lightAccentColor),
                 ),
                 filled: true,
                 fillColor: Colors.grey[50],
-                contentPadding: const EdgeInsets.all(12),
+                contentPadding: ResponsiveUtils.getCardPadding(context),
               ),
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
             ),
-            const SizedBox(height: 8),
+            ResponsiveSpacing(8),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.info_outline,
+                  size: ResponsiveUtils.getIconSize(context, 16),
+                  color: Colors.grey[600],
+                ),
+                ResponsiveHorizontalSpacing(8),
                 Expanded(
-                  child: Text(
+                  child: ResponsiveText(
                     'Proporciona el enlace para la videollamada. El paciente lo recibirá por email.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontFamily: 'Poppins',
-                    ),
+                    baseFontSize: 12,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],
@@ -829,50 +951,16 @@ class _AppointmentConfirmationScreenState
       return Column(
         children: [
           if (widget.appointment.isConfirmed) ...[
+            ResponsiveSpacing(12),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Función de iniciar sesión próximamente'),
-                    ),
-                  );
-                },
-                icon: Icon(
-                  widget.appointment.type == AppointmentType.online
-                      ? Icons.videocam
-                      : Icons.location_on,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  widget.appointment.type == AppointmentType.online
-                      ? 'Iniciar Videollamada'
-                      : 'Ver Ubicación',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.lightAccentColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
+              height: ResponsiveUtils.getButtonHeight(context),
               child: BlocBuilder<AppointmentBloc, AppointmentState>(
                 builder: (context, state) {
                   return ElevatedButton.icon(
                     onPressed: state.isLoading ? null : _startSession,
                     icon: state.isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
@@ -880,37 +968,44 @@ class _AppointmentConfirmationScreenState
                               strokeWidth: 2,
                             ),
                           )
-                        : const Icon(Icons.play_arrow, color: Colors.white),
-                    label: Text(
+                        : Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: ResponsiveUtils.getIconSize(context, 20),
+                          ),
+                    label: ResponsiveText(
                       state.isLoading ? 'Iniciando...' : 'Iniciar Sesión',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                      ),
+                      baseFontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConstants.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: EdgeInsets.symmetric(
+                        vertical: ResponsiveUtils.getVerticalSpacing(context, 16),
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 12),
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 12),
+            ResponsiveSpacing(12),
           ],
           if (widget.appointment.status == AppointmentStatus.in_progress) ...[
             SizedBox(
               width: double.infinity,
+              height: ResponsiveUtils.getButtonHeight(context),
               child: BlocBuilder<AppointmentBloc, AppointmentState>(
                 builder: (context, state) {
                   return ElevatedButton.icon(
                     onPressed: state.isLoading ? null : _completeSession,
                     icon: state.isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
@@ -918,48 +1013,61 @@ class _AppointmentConfirmationScreenState
                               strokeWidth: 2,
                             ),
                           )
-                        : const Icon(Icons.check, color: Colors.white),
-                    label: Text(
+                        : Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: ResponsiveUtils.getIconSize(context, 20),
+                          ),
+                    label: ResponsiveText(
                       state.isLoading ? 'Completando...' : 'Completar Sesión',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                      ),
+                      baseFontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: EdgeInsets.symmetric(
+                        vertical: ResponsiveUtils.getVerticalSpacing(context, 16),
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 12),
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 12),
+            ResponsiveSpacing(12),
           ],
           if (widget.appointment.status != AppointmentStatus.completed &&
               widget.appointment.status != AppointmentStatus.cancelled)
             SizedBox(
               width: double.infinity,
+              height: ResponsiveUtils.getButtonHeight(context),
               child: OutlinedButton.icon(
                 onPressed: () => _showCancelConfirmationDialog(),
-                icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                label: const Text(
+                icon: Icon(
+                  Icons.cancel_outlined,
+                  color: Colors.red,
+                  size: ResponsiveUtils.getIconSize(context, 20),
+                ),
+                label: ResponsiveText(
                   'Cancelar Cita',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
+                  baseFontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red,
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: ResponsiveUtils.getVerticalSpacing(context, 16),
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveUtils.getBorderRadius(context, 12),
+                    ),
                   ),
                 ),
               ),
@@ -973,13 +1081,13 @@ class _AppointmentConfirmationScreenState
       builder: (context, state) {
         return Column(
           children: [
-            // Botón de confirmar
             SizedBox(
               width: double.infinity,
+              height: ResponsiveUtils.getButtonHeight(context),
               child: ElevatedButton.icon(
                 onPressed: state.isLoading ? null : _confirmAppointment,
                 icon: state.isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -987,46 +1095,56 @@ class _AppointmentConfirmationScreenState
                           strokeWidth: 2,
                         ),
                       )
-                    : const Icon(Icons.check, color: Colors.white),
-                label: Text(
+                    : Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: ResponsiveUtils.getIconSize(context, 20),
+                      ),
+                label: ResponsiveText(
                   state.isLoading ? 'Confirmando...' : 'Confirmar Cita',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
+                  baseFontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.lightAccentColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: ResponsiveUtils.getVerticalSpacing(context, 16),
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveUtils.getBorderRadius(context, 12),
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            // Botón de cancelar
+            ResponsiveSpacing(12),
             SizedBox(
               width: double.infinity,
+              height: ResponsiveUtils.getButtonHeight(context),
               child: OutlinedButton.icon(
-                onPressed: state.isLoading
-                    ? null
-                    : _showCancelConfirmationDialog,
-                icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                label: const Text(
+                onPressed: state.isLoading ? null : _showCancelConfirmationDialog,
+                icon: Icon(
+                  Icons.cancel_outlined,
+                  color: Colors.red,
+                  size: ResponsiveUtils.getIconSize(context, 20),
+                ),
+                label: ResponsiveText(
                   'Rechazar Cita',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
+                  baseFontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red,
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: ResponsiveUtils.getVerticalSpacing(context, 16),
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveUtils.getBorderRadius(context, 12),
+                    ),
                   ),
                 ),
               ),
@@ -1038,7 +1156,6 @@ class _AppointmentConfirmationScreenState
   }
 
   void _confirmAppointment() {
-    // Validar enlace de reunión para citas online
     if (widget.appointment.type == AppointmentType.online &&
         _meetingLinkController.text.trim().isEmpty) {
       _showErrorSnackBar('Por favor proporciona un enlace de videollamada');
@@ -1060,193 +1177,104 @@ class _AppointmentConfirmationScreenState
 
   void _showCancelConfirmationDialog() {
     final reasonController = TextEditingController();
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
 
     showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            'Cancelar Cita',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 20),
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '¿Estás seguro de que deseas cancelar esta cita?',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Motivo de cancelación',
-                  hintText: 'Explica brevemente el motivo...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-                style: const TextStyle(fontFamily: 'Poppins'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text('Volver'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor proporciona un motivo'),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.of(dialogContext).pop(reason);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: Text('Cancelar Cita'),
-            ),
-          ],
-        );
-      },
-    ).then((reason) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (reasonController.hasListeners) {
-          reasonController.dispose();
-        }
-      });
-
-      if (reason != null && reason.isNotEmpty && mounted) {
-        // Pequeño delay para asegurar que el dispose se complete
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (mounted) {
-            BlocProvider.of<AppointmentBloc>(context, listen: false).add(
-              CancelAppointmentEvent(
-                appointmentId: widget.appointment.id,
-                reason: reason,
-                isPsychologistCancelling: true,
-              ),
-            );
-          }
-        });
-      }
-    });
-  }
-
-  void _showCancelDialog() {
-    final reasonController = TextEditingController();
-
-    showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 20,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red,
-                  size: 50,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Cancelar Cita',
-                style: TextStyle(
-                  fontSize: 20,
+          child: Container(
+            width: dialogWidth,
+            padding: ResponsiveUtils.getCardPadding(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ResponsiveText(
+                  'Cancelar Cita',
+                  baseFontSize: 20,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '¿Estás seguro de que deseas cancelar esta cita?',
-                style: TextStyle(
+                ResponsiveSpacing(16),
+                ResponsiveText(
+                  '¿Estás seguro de que deseas cancelar esta cita?',
+                  baseFontSize: 14,
                   color: Colors.grey[700],
-                  fontFamily: 'Poppins',
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Motivo de cancelación',
-                  hintText: 'Explica brevemente el motivo...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                ResponsiveSpacing(16),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: ResponsiveUtils.getFontSize(context, 14),
                   ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-                style: const TextStyle(fontFamily: 'Poppins'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text(
-                'Volver',
-                style: TextStyle(fontFamily: 'Poppins'),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor proporciona un motivo'),
+                  decoration: InputDecoration(
+                    labelText: 'Motivo de cancelación',
+                    hintText: 'Explica brevemente el motivo...',
+                    labelStyle: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: ResponsiveUtils.getFontSize(context, 14),
                     ),
-                  );
-                  return;
-                }
-                Navigator.of(dialogContext).pop(reason);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Cancelar Cita'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getBorderRadius(context, 8),
+                      ),
+                    ),
+                    contentPadding: ResponsiveUtils.getCardPadding(context),
+                  ),
+                ),
+                ResponsiveSpacing(24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: ResponsiveText(
+                        'Volver',
+                        baseFontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    ElevatedButton(
+                      onPressed: () {
+                        final reason = reasonController.text.trim();
+                        if (reason.isEmpty) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor proporciona un motivo'),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.of(dialogContext).pop(reason);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveUtils.getBorderRadius(context, 8),
+                          ),
+                        ),
+                      ),
+                      child: ResponsiveText(
+                        'Cancelar Cita',
+                        baseFontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     ).then((reason) {
@@ -1278,9 +1306,31 @@ class _AppointmentConfirmationScreenState
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message, style: const TextStyle(fontFamily: 'Poppins')),
+          content: Row(
+            children: [
+              Icon(
+                Icons.error,
+                color: Colors.white,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
+              Expanded(
+                child: ResponsiveText(
+                  message,
+                  baseFontSize: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 10),
+            ),
+          ),
         ),
       );
     } catch (e) {
@@ -1289,79 +1339,177 @@ class _AppointmentConfirmationScreenState
   }
 
   void _completeSession() {
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
+    
     showDialog(
       context: context,
       builder: (dialogContext) {
         final notesController = TextEditingController();
 
-        return AlertDialog(
-          title: const Text('Completar Sesión'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('¿Estás seguro de que deseas completar esta sesión?'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: notesController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Notas de la sesión (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final notes = notesController.text.trim();
-                Navigator.pop(dialogContext);
-
-                BlocProvider.of<AppointmentBloc>(context).add(
-                  CompleteAppointmentSessionEvent(
-                    appointmentId: widget.appointment.id,
-                    notes: notes.isNotEmpty ? notes : null,
+          child: Container(
+            width: dialogWidth,
+            padding: ResponsiveUtils.getCardPadding(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ResponsiveText(
+                  'Completar Sesión',
+                  baseFontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                ResponsiveSpacing(16),
+                ResponsiveText(
+                  '¿Estás seguro de que deseas completar esta sesión?',
+                  baseFontSize: 14,
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveSpacing(16),
+                TextField(
+                  controller: notesController,
+                  maxLines: 3,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: ResponsiveUtils.getFontSize(context, 14),
                   ),
-                );
-              },
-              child: const Text('Completar'),
+                  decoration: InputDecoration(
+                    labelText: 'Notas de la sesión (opcional)',
+                    labelStyle: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: ResponsiveUtils.getFontSize(context, 14),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getBorderRadius(context, 8),
+                      ),
+                    ),
+                    contentPadding: ResponsiveUtils.getCardPadding(context),
+                  ),
+                ),
+                ResponsiveSpacing(24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: ResponsiveText(
+                        'Cancelar',
+                        baseFontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    ElevatedButton(
+                      onPressed: () {
+                        final notes = notesController.text.trim();
+                        Navigator.pop(dialogContext);
+
+                        BlocProvider.of<AppointmentBloc>(context).add(
+                          CompleteAppointmentSessionEvent(
+                            appointmentId: widget.appointment.id,
+                            notes: notes.isNotEmpty ? notes : null,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveUtils.getBorderRadius(context, 8),
+                          ),
+                        ),
+                      ),
+                      child: ResponsiveText(
+                        'Completar',
+                        baseFontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
   void _startSession() {
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
+    
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Iniciar Sesión'),
-          content: const Text(
-            '¿Estás seguro de que deseas iniciar esta sesión?',
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
+          child: Container(
+            width: dialogWidth,
+            padding: ResponsiveUtils.getCardPadding(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ResponsiveText(
+                  'Iniciar Sesión',
+                  baseFontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                ResponsiveSpacing(16),
+                ResponsiveText(
+                  '¿Estás seguro de que deseas iniciar esta sesión?',
+                  baseFontSize: 14,
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveSpacing(24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: ResponsiveText(
+                        'Cancelar',
+                        baseFontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        BlocProvider.of<AppointmentBloc>(context).add(
+                          StartAppointmentSessionEvent(
+                            appointmentId: widget.appointment.id,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppConstants.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            ResponsiveUtils.getBorderRadius(context, 8),
+                          ),
+                        ),
+                      ),
+                      child: ResponsiveText(
+                        'Iniciar',
+                        baseFontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                BlocProvider.of<AppointmentBloc>(context).add(
-                  StartAppointmentSessionEvent(
-                    appointmentId: widget.appointment.id,
-                  ),
-                );
-              },
-              child: const Text('Iniciar'),
-            ),
-          ],
+          ),
         );
       },
     );

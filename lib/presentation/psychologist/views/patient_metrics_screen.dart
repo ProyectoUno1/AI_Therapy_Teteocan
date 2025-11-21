@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_management_model.dart';
 
 class PatientMetricsScreen extends StatelessWidget {
@@ -16,38 +17,37 @@ class PatientMetricsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
+    
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: ResponsiveText(
           'Métricas de Pacientes',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+          baseFontSize: 18,
+          fontWeight: FontWeight.w600,
         ),
         backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            size: ResponsiveUtils.getIconSize(context, 20),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(horizontalPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Resumen General
             _buildOverviewCard(context),
-            const SizedBox(height: 20),
-            
-            // Métricas por Estado
+            ResponsiveSpacing(20),
             _buildStatusMetrics(context),
-            const SizedBox(height: 20),
-            
-            // Métricas de Actividad
+            ResponsiveSpacing(20),
             _buildActivityMetrics(context),
-            const SizedBox(height: 20),
-            
-            // Tendencias
+            ResponsiveSpacing(20),
             _buildTrendsSection(context),
           ],
         ),
@@ -65,13 +65,17 @@ class PatientMetricsScreen extends StatelessWidget {
         ? patients.map((p) => p.totalSessions ?? 0).reduce((a, b) => a + b) / patients.length
         : 0.0;
 
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 16);
+    final cardPadding = ResponsiveUtils.getCardPadding(context);
+    final iconSize = ResponsiveUtils.getIconSize(context, 28);
+
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: cardPadding,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           gradient: LinearGradient(
             colors: [
               AppConstants.primaryColor.withOpacity(0.1),
@@ -89,51 +93,61 @@ class PatientMetricsScreen extends StatelessWidget {
                 Icon(
                   Icons.dashboard,
                   color: AppConstants.primaryColor,
-                  size: 28,
+                  size: iconSize,
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'Resumen General',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                ResponsiveHorizontalSpacing(12),
+                Expanded(
+                  child: ResponsiveText(
+                    'Resumen General',
+                    baseFontSize: 20,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
                     color: AppConstants.primaryColor,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildOverviewItem(
-                    context,
-                    'Total Pacientes',
-                    totalPatients.toString(),
-                    Icons.people,
-                    AppConstants.primaryColor,
+            ResponsiveSpacing(20),
+            ResponsiveUtils.isMobileSmall(context)
+                ? Column(
+                    children: [
+                      _buildOverviewItem(
+                        context, 'Total Pacientes', totalPatients.toString(),
+                        Icons.people, AppConstants.primaryColor,
+                      ),
+                      ResponsiveSpacing(16),
+                      _buildOverviewItem(
+                        context, 'Activos', activePatients.toString(),
+                        Icons.trending_up, Colors.green,
+                      ),
+                      ResponsiveSpacing(16),
+                      _buildOverviewItem(
+                        context, 'Prom. Sesiones', averageSessions.toStringAsFixed(1),
+                        Icons.analytics, Colors.blue,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _buildOverviewItem(
+                          context, 'Total Pacientes', totalPatients.toString(),
+                          Icons.people, AppConstants.primaryColor,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildOverviewItem(
+                          context, 'Activos', activePatients.toString(),
+                          Icons.trending_up, Colors.green,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildOverviewItem(
+                          context, 'Prom. Sesiones', averageSessions.toStringAsFixed(1),
+                          Icons.analytics, Colors.blue,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Expanded(
-                  child: _buildOverviewItem(
-                    context,
-                    'Activos',
-                    activePatients.toString(),
-                    Icons.trending_up,
-                    Colors.green,
-                  ),
-                ),
-                Expanded(
-                  child: _buildOverviewItem(
-                    context,
-                    'Prom. Sesiones',
-                    averageSessions.toStringAsFixed(1),
-                    Icons.analytics,
-                    Colors.blue,
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -150,27 +164,29 @@ class PatientMetricsScreen extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(
+            ResponsiveUtils.getHorizontalSpacing(context, 12),
+          ),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
+          child: Icon(
+            icon,
             color: color,
+            size: ResponsiveUtils.getIconSize(context, 24),
           ),
         ),
-        Text(
+        ResponsiveSpacing(8),
+        ResponsiveText(
+          value,
+          baseFontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+        ResponsiveText(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 12,
           textAlign: TextAlign.center,
         ),
       ],
@@ -178,22 +194,23 @@ class PatientMetricsScreen extends StatelessWidget {
   }
 
   Widget _buildStatusMetrics(BuildContext context) {
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 16);
+    final cardPadding = ResponsiveUtils.getCardPadding(context);
+    
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            ResponsiveText(
               'Distribución por Estado',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 16),
+            ResponsiveSpacing(16),
             ...PatientStatus.values.map((status) => 
               _buildStatusMetricItem(context, status)
             ).toList(),
@@ -208,13 +225,18 @@ class PatientMetricsScreen extends StatelessWidget {
     final percentage = patients.isNotEmpty ? (count / patients.length) * 100 : 0.0;
     final color = _getStatusColor(status);
     final isFocused = focusedStatus == status;
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 12);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getVerticalSpacing(context, 12),
+      ),
+      padding: EdgeInsets.all(
+        ResponsiveUtils.getHorizontalPadding(context),
+      ),
       decoration: BoxDecoration(
         color: isFocused ? color.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: isFocused ? Border.all(color: color, width: 2) : null,
       ),
       child: Row(
@@ -227,37 +249,29 @@ class PatientMetricsScreen extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 12),
+          ResponsiveHorizontalSpacing(12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                ResponsiveText(
                   status.displayName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
+                ResponsiveText(
                   '$count pacientes (${percentage.toStringAsFixed(1)}%)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 12,
+                  color: Colors.grey[600],
                 ),
               ],
             ),
           ),
-          Text(
+          ResponsiveText(
             count.toString(),
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontFamily: 'Poppins',
-            ),
+            baseFontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
           ),
         ],
       ),
@@ -276,67 +290,66 @@ class PatientMetricsScreen extends StatelessWidget {
     final patientsWithEmail = patients.where((p) => 
         p.email != null && p.email!.isNotEmpty).length;
 
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 16);
+    final cardPadding = ResponsiveUtils.getCardPadding(context);
+    final isMobileSmall = ResponsiveUtils.isMobileSmall(context);
+
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            ResponsiveText(
               'Métricas de Actividad',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActivityItem(
-                    context,
-                    'Citas Próximas',
-                    patientsWithUpcomingAppointments.toString(),
-                    Icons.schedule,
-                    Colors.orange,
-                  ),
-                ),
-                Expanded(
-                  child: _buildActivityItem(
-                    context,
-                    'Total Sesiones',
-                    totalSessions.toString(),
-                    Icons.event_note,
-                    Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActivityItem(
-                    context,
-                    'Con Email',
-                    patientsWithEmail.toString(),
-                    Icons.email,
-                    Colors.teal,
-                  ),
-                ),
-                Expanded(
-                  child: _buildActivityItem(
-                    context,
-                    'Completados',
+            ResponsiveSpacing(16),
+            if (isMobileSmall)
+              Column(
+                children: [
+                  _buildActivityItem(context, 'Citas Próximas',
+                    patientsWithUpcomingAppointments.toString(), Icons.schedule, Colors.orange),
+                  ResponsiveSpacing(16),
+                  _buildActivityItem(context, 'Total Sesiones',
+                    totalSessions.toString(), Icons.event_note, Colors.purple),
+                  ResponsiveSpacing(16),
+                  _buildActivityItem(context, 'Con Email',
+                    patientsWithEmail.toString(), Icons.email, Colors.teal),
+                  ResponsiveSpacing(16),
+                  _buildActivityItem(context, 'Completados',
                     patients.where((p) => p.status == PatientStatus.completed).length.toString(),
-                    Icons.check_circle,
-                    Colors.green,
+                    Icons.check_circle, Colors.green),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: _buildActivityItem(context, 'Citas Próximas',
+                        patientsWithUpcomingAppointments.toString(), Icons.schedule, Colors.orange)),
+                      ResponsiveHorizontalSpacing(8),
+                      Expanded(child: _buildActivityItem(context, 'Total Sesiones',
+                        totalSessions.toString(), Icons.event_note, Colors.purple)),
+                    ],
                   ),
-                ),
-              ],
-            ),
+                  ResponsiveSpacing(16),
+                  Row(
+                    children: [
+                      Expanded(child: _buildActivityItem(context, 'Con Email',
+                        patientsWithEmail.toString(), Icons.email, Colors.teal)),
+                      ResponsiveHorizontalSpacing(8),
+                      Expanded(child: _buildActivityItem(context, 'Completados',
+                        patients.where((p) => p.status == PatientStatus.completed).length.toString(),
+                        Icons.check_circle, Colors.green)),
+                    ],
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -350,31 +363,33 @@ class PatientMetricsScreen extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 12);
+    
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(right: 8),
+      padding: EdgeInsets.all(
+        ResponsiveUtils.getHorizontalPadding(context),
+      ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontFamily: 'Poppins',
-            ),
+          Icon(
+            icon,
+            color: color,
+            size: ResponsiveUtils.getIconSize(context, 32),
           ),
-          Text(
+          ResponsiveSpacing(8),
+          ResponsiveText(
+            value,
+            baseFontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+          ResponsiveText(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontFamily: 'Poppins',
-            ),
+            baseFontSize: 12,
             textAlign: TextAlign.center,
           ),
         ],
@@ -383,22 +398,23 @@ class PatientMetricsScreen extends StatelessWidget {
   }
 
   Widget _buildTrendsSection(BuildContext context) {
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 16);
+    final cardPadding = ResponsiveUtils.getCardPadding(context);
+    
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            ResponsiveText(
               'Insights y Recomendaciones',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 16),
+            ResponsiveSpacing(16),
             ..._generateInsights(context),
           ],
         ),
@@ -415,41 +431,33 @@ class PatientMetricsScreen extends StatelessWidget {
 
     if (pendingCount > 0) {
       insights.add(_buildInsightItem(
-        context,
-        'Pacientes Pendientes',
+        context, 'Pacientes Pendientes',
         'Tienes $pendingCount pacientes esperando aceptación. Considera revisarlos pronto.',
-        Icons.pending_actions,
-        Colors.orange,
+        Icons.pending_actions, Colors.orange,
       ));
     }
 
     if (inTreatmentCount > completedCount * 2) {
       insights.add(_buildInsightItem(
-        context,
-        'Alta Carga de Trabajo',
+        context, 'Alta Carga de Trabajo',
         'Tienes muchos pacientes en tratamiento activo. Considera optimizar tu agenda.',
-        Icons.trending_up,
-        Colors.blue,
+        Icons.trending_up, Colors.blue,
       ));
     }
 
     if (completedCount > 0) {
       insights.add(_buildInsightItem(
-        context,
-        'Excelente Trabajo',
+        context, 'Excelente Trabajo',
         'Has completado el tratamiento de $completedCount pacientes. ¡Felicitaciones!',
-        Icons.celebration,
-        Colors.green,
+        Icons.celebration, Colors.green,
       ));
     }
 
     if (insights.isEmpty) {
       insights.add(_buildInsightItem(
-        context,
-        'Todo bajo Control',
+        context, 'Todo bajo Control',
         'Tus métricas se ven bien. Mantén el buen trabajo.',
-        Icons.thumb_up,
-        AppConstants.primaryColor,
+        Icons.thumb_up, AppConstants.primaryColor,
       ));
     }
 
@@ -463,36 +471,42 @@ class PatientMetricsScreen extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 12);
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getVerticalSpacing(context, 12),
+      ),
+      padding: EdgeInsets.all(
+        ResponsiveUtils.getHorizontalPadding(context),
+      ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
+          Icon(
+            icon,
+            color: color,
+            size: ResponsiveUtils.getIconSize(context, 24),
+          ),
+          ResponsiveHorizontalSpacing(12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                ResponsiveText(
                   title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                    color: color,
-                  ),
+                  baseFontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
                 ),
-                const SizedBox(height: 4),
-                Text(
+                ResponsiveSpacing(4),
+                ResponsiveText(
                   description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 12,
                 ),
               ],
             ),

@@ -180,30 +180,7 @@ class _BankInfoScreenState extends State<BankInfoScreen>
           controller: _tabController,
           children: [_buildBankDataTab(), _buildPaymentHistoryTab()],
         ),
-        bottomNavigationBar: BottomAppBar(
-          color: accentColor,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                label: const Text(
-                  'Regresar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () => _showHelpDialog(context),
-                icon: const Icon(Icons.help_outline, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
+        
       ),
     );
   }
