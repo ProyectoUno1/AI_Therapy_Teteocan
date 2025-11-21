@@ -53,6 +53,7 @@ import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_cubit.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/bloc/theme_state.dart';
 import 'package:ai_therapy_teteocan/data/repositories/bank_info_repository.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/bank_info_bloc.dart';
+import 'package:ai_therapy_teteocan/core/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
@@ -86,6 +87,23 @@ void main() async {
       'pk_test_51RvpC82Szsvtfc49A47f7EAMS4lyoNX4FjXxYL0JnwNS0jMR2jARHLsvR5ZMnHXSsYJNjw2EhNOVv4PiP785jHRJ00fGel1PLI';
 
   await NotificationService.initialize();
+
+  NotificationService.onNotificationTap = (Map<String, dynamic> data) {
+    final appointmentId = data['appointmentId'];
+    final type = data['type'];
+
+    // 💡 Verifica que sea la notificación de inicio de sesión y que tenga el ID
+    if (type == 'session_started' && appointmentId != null) {
+      print('Navegando a la sesión con ID: $appointmentId');
+      
+      // Usa la GlobalKey para navegar
+      navigatorKey.currentState?.pushNamed(
+        // 💡 Reemplaza con el nombre de tu ruta de la pantalla de chat/sesión
+        '/chat-session-screen', 
+        arguments: {'appointmentId': appointmentId},
+      );
+    }
+  };
 
   NotificationService.onNotificationTap = (data) {
     _handleNotificationNavigation(data);
@@ -246,6 +264,12 @@ void main() async {
         create: (context) =>
             PatientNotesBloc(notesService: PatientNotesService()),
       ),
+
+      RepositoryProvider(
+          create: (context) => EmotionRepositoryImpl(
+            dataSource: EmotionRemoteDataSource(
+              baseUrl: ApiConstants.baseUrl,
+            ),)),
     ],
     child: const MyApp(),
   ),
@@ -297,8 +321,16 @@ void _navigateToProfile(BuildContext context, Map<String, dynamic> data) {
 }
 
 void _navigateToActiveSession(BuildContext context, Map<String, dynamic> data) {
-  print('Navegar a sesión activa con data: $data');
-  _navigateToNotifications(context);
+  final appointmentId = data['appointmentId'];
+  
+  if (appointmentId != null) {
+    navigatorKey.currentState?.pushNamed(
+      '/chat-session-screen', 
+      arguments: {'appointmentId': appointmentId}, 
+    );
+  } else {
+    _navigateToNotifications(context); 
+  }
 }
 
 void _navigateToNotifications(BuildContext context) {

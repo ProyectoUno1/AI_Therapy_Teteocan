@@ -17,18 +17,47 @@ class AiUsageLimitIndicator extends StatelessWidget {
     this.compact = false,
   });
 
+  // Función para obtener tamaño de fuente responsivo
+  double _getResponsiveFontSize(BuildContext context, double baseSize) {
+    final width = MediaQuery.of(context).size.width;
+    final scale = width / 375; // 375 es el ancho base (iPhone SE/8)
+    return (baseSize * scale).clamp(baseSize * 0.85, baseSize * 1.15);
+  }
+
+  // Función para obtener padding responsivo
+  EdgeInsets _getResponsivePadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 360) {
+      return const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+    } else if (width < 400) {
+      return const EdgeInsets.symmetric(horizontal: 14, vertical: 11);
+    } else {
+      return const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+    }
+  }
+
+  // Función para obtener tamaño de icono responsivo
+  double _getResponsiveIconSize(BuildContext context, double baseSize) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 360) return baseSize * 0.9;
+    return baseSize;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isPremium) {
-      return _buildPremiumIndicator();
+      return _buildPremiumIndicator(context);
     } else {
       return _buildFreeTierIndicator(context);
     }
   }
 
-  Widget _buildPremiumIndicator() {
+  Widget _buildPremiumIndicator(BuildContext context) {
+    final iconSize = _getResponsiveIconSize(context, compact ? 18 : 22);
+    final fontSize = _getResponsiveFontSize(context, compact ? 13 : 15);
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: _getResponsivePadding(context),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0F9B0F), Color(0xFF1EBE1E)],
@@ -50,16 +79,19 @@ class AiUsageLimitIndicator extends StatelessWidget {
           Icon(
             Icons.workspace_premium_rounded,
             color: Colors.white,
-            size: compact ? 18 : 22,
+            size: iconSize,
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Premium - Sin límites',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: compact ? 13 : 15,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Poppins',
+          SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+          Flexible(
+            child: Text(
+              'Premium - Sin límites',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Poppins',
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -78,8 +110,14 @@ class AiUsageLimitIndicator extends StatelessWidget {
             ? Colors.orange
             : Theme.of(context).colorScheme.primary;
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final iconSize = _getResponsiveIconSize(context, compact ? 16 : 20);
+    final titleFontSize = _getResponsiveFontSize(context, compact ? 12 : 14);
+    final counterFontSize = _getResponsiveFontSize(context, compact ? 12 : 14);
+    final subtitleFontSize = _getResponsiveFontSize(context, compact ? 11 : 12);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: _getResponsivePadding(context),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(16),
@@ -101,112 +139,127 @@ class AiUsageLimitIndicator extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.smart_toy, color: color, size: compact ? 16 : 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Mensajes disponibles',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: compact ? 12 : 14,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
+              Flexible(
+                flex: 2,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.smart_toy, color: color, size: iconSize),
+                    SizedBox(width: screenWidth * 0.02),
+                    Flexible(
+                      child: Text(
+                        'Mensajes disponibles',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: titleFontSize,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              SizedBox(width: screenWidth * 0.02),
               Text(
                 '$used/$limit',
                 style: TextStyle(
                   color: isAtLimit ? Colors.orange[800] : Colors.grey[600],
-                  fontSize: compact ? 12 : 14,
+                  fontSize: counterFontSize,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Poppins',
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Stack(
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeOut,
-                height: 8,
-                width: MediaQuery.of(context).size.width * percent * 0.7,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isAtLimit
-                        ? [Colors.orange[600]!, Colors.orange[800]!]
-                        : [const Color(0xFF4285F4), const Color(0xFF34A853)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
+          SizedBox(height: screenWidth * 0.02),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Stack(
+              children: [
+                Container(
+                  height: 8,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  borderRadius: BorderRadius.circular(4),
                 ),
-              ),
-            ],
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                  height: 8,
+                  width: screenWidth * percent * 0.85, // Ajustado para ser más responsivo
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isAtLimit
+                          ? [Colors.orange[600]!, Colors.orange[800]!]
+                          : [const Color(0xFF4285F4), const Color(0xFF34A853)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: screenWidth * 0.015),
           if (isAtLimit)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  ' Límite alcanzado',
+                  '⚠️ Límite alcanzado',
                   style: TextStyle(
                     color: Colors.orange[800],
-                    fontSize: compact ? 11 : 12,
+                    fontSize: subtitleFontSize,
                     fontWeight: FontWeight.w500,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: screenWidth * 0.02),
                 Text(
                   'Has alcanzado el límite de uso de IA para tu plan gratuito.',
                   style: TextStyle(
                     color: Colors.red,
-                    fontSize: compact ? 11 : 12,
+                    fontSize: subtitleFontSize,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
                   ),
                 ),
                 if (!compact)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        textStyle: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: compact ? 11 : 14,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      icon: const Icon(Icons.upgrade, size: 18),
-                      label: const Text('Mejorar mi plan'),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const SubscriptionScreen(),
+                    padding: EdgeInsets.only(top: screenWidth * 0.02),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          textStyle: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: _getResponsiveFontSize(context, compact ? 11 : 13),
                           ),
-                        );
-                      },
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth * 0.04,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: Icon(Icons.upgrade, size: _getResponsiveIconSize(context, 18)),
+                        label: const Text('Mejorar mi plan'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
               ],
@@ -219,12 +272,12 @@ class AiUsageLimitIndicator extends StatelessWidget {
                   '⚠️ $remaining mensajes restantes',
                   style: TextStyle(
                     color: Colors.orange[800],
-                    fontSize: compact ? 11 : 12,
+                    fontSize: subtitleFontSize,
                     fontWeight: FontWeight.w500,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: screenWidth * 0.02),
                 Row(
                   children: [
                     Expanded(
@@ -232,13 +285,13 @@ class AiUsageLimitIndicator extends StatelessWidget {
                         'Estás cerca de tu límite de IA gratuito. Considera mejorar tu plan.',
                         style: TextStyle(
                           color: Colors.orange,
-                          fontSize: compact ? 11 : 12,
+                          fontSize: subtitleFontSize,
                           fontWeight: FontWeight.w600,
                           fontFamily: 'Poppins',
                         ),
                       ),
                     ),
-                    if (!compact)
+                    if (!compact && screenWidth > 360)
                       Padding(
                         padding: const EdgeInsets.only(left: 8.0),
                         child: OutlinedButton.icon(
@@ -246,18 +299,18 @@ class AiUsageLimitIndicator extends StatelessWidget {
                             foregroundColor: Colors.orange,
                             textStyle: TextStyle(
                               fontFamily: 'Poppins',
-                              fontSize: compact ? 11 : 12,
+                              fontSize: _getResponsiveFontSize(context, 12),
                             ),
                             side: const BorderSide(color: Colors.orange),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.025,
                               vertical: 6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          icon: const Icon(Icons.upgrade, size: 16),
+                          icon: Icon(Icons.upgrade, size: _getResponsiveIconSize(context, 16)),
                           label: const Text('Mejorar'),
                           onPressed: () {
                             Navigator.of(context).push(
@@ -270,14 +323,47 @@ class AiUsageLimitIndicator extends StatelessWidget {
                       ),
                   ],
                 ),
+                if (!compact && screenWidth <= 360)
+                  Padding(
+                    padding: EdgeInsets.only(top: screenWidth * 0.02),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          textStyle: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: _getResponsiveFontSize(context, 12),
+                          ),
+                          side: const BorderSide(color: Colors.orange),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: Icon(Icons.upgrade, size: _getResponsiveIconSize(context, 16)),
+                        label: const Text('Mejorar'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
               ],
             )
           else
             Text(
-              ' $remaining mensajes restantes',
+              '$remaining mensajes restantes',
               style: TextStyle(
                 color: Colors.green[700],
-                fontSize: compact ? 11 : 12,
+                fontSize: subtitleFontSize,
                 fontWeight: FontWeight.w500,
                 fontFamily: 'Poppins',
               ),

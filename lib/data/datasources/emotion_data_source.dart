@@ -73,22 +73,16 @@ class EmotionRemoteDataSource implements EmotionDataSource {
   @override
   Future<void> saveEmotion(Emotion emotion) async {
     try {
-      // ✅ CORRECCIÓN: Usar ruta consistente CON /api/
       final response = await _authenticatedPost(
-        '$baseUrl/api/patient-management/emotions',
+        '$baseUrl/patient-management/emotions',
         emotion.toMap(),
       );
-
-      print('📊 Respuesta saveEmotion: ${response.statusCode}');
-      print('📄 Body: ${response.body}');
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('Error al guardar emoción: ${response.body}');
       }
-      
-      print('✅ Emoción guardada exitosamente');
     } catch (e) {
-      print('❌ Error en saveEmotion: $e');
+      print('Error en saveEmotion: $e');
       rethrow;
     }
   }

@@ -1,4 +1,5 @@
 import 'package:ai_therapy_teteocan/presentation/patient/views/exercise_detail_screen.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -120,8 +121,11 @@ class _DailyExerciseCarouselState extends State<DailyExerciseCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Obtener altura responsive
+    final cardHeight = ResponsiveUtils.getCardHeight(context, 200);
+    
     return Container(
-      height: 200,
+      height: cardHeight,
       child: PageView.builder(
         controller: _pageController!,
         onPageChanged: (index) {
@@ -133,70 +137,101 @@ class _DailyExerciseCarouselState extends State<DailyExerciseCarousel> {
         itemBuilder: (context, index) {
           final exercise = dailyExercises[index];
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveUtils.getHorizontalSpacing(context, 8),
+            ),
             child: Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getBorderRadius(context, 15),
+                ),
               ),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: ResponsiveUtils.getCardPadding(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ✅ HEADER ROW - Con mejor control de espacio
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
+                        // ✅ Título con Flexible para evitar overflow
+                        Flexible(
+                          flex: 2,
+                          child: ResponsiveText(
                             exercise.title,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            baseFontSize: 16, // Reducido de 18
+                            fontWeight: FontWeight.bold,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            exercise.difficulty,
-                            style: TextStyle(
+                        SizedBox(
+                          width: ResponsiveUtils.getHorizontalSpacing(context, 8),
+                        ),
+                        // ✅ Badge de dificultad - compacto
+                        Flexible(
+                          flex: 1,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ResponsiveUtils.getHorizontalSpacing(context, 6),
+                              vertical: ResponsiveUtils.getVerticalSpacing(context, 3),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                ResponsiveUtils.getBorderRadius(context, 12),
+                              ),
+                            ),
+                            child: ResponsiveText(
+                              exercise.difficulty,
+                              baseFontSize: 11, // Reducido de 12
                               color: Theme.of(context).primaryColor,
-                              fontSize: 12,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
+                    ResponsiveSpacing(8),
+                    
+                    // ✅ Descripción responsive
+                    ResponsiveText(
                       exercise.description,
-                      style: const TextStyle(fontSize: 14),
+                      baseFontSize: 13, // Reducido de 14
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),
+                    
+                    // ✅ FOOTER ROW - ESTA ERA LA LÍNEA 191 QUE CAUSABA EL PROBLEMA
                     Row(
                       children: [
-                        const Icon(Icons.timer, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${exercise.duration.inMinutes} min',
-                          style: const TextStyle(fontSize: 14),
+                        // ✅ Ícono de timer más pequeño
+                        Icon(
+                          Icons.timer,
+                          size: ResponsiveUtils.getIconSize(context, 14), // Reducido de 16
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(
+                          width: ResponsiveUtils.getHorizontalSpacing(context, 4),
+                        ),
+                        // ✅ Texto de duración con Flexible
+                        Flexible(
+                          child: ResponsiveText(
+                            '${exercise.duration.inMinutes} min',
+                            baseFontSize: 12, // Reducido de 14
+                            color: Colors.grey[600],
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                         const Spacer(),
+                        // ✅ Botón más compacto
                         TextButton(
                           onPressed: () {
                             Navigator.push(
@@ -207,7 +242,26 @@ class _DailyExerciseCarouselState extends State<DailyExerciseCarousel> {
                               ),
                             );
                           },
-                          child: const Text('Comenzar'),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ResponsiveUtils.getHorizontalSpacing(context, 8),
+                              vertical: ResponsiveUtils.getVerticalSpacing(context, 4),
+                            ),
+                            minimumSize: Size(
+                              ResponsiveUtils.getResponsiveWidth(
+                                context,
+                                mobile: 70,
+                                tablet: 80,
+                                desktop: 90,
+                              ),
+                              ResponsiveUtils.getButtonHeight(context) * 0.7, // Más pequeño
+                            ),
+                          ),
+                          child: ResponsiveText(
+                            'Comenzar',
+                            baseFontSize: 12, // Reducido de 14
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
                       ],
                     ),

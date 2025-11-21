@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/custom_text_field.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/psychologist_info_event.dart';
@@ -31,18 +32,13 @@ class _ProfessionalInfoSetupScreenState
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
 
-  // Controladores de campos
   final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _professionalTitleController =
-      TextEditingController();
-  final TextEditingController _licenseNumberController =
-      TextEditingController();
-  final TextEditingController _yearsExperienceController =
-      TextEditingController();
+  final TextEditingController _professionalTitleController = TextEditingController();
+  final TextEditingController _licenseNumberController = TextEditingController();
+  final TextEditingController _yearsExperienceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _educationController = TextEditingController();
-  final TextEditingController _certificationsController =
-      TextEditingController();
+  final TextEditingController _certificationsController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
 
   String? _selectedSpecialty;
@@ -68,13 +64,11 @@ class _ProfessionalInfoSetupScreenState
     'Domingo': null,
   };
 
-  // Variables de estado
   File? _profileImage;
   String? _currentProfilePictureUrl;
   bool _isUploadingImage = false;
   bool _isDataLoaded = false;
 
-  // Listas de opciones
   final List<String> _specialties = [
     'Psicología Clínica',
     'Psicología Cognitivo-Conductual',
@@ -127,19 +121,13 @@ class _ProfessionalInfoSetupScreenState
   void initState() {
     super.initState();
     
-    print('🔄 InitState - ProfessionalInfoSetupScreen');
-    
-    // Cargar datos del widget si existen
     if (widget.psychologist != null) {
-      print('📦 Cargando datos desde widget.psychologist');
       _fillFormWithData(widget.psychologist!);
       _isDataLoaded = true;
     }
     
-    // Cargar datos desde Firestore
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null && !_isDataLoaded) {
-      print('🔍 Cargando datos desde Firestore para UID: $uid');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.read<PsychologistInfoBloc>().add(
           LoadPsychologistInfoEvent(uid: uid)
@@ -149,24 +137,16 @@ class _ProfessionalInfoSetupScreenState
   }
 
   void _fillFormWithData(PsychologistModel psychologist) {
-    print('📝 Llenando formulario con datos del psicólogo');
-    print('👤 Nombre: ${psychologist.fullName}');
-    print('🎓 Título: ${psychologist.professionalTitle}');
-    print('📋 Cédula: ${psychologist.professionalLicense}');
-    
     setState(() {
-      // Información personal
       _fullNameController.text = psychologist.fullName ?? '';
       _professionalTitleController.text = psychologist.professionalTitle ?? '';
       _licenseNumberController.text = psychologist.professionalLicense ?? '';
       _currentProfilePictureUrl = psychologist.profilePictureUrl;
       
-      // Información profesional
       _yearsExperienceController.text = psychologist.yearsExperience?.toString() ?? '';
       _descriptionController.text = psychologist.description ?? '';
       _priceController.text = psychologist.price?.toString() ?? '';
 
-      // Educación y certificaciones
       if (psychologist.education != null && psychologist.education!.isNotEmpty) {
         _educationController.text = psychologist.education!.join('\n');
       }
@@ -174,14 +154,12 @@ class _ProfessionalInfoSetupScreenState
         _certificationsController.text = psychologist.certifications!.join('\n');
       }
 
-      // Especialidad
       _selectedSpecialty = psychologist.specialty;
       if (psychologist.subSpecialties != null) {
         _selectedSubSpecialties.clear();
         _selectedSubSpecialties.addAll(psychologist.subSpecialties!);
       }
 
-      // Horarios
       _startSchedule.clear();
       _endSchedule.clear();
       
@@ -204,8 +182,6 @@ class _ProfessionalInfoSetupScreenState
                   hour: int.parse(endParts[0]),
                   minute: int.parse(endParts[1]),
                 );
-                
-                print('📅 Horario cargado - $day: $startTime - $endTime');
               } catch (e) {
                 print('⚠️ Error parseando horario de $day: $e');
               }
@@ -216,8 +192,6 @@ class _ProfessionalInfoSetupScreenState
 
       _isDataLoaded = true;
     });
-    
-    print('✅ Formulario llenado exitosamente');
   }
 
   @override
@@ -343,9 +317,9 @@ class _ProfessionalInfoSetupScreenState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: AppConstants.lightAccentColor),
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppConstants.lightAccentColor,
+            ),
           ),
           child: child!,
         );
@@ -379,36 +353,33 @@ class _ProfessionalInfoSetupScreenState
   }
 
   Widget _buildPersonalInfoStep() {
+    final avatarSize = ResponsiveUtils.getAvatarRadius(context, 60);
+    final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        ResponsiveText(
           'Información Personal',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-            color: Colors.black87,
-          ),
+          baseFontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 8),
-        const Text(
+        ResponsiveSpacing(8),
+        ResponsiveText(
           'Completa tu perfil profesional',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 16,
+          color: Colors.grey,
         ),
-        const SizedBox(height: 32),
+        ResponsiveSpacing(32),
         Center(
           child: Stack(
             children: [
               GestureDetector(
                 onTap: _isUploadingImage ? null : _pickImage,
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: avatarSize * 2,
+                  height: avatarSize * 2,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppConstants.lightAccentColor.withOpacity(0.1),
@@ -429,18 +400,18 @@ class _ProfessionalInfoSetupScreenState
                                   ? Image.file(
                                       _profileImage!,
                                       fit: BoxFit.cover,
-                                      width: 120,
-                                      height: 120,
+                                      width: avatarSize * 2,
+                                      height: avatarSize * 2,
                                     )
                                   : Image.network(
                                       _currentProfilePictureUrl!,
                                       fit: BoxFit.cover,
-                                      width: 120,
-                                      height: 120,
+                                      width: avatarSize * 2,
+                                      height: avatarSize * 2,
                                       errorBuilder: (context, error, stackTrace) {
                                         return Icon(
                                           Icons.person,
-                                          size: 60,
+                                          size: avatarSize,
                                           color: AppConstants.lightAccentColor,
                                         );
                                       },
@@ -451,17 +422,14 @@ class _ProfessionalInfoSetupScreenState
                               children: [
                                 Icon(
                                   Icons.add_a_photo,
-                                  size: 32,
+                                  size: ResponsiveUtils.getIconSize(context, 32),
                                   color: AppConstants.lightAccentColor,
                                 ),
-                                const SizedBox(height: 8),
-                                const Text(
+                                ResponsiveSpacing(8),
+                                ResponsiveText(
                                   'Agregar foto',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                    fontFamily: 'Poppins',
-                                  ),
+                                  baseFontSize: 12,
+                                  color: Colors.grey,
                                 ),
                               ],
                             ),
@@ -478,10 +446,10 @@ class _ProfessionalInfoSetupScreenState
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
                       color: Colors.white,
-                      size: 16,
+                      size: ResponsiveUtils.getIconSize(context, 16),
                     ),
                   ),
                 ),
@@ -489,7 +457,7 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
 
-        const SizedBox(height: 32),
+        ResponsiveSpacing(32),
 
         CustomTextField(
           controller: _fullNameController,
@@ -507,7 +475,7 @@ class _ProfessionalInfoSetupScreenState
           },
         ),
 
-        const SizedBox(height: 16),
+        ResponsiveSpacing(16),
 
         CustomTextField(
           controller: _professionalTitleController,
@@ -525,7 +493,7 @@ class _ProfessionalInfoSetupScreenState
           },
         ),
 
-        const SizedBox(height: 16),
+        ResponsiveSpacing(16),
 
         CustomTextField(
           controller: _licenseNumberController,
@@ -550,25 +518,19 @@ class _ProfessionalInfoSetupScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        ResponsiveText(
           'Información Profesional',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-            color: Colors.black87,
-          ),
+          baseFontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 8),
-        const Text(
+        ResponsiveSpacing(8),
+        ResponsiveText(
           'Completa tu información profesional',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 16,
+          color: Colors.grey,
         ),
-        const SizedBox(height: 32),
+        ResponsiveSpacing(32),
 
         CustomTextField(
           controller: _yearsExperienceController,
@@ -587,26 +549,40 @@ class _ProfessionalInfoSetupScreenState
           },
         ),
 
-        const SizedBox(height: 16),
+        ResponsiveSpacing(16),
 
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 12),
+            ),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextFormField(
             controller: _descriptionController,
-            maxLines: 4,
-            decoration: const InputDecoration(
+            maxLines: ResponsiveUtils.isMobileSmall(context) ? 3 : 4,
+            decoration: InputDecoration(
               hintText: 'Descripción profesional (mínimo 50 caracteres)',
-              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(
+                  Radius.circular(ResponsiveUtils.getBorderRadius(context, 12)),
+                ),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: EdgeInsets.all(16),
-              prefixIcon: Icon(Icons.description_outlined, color: Colors.grey),
+              contentPadding: EdgeInsets.all(
+                ResponsiveUtils.getHorizontalPadding(context),
+              ),
+              prefixIcon: Icon(
+                Icons.description_outlined,
+                color: Colors.grey,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
             ),
             validator: (value) {
               if (value?.isEmpty ?? true) {
@@ -620,26 +596,40 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
 
-        const SizedBox(height: 16),
+        ResponsiveSpacing(16),
 
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 12),
+            ),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextFormField(
             controller: _educationController,
             maxLines: 3,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Educación (separa cada título con una nueva línea)',
-              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(
+                  Radius.circular(ResponsiveUtils.getBorderRadius(context, 12)),
+                ),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: EdgeInsets.all(16),
-              prefixIcon: Icon(Icons.school_outlined, color: Colors.grey),
+              contentPadding: EdgeInsets.all(
+                ResponsiveUtils.getHorizontalPadding(context),
+              ),
+              prefixIcon: Icon(
+                Icons.school_outlined,
+                color: Colors.grey,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
             ),
             validator: (value) {
               if (value?.isEmpty ?? true) {
@@ -650,28 +640,39 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
 
-        const SizedBox(height: 16),
+        ResponsiveSpacing(16),
 
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 12),
+            ),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextFormField(
             controller: _certificationsController,
             maxLines: 3,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Certificaciones (separa cada una con una nueva línea)',
-              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(
+                  Radius.circular(ResponsiveUtils.getBorderRadius(context, 12)),
+                ),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: EdgeInsets.all(16),
+              contentPadding: EdgeInsets.all(
+                ResponsiveUtils.getHorizontalPadding(context),
+              ),
               prefixIcon: Icon(
                 Icons.card_membership_outlined,
                 color: Colors.grey,
+                size: ResponsiveUtils.getIconSize(context, 24),
               ),
             ),
           ),
@@ -681,57 +682,64 @@ class _ProfessionalInfoSetupScreenState
   }
 
   Widget _buildSpecialtyStep() {
+    final borderRadius = ResponsiveUtils.getBorderRadius(context, 12);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        ResponsiveText(
           'Especialidades',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-            color: Colors.black87,
-          ),
+          baseFontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 8),
-        const Text(
+        ResponsiveSpacing(8),
+        ResponsiveText(
           'Selecciona tu especialidad principal',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 16,
+          color: Colors.grey,
         ),
-        const SizedBox(height: 24),
+        ResponsiveSpacing(24),
 
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: DropdownButtonFormField<String>(
-            isExpanded: true, 
+            isExpanded: true,
             value: _selectedSpecialty,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Selecciona tu especialidad principal',
-              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
                 borderSide: BorderSide.none,
               ),
               contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+                horizontal: ResponsiveUtils.getHorizontalPadding(context),
+                vertical: ResponsiveUtils.getVerticalPadding(context),
               ),
-              prefixIcon: Icon(Icons.psychology, color: Colors.grey),
+              prefixIcon: Icon(
+                Icons.psychology,
+                color: Colors.grey,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
             ),
             items: _specialties.map((specialty) {
               return DropdownMenuItem(
                 value: specialty,
                 child: Text(
                   specialty,
-                  style: const TextStyle(fontFamily: 'Poppins'),
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: ResponsiveUtils.getFontSize(context, 14),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               );
@@ -751,34 +759,29 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
 
-        const SizedBox(height: 24),
+        ResponsiveSpacing(24),
 
         if (_selectedSpecialty != null &&
             _subSpecialties.containsKey(_selectedSpecialty)) ...[
-          const Text(
+          ResponsiveText(
             'Sub-especialidades (opcional)',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-              color: Colors.black87,
-            ),
+            baseFontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
-          const SizedBox(height: 12),
+          ResponsiveSpacing(12),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: ResponsiveUtils.getHorizontalSpacing(context, 8),
+            runSpacing: ResponsiveUtils.getVerticalSpacing(context, 8),
             children: _subSpecialties[_selectedSpecialty]!.map((subSpecialty) {
               final isSelected = _selectedSubSpecialties.contains(subSpecialty);
               return FilterChip(
                 label: Text(
                   subSpecialty,
                   style: TextStyle(
-                    color: isSelected
-                        ? Colors.white
-                        : AppConstants.lightAccentColor,
+                    color: isSelected ? Colors.white : AppConstants.lightAccentColor,
                     fontFamily: 'Poppins',
-                    fontSize: 12,
+                    fontSize: ResponsiveUtils.getFontSize(context, 12),
                   ),
                 ),
                 selected: isSelected,
@@ -798,27 +801,37 @@ class _ProfessionalInfoSetupScreenState
           ),
         ],
 
-        const SizedBox(height: 24),
+        ResponsiveSpacing(24),
 
         Container(
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(color: Colors.grey[300]!),
           ),
           child: TextFormField(
             controller: _priceController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Precio por consulta (MXN)',
-              hintStyle: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Poppins',
+                fontSize: ResponsiveUtils.getFontSize(context, 14),
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: EdgeInsets.all(16),
-              prefixIcon: Icon(Icons.attach_money, color: Colors.grey),
+              contentPadding: EdgeInsets.all(
+                ResponsiveUtils.getHorizontalPadding(context),
+              ),
+              prefixIcon: Icon(
+                Icons.attach_money,
+                color: Colors.grey,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -833,36 +846,26 @@ class _ProfessionalInfoSetupScreenState
           ),
         ),
 
-        const SizedBox(height: 20),
+        ResponsiveSpacing(20),
 
-        RichText(
-          text: const TextSpan(
-            style: TextStyle(color: Colors.black, fontSize: 14),
-            children: <TextSpan>[
-              TextSpan(
-                text: 'Aviso: ',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              TextSpan(
-                text:
-                    'El precio se evaluará manualmente según la especialidad y la experiencia',
-              ),
-            ],
-          ),
+        ResponsiveText(
+          'Aviso: El precio se evaluará manualmente según la especialidad y la experiencia',
+          baseFontSize: 14,
+          color: Colors.black,
         ),
 
-        const SizedBox(height: 24),
+        ResponsiveSpacing(24),
 
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
           decoration: BoxDecoration(
             color: AppConstants.lightAccentColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
               color: AppConstants.lightAccentColor.withOpacity(0.3),
             ),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -870,29 +873,22 @@ class _ProfessionalInfoSetupScreenState
                   Icon(
                     Icons.info_outline,
                     color: AppConstants.lightAccentColor,
-                    size: 20,
+                    size: ResponsiveUtils.getIconSize(context, 20),
                   ),
-                  SizedBox(width: 8),
-                  Text(
+                  ResponsiveHorizontalSpacing(8),
+                  ResponsiveText(
                     'Información importante',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                    ),
+                    baseFontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ],
               ),
-              SizedBox(height: 8),
-              Text(
+              ResponsiveSpacing(8),
+              ResponsiveText(
                 '• Las tarifas por sesión serán establecidas por el administrador si no cumple con los requisitos \n'
                 '• Las modalidades de atención (presencial/en línea) se configurarán posteriormente\n'
                 '• Tu perfil será revisado antes de ser publicado para los pacientes',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Poppins',
-                  height: 1.4,
-                ),
+                baseFontSize: 12,
               ),
             ],
           ),
@@ -902,28 +898,24 @@ class _ProfessionalInfoSetupScreenState
   }
 
   Widget _buildScheduleStep() {
+    final isMobileSmall = ResponsiveUtils.isMobileSmall(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        ResponsiveText(
           'Horarios de Disponibilidad',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-            color: Colors.black87,
-          ),
+          baseFontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 8),
-        const Text(
+        ResponsiveSpacing(8),
+        ResponsiveText(
           'Define tu disponibilidad semanal',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 16,
+          color: Colors.grey,
         ),
-        const SizedBox(height: 24),
+        ResponsiveSpacing(24),
         ...[
           'Lunes',
           'Martes',
@@ -934,109 +926,116 @@ class _ProfessionalInfoSetupScreenState
           'Domingo',
         ].map((day) {
           return Card(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: EdgeInsets.only(
+              bottom: ResponsiveUtils.getVerticalSpacing(context, 8),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+              padding: EdgeInsets.all(
+                ResponsiveUtils.getHorizontalPadding(context),
+              ),
+              child: Column(
                 children: [
-                  SizedBox(
-                    width: 80,
-                    child: Text(
-                      day,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Row(
+                  if (isMobileSmall)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _selectTime(day, false),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
-                              child: Text(
-                                _startSchedule[day]?.format(context) ??
-                                    'Inicio',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                        ResponsiveText(
+                          day,
+                          baseFontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        ResponsiveSpacing(8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTimeSelector(day, false),
                             ),
+                            ResponsiveHorizontalSpacing(8),
+                            ResponsiveText('-', baseFontSize: 16, fontWeight: FontWeight.bold),
+                            ResponsiveHorizontalSpacing(8),
+                            Expanded(
+                              child: _buildTimeSelector(day, true),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: ResponsiveText(
+                            day,
+                            baseFontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          '-',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: _buildTimeSelector(day, false)),
+                              ResponsiveHorizontalSpacing(8),
+                              ResponsiveText('-', baseFontSize: 16, fontWeight: FontWeight.bold),
+                              ResponsiveHorizontalSpacing(8),
+                              Expanded(child: _buildTimeSelector(day, true)),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _selectTime(day, true),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
-                              child: Text(
-                                _endSchedule[day]?.format(context) ?? 'Fin',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                        IconButton(
+                          icon: Icon(
+                            _startSchedule[day] != null
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: _startSchedule[day] != null
+                                ? AppConstants.lightAccentColor
+                                : Colors.grey,
+                            size: ResponsiveUtils.getIconSize(context, 24),
                           ),
+                          onPressed: () {
+                            if (_startSchedule[day] != null) {
+                              setState(() {
+                                _startSchedule[day] = null;
+                                _endSchedule[day] = null;
+                              });
+                            }
+                          },
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      _startSchedule[day] != null
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: _startSchedule[day] != null
-                          ? AppConstants.lightAccentColor
-                          : Colors.grey,
-                    ),
-                    onPressed: () {
-                      if (_startSchedule[day] != null) {
-                        setState(() {
-                          _startSchedule[day] = null;
-                          _endSchedule[day] = null;
-                        });
-                      }
-                    },
-                  ),
                 ],
               ),
             ),
           );
         }).toList(),
       ],
+    );
+  }
+
+  Widget _buildTimeSelector(String day, bool isEndTime) {
+    final time = isEndTime ? _endSchedule[day] : _startSchedule[day];
+    
+    return GestureDetector(
+      onTap: () => _selectTime(day, isEndTime),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveUtils.getHorizontalSpacing(context, 12),
+          vertical: ResponsiveUtils.getVerticalSpacing(context, 8),
+        ),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(
+            ResponsiveUtils.getBorderRadius(context, 8),
+          ),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Center(
+          child: ResponsiveText(
+            time?.format(context) ?? (isEndTime ? 'Fin' : 'Inicio'),
+            baseFontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1081,9 +1080,6 @@ class _ProfessionalInfoSetupScreenState
               };
             }
           });
-
-          print('💾 Guardando información profesional...');
-          print('📸 URL de imagen: $_currentProfilePictureUrl');
 
           context.read<PsychologistInfoBloc>().add(
             SetupProfessionalInfoEvent(
@@ -1152,10 +1148,12 @@ class _ProfessionalInfoSetupScreenState
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
+    final buttonHeight = ResponsiveUtils.getButtonHeight(context);
+    
     return BlocListener<PsychologistInfoBloc, PsychologistInfoState>(
       listener: (context, state) {
         if (state is PsychologistInfoLoaded && !_isDataLoaded) {
-          print('🔄 Datos cargados desde Bloc');
           _fillFormWithData(state.psychologist);
         } else if (state is PsychologistInfoSaved) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1184,18 +1182,19 @@ class _ProfessionalInfoSetupScreenState
           elevation: 0,
           leading: _currentStep > 0
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Colors.black,
+                    size: ResponsiveUtils.getIconSize(context, 24),
+                  ),
                   onPressed: _previousStep,
                 )
               : null,
-          title: const Text(
+          title: ResponsiveText(
             'Configuración Profesional',
-            style: TextStyle(
-              color: Colors.black87,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'Poppins',
-            ),
+            baseFontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
           centerTitle: true,
         ),
@@ -1212,7 +1211,7 @@ class _ProfessionalInfoSetupScreenState
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(horizontalPadding),
                     child: Row(
                       children: List.generate(4, (index) {
                         return Expanded(
@@ -1233,13 +1232,13 @@ class _ProfessionalInfoSetupScreenState
 
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(horizontalPadding),
                       child: _buildStepContent(),
                     ),
                   ),
 
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.all(horizontalPadding),
                     child: Row(
                       children: [
                         if (_currentStep > 0)
@@ -1250,22 +1249,25 @@ class _ProfessionalInfoSetupScreenState
                                 side: BorderSide(
                                   color: AppConstants.lightAccentColor,
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: EdgeInsets.symmetric(
+                                  vertical: ResponsiveUtils.getVerticalPadding(context),
+                                ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(
+                                    ResponsiveUtils.getBorderRadius(context, 12),
+                                  ),
                                 ),
+                                minimumSize: Size(0, buttonHeight),
                               ),
-                              child: Text(
+                              child: ResponsiveText(
                                 'Anterior',
-                                style: TextStyle(
-                                  color: AppConstants.lightAccentColor,
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                baseFontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppConstants.lightAccentColor,
                               ),
                             ),
                           ),
-                        if (_currentStep > 0) const SizedBox(width: 16),
+                        if (_currentStep > 0) ResponsiveHorizontalSpacing(16),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: state is PsychologistInfoLoading 
@@ -1273,13 +1275,18 @@ class _ProfessionalInfoSetupScreenState
                                 : _nextStep,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppConstants.lightAccentColor,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              padding: EdgeInsets.symmetric(
+                                vertical: ResponsiveUtils.getVerticalPadding(context),
                               ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  ResponsiveUtils.getBorderRadius(context, 12),
+                                ),
+                              ),
+                              minimumSize: Size(0, buttonHeight),
                             ),
                             child: state is PsychologistInfoLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(
@@ -1287,13 +1294,11 @@ class _ProfessionalInfoSetupScreenState
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Text(
+                                : ResponsiveText(
                                     _currentStep < 3 ? 'Siguiente' : 'Finalizar',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    baseFontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
                                   ),
                           ),
                         ),

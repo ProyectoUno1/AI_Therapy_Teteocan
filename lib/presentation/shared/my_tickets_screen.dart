@@ -32,7 +32,8 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
     {'value': 'closed', 'label': 'Cerrados', 'icon': Icons.cancel},
   ];
 
-  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
+  // ✅ CORREGIDO: URL sin duplicar "api"
+  static const String _baseUrl = 'https://ai-therapy-teteocan.onrender.com';
 
   @override
   void initState() {
@@ -41,78 +42,119 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   }
 
   Future<void> _loadTickets() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     final authState = context.read<AuthBloc>().state;
     String userId = '';
     String? authToken;
 
-    // Obtener token de Firebase
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        authToken = await currentUser.getIdToken();
-      } else {
-        throw Exception('Usuario no autenticado');
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error de autenticación';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // Obtener userId
+    // ✅ Obtener userId PRIMERO
     if (authState.patient != null) {
       userId = authState.patient!.uid;
     } else if (authState.psychologist != null) {
       userId = authState.psychologist!.uid;
     } else {
-      setState(() {
-        _errorMessage = 'Usuario no autenticado';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Usuario no autenticado en la app';
+          _isLoading = false;
+        });
+      }
       return;
     }
 
+    // ✅ Obtener token de Firebase
     try {
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/support/tickets/user/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $authToken', 
-        },
-      ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () {
-          throw Exception('Tiempo de espera agotado');
-        },
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        print(
+          '🔐 Obteniendo token de Firebase para usuario: ${currentUser.uid}',
+        );
+        authToken = await currentUser.getIdToken();
+        print('✅ Token obtenido: ${authToken?.substring(0, 50)}...');
+      } else {
+        throw Exception('Usuario no autenticado en Firebase');
+      }
+    } catch (e) {
+      print('❌ Error obteniendo token Firebase: $e');
+      if (mounted) {
         setState(() {
-          _tickets = data.map((json) => SupportTicket.fromMap(json)).toList();
+          _errorMessage = 'Error de autenticación: $e';
           _isLoading = false;
         });
-      } else {
-        throw Exception('Error al cargar tickets: ${response.statusCode}');
       }
-    } on SocketException {
-      setState(() {
-        _errorMessage = 'No se pudo conectar al servidor';
-        _isLoading = false;
-      });
+      return;
+    }
+
+    // ✅ Hacer la petición HTTP
+    try {
+      final url = '$_baseUrl/api/support/tickets/user/$userId';
+      print('🌐 Haciendo petición a: $url');
+      print('🔑 Token length: ${authToken?.length}');
+
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $authToken',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw Exception('Tiempo de espera agotado (15 segundos)');
+            },
+          );
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('✅ Tickets recibidos: ${data.length}');
+
+        if (mounted) {
+          setState(() {
+            _tickets = data.map((json) => SupportTicket.fromMap(json)).toList();
+            _isLoading = false;
+          });
+        }
+      } else if (response.statusCode == 404) {
+        // No hay tickets - esto es normal
+        print('ℹ️ No se encontraron tickets (404)');
+        if (mounted) {
+          setState(() {
+            _tickets = [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } on SocketException catch (e) {
+      print('❌ SocketException: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'No se pudo conectar al servidor. Verifica tu conexión a internet.';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error al cargar tus tickets. Intenta nuevamente.';
-        _isLoading = false;
-      });
+      print('❌ Error general: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error al cargar tickets: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -190,6 +232,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
       ),
       body: Column(
         children: [
+          // Filtros
           Container(
             height: 60,
             color: isDarkMode ? Colors.grey[900] : Colors.white,
@@ -212,7 +255,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppConstants.primaryColor
-                            : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
+                            : (isDarkMode
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200]),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -223,7 +268,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                             size: 16,
                             color: isSelected
                                 ? Colors.white
-                                : (isDarkMode ? Colors.white70 : Colors.black87),
+                                : (isDarkMode
+                                      ? Colors.white70
+                                      : Colors.black87),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -236,7 +283,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                                   : FontWeight.normal,
                               color: isSelected
                                   ? Colors.white
-                                  : (isDarkMode ? Colors.white70 : Colors.black87),
+                                  : (isDarkMode
+                                        ? Colors.white70
+                                        : Colors.black87),
                             ),
                           ),
                         ],
@@ -250,6 +299,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
 
           const Divider(height: 1),
 
+          // Contenido
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -296,18 +346,34 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                         Icon(
                           Icons.inbox_outlined,
                           size: 64,
-                          color: isDarkMode ? Colors.grey[700] : Colors.grey[400],
+                          color: isDarkMode
+                              ? Colors.grey[700]
+                              : Colors.grey[400],
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _selectedFilter == 'all'
-                              ? 'No tienes tickets'
+                              ? 'No tienes tickets de soporte'
                               : 'No hay tickets ${_filters.firstWhere((f) => f['value'] == _selectedFilter)['label'].toLowerCase()}',
                           style: TextStyle(
                             fontSize: 16,
                             fontFamily: 'Poppins',
-                            color: isDarkMode ? Colors.grey[600] : Colors.grey[500],
+                            color: isDarkMode
+                                ? Colors.grey[600]
+                                : Colors.grey[500],
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Navegar a crear nuevo ticket
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Redirigiendo a crear ticket...'),
+                              ),
+                            );
+                          },
+                          child: const Text('Crear Primer Ticket'),
                         ),
                       ],
                     ),
@@ -358,11 +424,13 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
               ),
             ),
 
+            // ✅ CORRIGE EL ROW EN _showTicketDetail - BUSCA Y REEMPLAZA ESTA PARTE
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Row(
                 children: [
                   Expanded(
+                    // ✅ AÑADIDO EXPANDED
                     child: Text(
                       'Ticket #${ticket.id?.substring(0, 8) ?? 'N/A'}',
                       style: const TextStyle(
@@ -370,8 +438,11 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Poppins',
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -393,6 +464,8 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                         fontFamily: 'Poppins',
                         color: _getStatusColor(ticket.status),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -423,14 +496,18 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                     _DetailRow(
                       icon: Icons.calendar_today,
                       label: 'Creado',
-                      value: DateFormat('dd/MM/yyyy HH:mm').format(ticket.createdAt),
+                      value: DateFormat(
+                        'dd/MM/yyyy HH:mm',
+                      ).format(ticket.createdAt),
                     ),
                     if (ticket.updatedAt != null) ...[
                       const SizedBox(height: 12),
                       _DetailRow(
                         icon: Icons.update,
                         label: 'Actualizado',
-                        value: DateFormat('dd/MM/yyyy HH:mm').format(ticket.updatedAt!),
+                        value: DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(ticket.updatedAt!),
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -510,7 +587,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontFamily: 'Poppins',
-                                color: isDarkMode ? Colors.white70 : Colors.black87,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
                                 height: 1.5,
                               ),
                             ),
@@ -522,7 +601,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                                   fontSize: 12,
                                   fontFamily: 'Poppins',
                                   fontStyle: FontStyle.italic,
-                                  color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                                  color: isDarkMode
+                                      ? Colors.grey[500]
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -573,6 +654,7 @@ class _TicketCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ✅ CORRIGE EL ROW EN _TicketCard - BUSCA Y REEMPLAZA ESTA PARTE
               Row(
                 children: [
                   Container(
@@ -592,6 +674,8 @@ class _TicketCard extends StatelessWidget {
                         fontFamily: 'Poppins',
                         color: getStatusColor(ticket.status),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -604,12 +688,17 @@ class _TicketCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(ticket.createdAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'Poppins',
-                      color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                  Flexible(
+                    // ✅ AÑADIDO FLEXIBLE PARA LA FECHA
+                    child: Text(
+                      DateFormat('dd/MM/yyyy').format(ticket.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'Poppins',
+                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -637,19 +726,25 @@ class _TicketCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
+              // ✅ CORRIGE EL ROW EN EL BOTÓN DE "Respondido" - BUSCA Y REEMPLAZA
               if (ticket.response != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Icon(Icons.check_circle, size: 16, color: Colors.green),
                     const SizedBox(width: 6),
-                    Text(
-                      'Respondido',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                        color: Colors.green,
+                    Expanded(
+                      // ✅ AÑADIDO EXPANDED
+                      child: Text(
+                        'Respondido',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                          color: Colors.green,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -663,6 +758,7 @@ class _TicketCard extends StatelessWidget {
   }
 }
 
+// ✅ CORRIGE EL WIDGET _DetailRow - REEMPLAZA EL ACTUAL
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -681,6 +777,7 @@ class _DetailRow extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           icon,
@@ -688,21 +785,42 @@ class _DetailRow extends StatelessWidget {
           color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
         ),
         const SizedBox(width: 12),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 14,
-            fontFamily: 'Poppins',
-            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-            color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
+        Expanded(
+          // ✅ AÑADIDO EXPANDED
+          child: Row(
+            children: [
+              Expanded(
+                // ✅ AÑADIDO EXPANDED PARA EL LABEL
+                flex: 2,
+                child: Text(
+                  '$label: ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Poppins',
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                // ✅ AÑADIDO EXPANDED PARA EL VALUE
+                flex: 3,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                    color:
+                        valueColor ??
+                        (isDarkMode ? Colors.white : Colors.black87),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ],

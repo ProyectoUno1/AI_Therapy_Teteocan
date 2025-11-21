@@ -45,7 +45,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     {'value': 'feedback', 'label': 'Sugerencia', 'icon': Icons.feedback},
   ];
 
- static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
+  static const String baseUrl = 'https://ai-therapy-teteocan.onrender.com/api';
 
   @override
   void dispose() {
@@ -66,7 +66,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     String userName = '';
     String? authToken;
 
-    // Obtener token de autenticación de Firebase
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
@@ -82,7 +81,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       return;
     }
 
-    // Obtener datos del usuario
     if (authState.patient != null) {
       userId = authState.patient!.uid;
       userEmail = authState.patient!.email;
@@ -113,7 +111,6 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     );
 
     try {
-
       final response = await http.post(
         Uri.parse('$baseUrl/api/support/tickets'),
         headers: {
@@ -177,9 +174,11 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 28),
             const SizedBox(width: 12),
-            const Text(
-              '¡Mensaje enviado!',
-              style: TextStyle(fontFamily: 'Poppins'),
+            const Flexible(
+              child: Text(
+                '¡Mensaje enviado!',
+                style: TextStyle(fontFamily: 'Poppins'),
+              ),
             ),
           ],
         ),
@@ -244,278 +243,290 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Enviar mensaje',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Enviar mensaje',
+            style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+          ),
         ),
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isMobile = width < 600;
+          final isTablet = width >= 600 && width < 900;
+          final isDesktop = width >= 900;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isDesktop ? 800 : width,
+              ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(isMobile ? 16 : (isTablet ? 24 : 32)),
+                child: Form(
+                  key: _formKey,
+                  child: _buildResponsiveLayout(
+                    isDarkMode,
+                    isMobile,
+                    isTablet,
+                    isDesktop,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildResponsiveLayout(
+    bool isDarkMode,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInfoCard(isDarkMode, isMobile, isTablet),
+        SizedBox(height: isMobile ? 20 : (isTablet ? 28 : 32)),
+
+        if (isDesktop || isTablet)
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppConstants.primaryColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: AppConstants.primaryColor,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Completa el formulario y nos pondremos en contacto contigo pronto.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontFamily: 'Poppins',
-                          color: isDarkMode ? Colors.white70 : Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              Expanded(
+                flex: 2,
+                child: _buildCategorySection(isDarkMode, isMobile, isTablet),
               ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Categoría',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _categories.map((category) {
-                  final isSelected = _selectedCategory == category['value'];
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = category['value'];
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppConstants.primaryColor
-                            : (isDarkMode ? Colors.grey[850] : Colors.grey[100]),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppConstants.primaryColor
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            category['icon'],
-                            size: 18,
-                            color: isSelected
-                                ? Colors.white
-                                : (isDarkMode ? Colors.white70 : Colors.black87),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            category['label'],
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontFamily: 'Poppins',
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? Colors.white
-                                  : (isDarkMode ? Colors.white70 : Colors.black87),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Prioridad',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildPriorityChip('low', 'Baja', Colors.green, isDarkMode),
-                  const SizedBox(width: 8),
-                  _buildPriorityChip('medium', 'Media', Colors.orange, isDarkMode),
-                  const SizedBox(width: 8),
-                  _buildPriorityChip('high', 'Alta', Colors.red, isDarkMode),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Asunto',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _subjectController,
-                decoration: InputDecoration(
-                  hintText: 'Describe brevemente tu consulta',
-                  hintStyle: const TextStyle(fontFamily: 'Poppins'),
-                  filled: true,
-                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppConstants.primaryColor,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                style: const TextStyle(fontFamily: 'Poppins'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa un asunto';
-                  }
-                  if (value.trim().length < 5) {
-                    return 'El asunto debe tener al menos 5 caracteres';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Mensaje',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _messageController,
-                maxLines: 8,
-                decoration: InputDecoration(
-                  hintText: 'Describe tu consulta con el mayor detalle posible...',
-                  hintStyle: const TextStyle(fontFamily: 'Poppins'),
-                  filled: true,
-                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppConstants.primaryColor,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                style: const TextStyle(fontFamily: 'Poppins'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa tu mensaje';
-                  }
-                  if (value.trim().length < 20) {
-                    return 'El mensaje debe tener al menos 20 caracteres';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitTicket,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Enviar mensaje',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                ),
+              SizedBox(width: isTablet ? 20 : 32),
+              Expanded(
+                flex: 1,
+                child: _buildPrioritySection(isDarkMode, isMobile, isTablet),
               ),
             ],
-          ),
+          )
+        else ...[
+          _buildCategorySection(isDarkMode, isMobile, isTablet),
+          const SizedBox(height: 20),
+          _buildPrioritySection(isDarkMode, isMobile, isTablet),
+        ],
+
+        SizedBox(height: isMobile ? 20 : (isTablet ? 28 : 32)),
+        _buildSubjectField(isDarkMode, isMobile, isTablet),
+        SizedBox(height: isMobile ? 20 : 24),
+        _buildMessageField(isDarkMode, isMobile, isTablet),
+        SizedBox(height: isMobile ? 28 : 32),
+        _buildSubmitButton(isDarkMode, isMobile, isTablet, isDesktop),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(bool isDarkMode, bool isMobile, bool isTablet) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
+      decoration: BoxDecoration(
+        color: AppConstants.primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppConstants.primaryColor.withOpacity(0.3),
         ),
       ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: AppConstants.primaryColor,
+            size: isMobile ? 22 : 24,
+          ),
+          SizedBox(width: isMobile ? 10 : 12),
+          Expanded(
+            child: Text(
+              'Completa el formulario y nos pondremos en contacto contigo pronto.',
+              style: TextStyle(
+                fontSize: isMobile ? 12 : 13,
+                fontFamily: 'Poppins',
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySection(bool isDarkMode, bool isMobile, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Categoría',
+            style: TextStyle(
+              fontSize: isMobile ? 15 : 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(height: isMobile ? 10 : 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Wrap(
+              spacing: isMobile ? 6 : 8,
+              runSpacing: isMobile ? 6 : 8,
+              children: _categories.map((category) {
+                final isSelected = _selectedCategory == category['value'];
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: isMobile ? 100 : 110,
+                    maxWidth: constraints.maxWidth > 400 
+                        ? (constraints.maxWidth - 16) / 2 
+                        : constraints.maxWidth,
+                  ),
+                  child: _buildCategoryChip(
+                    category,
+                    isSelected,
+                    isDarkMode,
+                    isMobile,
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChip(
+    Map<String, dynamic> category,
+    bool isSelected,
+    bool isDarkMode,
+    bool isMobile,
+  ) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedCategory = category['value'];
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 12,
+          vertical: isMobile ? 8 : 10,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppConstants.primaryColor
+              : (isDarkMode ? Colors.grey[850] : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? AppConstants.primaryColor
+                : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              category['icon'],
+              size: isMobile ? 14 : 16,
+              color: isSelected
+                  ? Colors.white
+                  : (isDarkMode ? Colors.white70 : Colors.black87),
+            ),
+            SizedBox(width: isMobile ? 5 : 6),
+            Flexible(
+              child: Text(
+                category['label'],
+                style: TextStyle(
+                  fontSize: isMobile ? 11 : 12,
+                  fontFamily: 'Poppins',
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDarkMode ? Colors.white70 : Colors.black87),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrioritySection(bool isDarkMode, bool isMobile, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Prioridad',
+            style: TextStyle(
+              fontSize: isMobile ? 15 : 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(height: isMobile ? 10 : 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Row(
+              children: [
+                Expanded(
+                  child: _buildPriorityChip(
+                    'low',
+                    'Baja',
+                    Colors.green,
+                    isDarkMode,
+                    isMobile,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 6 : 8),
+                Expanded(
+                  child: _buildPriorityChip(
+                    'medium',
+                    'Media',
+                    Colors.orange,
+                    isDarkMode,
+                    isMobile,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 6 : 8),
+                Expanded(
+                  child: _buildPriorityChip(
+                    'high',
+                    'Alta',
+                    Colors.red,
+                    isDarkMode,
+                    isMobile,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -524,39 +535,232 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     String label,
     Color color,
     bool isDarkMode,
+    bool isMobile,
   ) {
     final isSelected = _selectedPriority == value;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedPriority = value;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withOpacity(0.2)
-                : (isDarkMode ? Colors.grey[850] : Colors.grey[100]),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? color : Colors.transparent,
-              width: 2,
-            ),
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPriority = value;
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withOpacity(0.2)
+              : (isDarkMode ? Colors.grey[850] : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : Colors.transparent,
+            width: 2,
           ),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isMobile ? 12 : 14,
               fontFamily: 'Poppins',
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               color: isSelected
                   ? color
                   : (isDarkMode ? Colors.white70 : Colors.black87),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubjectField(bool isDarkMode, bool isMobile, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Asunto',
+            style: TextStyle(
+              fontSize: isMobile ? 15 : 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(height: isMobile ? 6 : 8),
+        TextFormField(
+          controller: _subjectController,
+          decoration: InputDecoration(
+            hintText: 'Describe brevemente tu consulta',
+            hintStyle: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: isMobile ? 13 : 14,
+            ),
+            filled: true,
+            fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: AppConstants.primaryColor,
+                width: 2,
+              ),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 12 : 16,
+              vertical: isMobile ? 12 : 14,
+            ),
+          ),
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: isMobile ? 13 : 14,
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Por favor ingresa un asunto';
+            }
+            if (value.trim().length < 5) {
+              return 'El asunto debe tener al menos 5 caracteres';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMessageField(bool isDarkMode, bool isMobile, bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Mensaje',
+            style: TextStyle(
+              fontSize: isMobile ? 15 : 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(height: isMobile ? 6 : 8),
+        TextFormField(
+          controller: _messageController,
+          maxLines: null,
+          minLines: isMobile ? 5 : 6,
+          decoration: InputDecoration(
+            hintText: 'Describe tu consulta con el mayor detalle posible...',
+            hintStyle: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: isMobile ? 13 : 14,
+            ),
+            filled: true,
+            fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: AppConstants.primaryColor,
+                width: 2,
+              ),
+            ),
+            contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
+          ),
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: isMobile ? 13 : 14,
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Por favor ingresa tu mensaje';
+            }
+            if (value.trim().length < 20) {
+              return 'El mensaje debe tener al menos 20 caracteres';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubmitButton(
+    bool isDarkMode,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
+    double widthFactor = 1.0;
+    
+    if (isDesktop) {
+      widthFactor = 0.5;
+    } else if (isTablet) {
+      widthFactor = 0.7;
+    }
+
+    return Align(
+      alignment: Alignment.center,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        child: SizedBox(
+          height: isMobile ? 50 : 54,
+          child: ElevatedButton(
+            onPressed: _isSubmitting ? null : _submitTicket,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+            ),
+            child: _isSubmitting
+                ? SizedBox(
+                    height: isMobile ? 18 : 20,
+                    width: isMobile ? 18 : 20,
+                    child: const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Enviar mensaje',
+                      style: TextStyle(
+                        fontSize: isMobile ? 15 : 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
           ),
         ),
       ),

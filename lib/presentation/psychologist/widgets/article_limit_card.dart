@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/data/repositories/article_repository.dart';
 import 'package:ai_therapy_teteocan/data/models/article_limit_info.dart';
+
 class ArticleLimitCard extends StatelessWidget {
   final ArticleLimitInfo limitInfo;
   final VoidCallback? onTapDetails;
@@ -38,7 +39,9 @@ class ArticleLimitCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Lado izquierdo: Icono y Texto (LIMITADO)
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -53,34 +56,51 @@ class ArticleLimitCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Artículos creados',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Poppins',
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                      // ✅ SOLUCIÓN CLAVE: Usamos ConstrainedBox para limitar el ancho de la columna de texto.
+                      // Esto previene el overflow sin requerir límites de ancho definidos del widget padre.
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          // Establece un ancho máximo del 50% de la pantalla para dejar espacio al contador.
+                          // Resta 32 (padding horizontal de Card) y una pequeña holgura.
+                          maxWidth: MediaQuery.of(context).size.width * 0.5 - 20, 
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Artículos creados',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                              // ✅ Trunca el texto si es muy largo
+                              overflow: TextOverflow.ellipsis, 
+                              maxLines: 1, 
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${limitInfo.remaining} disponibles',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'Poppins',
-                              color: limitInfo.remaining > 0 
-                                  ? Colors.green 
-                                  : Colors.red,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 2),
+                            Text(
+                              '${limitInfo.remaining} disponibles',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'Poppins',
+                                color: limitInfo.remaining > 0 
+                                    ? Colors.green 
+                                    : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis, 
+                              maxLines: 1, 
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
+                  
+                  // Lado derecho: Contador de límite (fijo)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -108,7 +128,7 @@ class ArticleLimitCard extends StatelessWidget {
               
               const SizedBox(height: 12),
               
-              // Información adicional
+              // Información adicional (se mantiene Expanded aquí ya que funciona correctamente)
               Row(
                 children: [
                   Icon(
@@ -117,7 +137,7 @@ class ArticleLimitCard extends StatelessWidget {
                     color: Colors.grey[600],
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
+                  Expanded( // Esto asegura que el texto ocupe el espacio restante y se trunque si es necesario
                     child: Text(
                       _getDetailMessage(),
                       style: TextStyle(
@@ -125,6 +145,8 @@ class ArticleLimitCard extends StatelessWidget {
                         fontFamily: 'Poppins',
                         color: Colors.grey[700],
                       ),
+                      overflow: TextOverflow.ellipsis, 
+                      maxLines: 2,
                     ),
                   ),
                 ],
@@ -136,7 +158,7 @@ class ArticleLimitCard extends StatelessWidget {
     );
   }
 
-  // Métodos auxiliares
+  // Métodos auxiliares (sin cambios)
   Color _getStatusColor() {
     if (limitInfo.percentage >= 100) return Colors.red;
     if (limitInfo.percentage >= 80) return Colors.orange;
@@ -158,8 +180,7 @@ class ArticleLimitCard extends StatelessWidget {
   }
 }
 
-// Crea este widget en un archivo separado o en el mismo psychologist_home_content.dart
-
+// ArticleLimitBadge (sin cambios)
 class ArticleLimitBadge extends StatelessWidget {
   final ArticleLimitInfo limitInfo;
 

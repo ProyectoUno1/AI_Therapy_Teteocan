@@ -79,40 +79,68 @@ class PsychologistModel extends Equatable {
     }
   }
 
+  
+
   factory PsychologistModel.fromJson(Map<String, dynamic> json) {
+    // Función auxiliar para convertir Timestamp a DateTime
+    DateTime? _toDateTime(dynamic timestamp) {
+      if (timestamp == null) return null;
+      if (timestamp is Timestamp) return timestamp.toDate();
+      if (timestamp is int) return DateTime.fromMillisecondsSinceEpoch(timestamp);
+      if (timestamp is String) return DateTime.tryParse(timestamp);
+      return null;
+    }
+
+    // Función auxiliar para convertir listas dinámicas a List<String>
+    List<String>? _toStringList(dynamic list) {
+      if (list == null) return null;
+      return (list as List).map((e) => e.toString()).toList();
+    }
+    
+    // Función para obtener booleano con valor por defecto
+    bool _getBool(dynamic value) {
+      if (value is bool) return value;
+      return false; 
+    }
+
     return PsychologistModel(
-      uid: json['uid'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      username: json['username'] as String? ?? '',
+      uid: json['uid'] as String,
+      email: json['email'] as String,
+      username: json['username'] as String,
+      role: json['role'] as String? ?? 'psychologist',
+
+      // Campos básicos
       phoneNumber: json['phoneNumber'] as String?,
-      role: json['role'] as String? ?? 'psicologo',
-      dateOfBirth: json['dateOfBirth'] is String
-          ? DateTime.tryParse(json['dateOfBirth'])
-          : null,
-      createdAt: json['createdAt'] is String
-          ? DateTime.tryParse(json['createdAt'])
-          : null,
-      updatedAt: json['updatedAt'] is String
-          ? DateTime.tryParse(json['updatedAt'])
-          : null,
+      dateOfBirth: _toDateTime(json['dateOfBirth']),
+      createdAt: _toDateTime(json['createdAt']),
+      updatedAt: _toDateTime(json['updatedAt']),
       profilePictureUrl: json['profilePictureUrl'] as String?,
       fullName: json['fullName'] as String?,
+
+      // Campos profesionales
       professionalTitle: json['professionalTitle'] as String?,
       professionalLicense: json['professionalLicense'] as String?,
-      yearsExperience: (json['yearsExperience'] as num?)?.toInt(),
+      yearsExperience: json['yearsExperience'] as int?,
       description: json['description'] as String?,
-      education: (json['education'] as List?)?.cast<String>(),
-      certifications: (json['certifications'] as List?)?.cast<String>(),
+      education: _toStringList(json['education']),
+      certifications: _toStringList(json['certifications']),
       specialty: json['specialty'] as String?,
-      subSpecialties: (json['subSpecialties'] as List?)?.cast<String>(),
+      subSpecialties: _toStringList(json['subSpecialties']),
       schedule: json['schedule'] as Map<String, dynamic>?,
+
+      // Campos de estado
       status: json['status'] as String? ?? 'PENDING',
-      professionalInfoCompleted: json['professionalInfoCompleted'] as bool? ?? false,
+      professionalInfoCompleted: _getBool(json['professionalInfoCompleted']),
       rejectionReason: json['rejectionReason'] as String?,
+
+      // Campos de rating y disponibilidad
       rating: (json['rating'] as num?)?.toDouble(),
       isAvailable: json['isAvailable'] as bool?,
-      price: (json['price'] as num?)?.toDouble(),
-      termsAccepted: json['termsAccepted'] as bool?,
+      
+      // 👇 SOLUCIÓN AL PROBLEMA DEL PRECIO
+      price: (json['price'] as num?)?.toDouble() ?? 0.0, 
+      
+      termsAccepted: json['termsAccepted'] as bool?
     );
   }
 

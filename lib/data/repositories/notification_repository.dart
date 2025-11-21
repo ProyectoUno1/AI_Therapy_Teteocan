@@ -12,7 +12,7 @@ class NotificationRepository {
 
   Future<List<NotificationModel>> fetchNotificationsForUser(String token) async {
     try {
-      final url = '$_apiBaseUrl/notifications';
+      final url = '$_apiBaseUrl/notifications';  // ✅ Sin /api
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -46,7 +46,7 @@ class NotificationRepository {
 
   Future<void> markNotificationAsRead(String token, dynamic notificationId) async {
     try {
-      final url = '$_apiBaseUrl/api/notifications/$notificationId/read';
+      final url = '$_apiBaseUrl/notifications/$notificationId/read';  // ✅ Sin /api
       final response = await http.patch(
         Uri.parse(url),
         headers: {
@@ -66,7 +66,7 @@ class NotificationRepository {
   Future<void> deleteNotification(String token, String notificationId) async {
     try {
       final response = await http.delete(
-        Uri.parse('$_apiBaseUrl/api/notifications/$notificationId'),
+        Uri.parse('$_apiBaseUrl/notifications/$notificationId'),  // ✅ Sin /api
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ class NotificationRepository {
   Future<void> deleteReadNotifications(String token) async {
     try {
       final response = await http.delete(
-        Uri.parse('$_apiBaseUrl/api/notifications/clear-read'),
+        Uri.parse('$_apiBaseUrl/notifications/clear-read'),  
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 // lib/presentation/chat/views/psychologist_chat_screen.dart
-// ✅ VERSIÓN SIN E2EE - SOLO ENCRIPTACIÓN BACKEND
+// ✅ VERSIÓN RESPONSIVA CON ADAPTACIÓN DE FUENTES
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +8,12 @@ import 'package:ai_therapy_teteocan/data/models/message_model.dart';
 import 'package:ai_therapy_teteocan/presentation/chat/widgets/message_bubble.dart';
 import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/data/repositories/chat_repository.dart';
+
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
 
 class PsychologistChatScreen extends StatefulWidget {
   final String psychologistUid;
@@ -121,14 +127,28 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: _buildChatScreen(context),
+    );
+  }
+
+  Widget _buildChatScreen(BuildContext context) {
     final theme = Theme.of(context);
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isVerySmallScreen = screenHeight < 400;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 1,
+        toolbarHeight: isLandscape || isVerySmallScreen ? 48 : 56,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
+          iconSize: isLandscape ? 20 : 24,
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -137,9 +157,9 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
               backgroundImage: widget.profilePictureUrl.isNotEmpty
                   ? NetworkImage(widget.profilePictureUrl)
                   : const AssetImage('assets/images/default_avatar.png') as ImageProvider,
-              radius: 20,
+              radius: isLandscape ? 14 : 20,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: isLandscape ? 8 : 12),
             Expanded(
               child: StreamBuilder<DocumentSnapshot>(
                 stream: _psychologistStatusStream,
@@ -178,7 +198,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                         widget.psychologistName,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.black,
-                          fontSize: 16,
+                          fontSize: isLandscape ? 14 : 16,
                           fontWeight: FontWeight.w600,
                           fontFamily: 'Poppins',
                         ),
@@ -188,6 +208,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                         isOnline ? 'En línea' : lastSeenText,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isOnline ? Colors.green : theme.textTheme.bodySmall?.color,
+                          fontSize: isLandscape ? 10 : 12,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -217,9 +238,7 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
-                      child: Text('Inicia una conversación...'),
-                    );
+                    return _buildEmptyState(isLandscape);
                   }
 
                   final messages = snapshot.data!.docs.map((doc) {
@@ -239,13 +258,16 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
 
                   return ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 16, bottom: 16),
+                    padding: EdgeInsets.only(
+                      top: isLandscape ? 8 : 16,
+                      bottom: isLandscape ? 8 : 16,
+                    ),
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages[index];
                       
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: EdgeInsets.only(bottom: isLandscape ? 4 : 8),
                         child: MessageBubble(
                           message: message,
                           isMe: message.isUser,
@@ -261,74 +283,114 @@ class _PsychologistChatScreenState extends State<PsychologistChatScreen> {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              border: Border(
-                top: BorderSide(color: theme.dividerColor, width: 1),
-              ),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file),
-                    color: Colors.grey[600],
-                    onPressed: () {},
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Escribe un mensaje...',
-                        hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: theme.dividerColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: theme.dividerColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(
-                            color: theme.colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.send_rounded,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                      onPressed: _sendMessage,
-                    ),
-                  ),
-                ],
-              ),
+          _buildMessageInput(theme, isLandscape, isVerySmallScreen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isLandscape) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: isLandscape ? 48 : 64,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: isLandscape ? 12 : 16),
+          Text(
+            'Inicia una conversación...',
+            style: TextStyle(
+              fontSize: isLandscape ? 14 : 16,
+              color: Colors.grey,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMessageInput(ThemeData theme, bool isLandscape, bool isVerySmallScreen) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isLandscape ? 12 : 16,
+        vertical: isLandscape || isVerySmallScreen ? 4 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor, width: 1),
+        ),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            if (!isLandscape)
+              IconButton(
+                icon: const Icon(Icons.attach_file),
+                color: Colors.grey[600],
+                iconSize: isLandscape ? 20 : 24,
+                onPressed: () {},
+              ),
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                decoration: InputDecoration(
+                  hintText: 'Escribe un mensaje...',
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: isLandscape ? 12 : 14,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isLandscape ? 16 : 20,
+                    vertical: isLandscape ? 8 : 10,
+                  ),
+                  isDense: isLandscape,
+                ),
+                style: TextStyle(fontSize: isLandscape ? 12 : 14),
+                onSubmitted: (_) => _sendMessage(),
+                maxLines: isLandscape ? 1 : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: isLandscape || isVerySmallScreen ? 40 : 48,
+              height: isLandscape || isVerySmallScreen ? 40 : 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                iconSize: isLandscape ? 20 : 24,
+                icon: Icon(
+                  Icons.send_rounded,
+                  color: theme.colorScheme.onPrimary,
+                ),
+                onPressed: _sendMessage,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

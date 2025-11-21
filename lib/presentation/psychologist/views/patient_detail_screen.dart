@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/data/models/patient_management_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
@@ -44,6 +45,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
+    final verticalPadding = ResponsiveUtils.getVerticalPadding(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final isMobileSmall = ResponsiveUtils.isMobileSmall(context);
+    final avatarRadius = ResponsiveUtils.getAvatarRadius(context, 40);
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -53,221 +60,264 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           icon: Icon(
             Icons.arrow_back,
             color: Theme.of(context).textTheme.bodyLarge?.color,
+            size: ResponsiveUtils.getIconSize(context, 24),
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: ResponsiveText(
           'Detalles del Paciente',
-          style: TextStyle(
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Poppins',
-          ),
+          baseFontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
         ),
         centerTitle: true,
         actions: [
           if (_patient.status != PatientStatus.completed)
             IconButton(
-              icon: const Icon(Icons.check_circle_outline),
+              icon: Icon(
+                Icons.check_circle_outline,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
               tooltip: 'Marcar como completado',
               onPressed: () => _showCompletePatientDialog(),
             )
           else
             IconButton(
-              icon: const Icon(Icons.check_circle, color: Colors.green),
+              icon: Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: ResponsiveUtils.getIconSize(context, 24),
+              ),
               tooltip: 'Tratamiento completado',
               onPressed: null,
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // Header con información básica
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).cardColor,
-            child: Column(
-              children: [
-                // Avatar y nombre
-                Row(
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            // Header con información básica
+            SliverToBoxAdapter(
+              child: Container(
+                padding: EdgeInsets.all(horizontalPadding),
+                color: Theme.of(context).cardColor,
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      backgroundImage: _patient.profilePictureUrl != null
-                          ? NetworkImage(_patient.profilePictureUrl!)
-                          : null,
-                      child: _patient.profilePictureUrl == null
-                          ? Text(
-                              _patient.name.isNotEmpty
-                                  ? _patient.name[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 32,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _patient.name,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
+                    // Avatar y nombre
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: avatarRadius,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
+                          backgroundImage: _patient.profilePictureUrl != null
+                              ? NetworkImage(_patient.profilePictureUrl!)
+                              : null,
+                          child: _patient.profilePictureUrl == null
+                              ? ResponsiveText(
+                                  _patient.name.isNotEmpty
+                                      ? _patient.name[0].toUpperCase()
+                                      : '?',
+                                  baseFontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : null,
+                        ),
+                        ResponsiveHorizontalSpacing(16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_patient.contactMethod.icon),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  _patient.contactMethod.displayName,
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontFamily: 'Poppins',
+                              ResponsiveText(
+                                _patient.name,
+                                baseFontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                              ResponsiveSpacing(4),
+                              Row(
+                                children: [
+                                  Text(_patient.contactMethod.icon),
+                                  ResponsiveHorizontalSpacing(8),
+                                  Flexible(
+                                    child: ResponsiveText(
+                                      _patient.contactMethod.displayName,
+                                      baseFontSize: 14,
+                                      color: Colors.grey[600],
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
+                                ],
+                              ),
+                              ResponsiveSpacing(8),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ResponsiveUtils.getHorizontalSpacing(context, 12),
+                                  vertical: ResponsiveUtils.getVerticalSpacing(context, 6),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(
+                                    _patient.status,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(
+                                    ResponsiveUtils.getBorderRadius(context, 20),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(_patient.status.icon),
+                                    ResponsiveHorizontalSpacing(8),
+                                    Flexible(
+                                      child: ResponsiveText(
+                                        _patient.status.displayName,
+                                        baseFontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: _getStatusColor(_patient.status),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(
-                                _patient.status,
-                              ).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(_patient.status.icon),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    _patient.status.displayName,
-                                    style: TextStyle(
-                                      color: _getStatusColor(_patient.status),
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
+                        ),
+                      ],
+                    ),
+                    ResponsiveSpacing(16),
+
+                    // Stats cards responsivas
+                    isMobileSmall
+                        ? Column(
+                            children: [
+                              _buildClickableStatCard(
+                                icon: Icons.calendar_today,
+                                title: 'Sesiones',
+                                value: '${_patient.totalSessions}',
+                                color: AppConstants.primaryColor,
+                                onTap: () => _onSessionsCardTap(),
+                              ),
+                              ResponsiveSpacing(12),
+                              _buildClickableStatCard(
+                                icon: Icons.schedule,
+                                title: 'Días activo',
+                                value:
+                                    '${DateTime.now().difference(_patient.createdAt).inDays}',
+                                color: Colors.green,
+                                onTap: () => _onActiveDaysCardTap(),
+                              ),
+                              ResponsiveSpacing(12),
+                              _buildClickableStatCard(
+                                icon: Icons.trending_up,
+                                title: 'Progreso',
+                                value: _getProgressPercentage(),
+                                color: Colors.orange,
+                                onTap: () => _onProgressCardTap(),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                child: _buildClickableStatCard(
+                                  icon: Icons.calendar_today,
+                                  title: 'Sesiones',
+                                  value: '${_patient.totalSessions}',
+                                  color: AppConstants.primaryColor,
+                                  onTap: () => _onSessionsCardTap(),
                                 ),
-                              ],
-                            ),
+                              ),
+                              ResponsiveHorizontalSpacing(12),
+                              Expanded(
+                                child: _buildClickableStatCard(
+                                  icon: Icons.schedule,
+                                  title: 'Días activo',
+                                  value:
+                                      '${DateTime.now().difference(_patient.createdAt).inDays}',
+                                  color: Colors.green,
+                                  onTap: () => _onActiveDaysCardTap(),
+                                ),
+                              ),
+                              ResponsiveHorizontalSpacing(12),
+                              Expanded(
+                                child: _buildClickableStatCard(
+                                  icon: Icons.trending_up,
+                                  title: 'Progreso',
+                                  value: _getProgressPercentage(),
+                                  color: Colors.orange,
+                                  onTap: () => _onProgressCardTap(),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildClickableStatCard(
-                        icon: Icons.calendar_today,
-                        title: 'Sesiones',
-                        value: '${_patient.totalSessions}',
-                        color: AppConstants.primaryColor,
-                        onTap: () => _onSessionsCardTap(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildClickableStatCard(
-                        icon: Icons.schedule,
-                        title: 'Días activo',
-                        value:
-                            '${DateTime.now().difference(_patient.createdAt).inDays}',
-                        color: Colors.green,
-                        onTap: () => _onActiveDaysCardTap(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildClickableStatCard(
-                        icon: Icons.trending_up,
-                        title: 'Progreso',
-                        value: _getProgressPercentage(),
-                        color: Colors.orange,
-                        onTap: () => _onProgressCardTap(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // TabBar
-          Container(
-            color: Theme.of(context).cardColor,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppConstants.primaryColor,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppConstants.primaryColor,
-              labelStyle: const TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
               ),
-              tabs: const [
-                Tab(icon: Icon(Icons.info), text: 'Información'),
-                Tab(icon: Icon(Icons.history), text: 'Historial'),
-                Tab(icon: Icon(Icons.note), text: 'Notas'),
-              ],
             ),
-          ),
 
-          // TabBarView
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildInformationTab(),
-                _buildHistoryTab(),
-                _buildNotesTab(),
-              ],
+            // TabBar
+            SliverToBoxAdapter(
+              child: Container(
+                color: Theme.of(context).cardColor,
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AppConstants.primaryColor,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppConstants.primaryColor,
+                  labelStyle: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: ResponsiveUtils.getFontSize(context, 14),
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.normal,
+                    fontSize: ResponsiveUtils.getFontSize(context, 14),
+                  ),
+                  tabs: [
+                    Tab(
+                      icon: Icon(
+                        Icons.info,
+                        size: ResponsiveUtils.getIconSize(context, 20),
+                      ),
+                      text: 'Información',
+                    ),
+                    Tab(
+                      icon: Icon(
+                        Icons.history,
+                        size: ResponsiveUtils.getIconSize(context, 20),
+                      ),
+                      text: 'Historial',
+                    ),
+                    Tab(
+                      icon: Icon(
+                        Icons.note,
+                        size: ResponsiveUtils.getIconSize(context, 20),
+                      ),
+                      text: 'Notas',
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _scheduleAppointment(),
-        backgroundColor: AppConstants.primaryColor,
-        icon: const Icon(Icons.event_available, color: Colors.white),
-        label: const Text(
-          'Agendar Cita',
-          style: TextStyle(
-            color: Colors.white,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-          ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildInformationTab(),
+            _buildHistoryTab(),
+            _buildNotesTab(),
+          ],
         ),
       ),
+      
     );
   }
 
@@ -282,41 +332,45 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(ResponsiveUtils.getHorizontalSpacing(context, 12)),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(
+            ResponsiveUtils.getBorderRadius(context, 12),
+          ),
           border: Border.all(color: color.withOpacity(0.3), width: 1),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
+            Icon(
+              icon,
+              color: color,
+              size: ResponsiveUtils.getIconSize(context, 24),
+            ),
+            ResponsiveSpacing(8),
+            ResponsiveText(
               value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
-            Text(
+            ResponsiveText(
               title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 12,
+              color: Colors.grey[600],
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
-            const SizedBox(height: 4),
-            Icon(Icons.touch_app, size: 14, color: color.withOpacity(0.7)),
+            ResponsiveSpacing(4),
+            Icon(
+              Icons.touch_app,
+              size: ResponsiveUtils.getIconSize(context, 14),
+              color: color.withOpacity(0.7),
+            ),
           ],
         ),
       ),
@@ -329,71 +383,91 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
+            ),
           ),
-          title: Row(
-            children: [
-              Icon(Icons.calendar_today, color: AppConstants.primaryColor),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Resumen de Sesiones',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis,
+          child: Container(
+            padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: AppConstants.primaryColor,
+                      size: ResponsiveUtils.getIconSize(context, 24),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    Expanded(
+                      child: ResponsiveText(
+                        'Resumen de Sesiones',
+                        baseFontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDialogInfoRow(
-                'Total de sesiones:',
-                '${_patient.totalSessions}',
-              ),
-              _buildDialogInfoRow(
-                'Sesiones completadas:',
-                '${_patient.totalSessions}',
-              ),
-              _buildDialogInfoRow(
-                'Próxima sesión:',
-                _patient.nextAppointment != null
-                    ? _formatDateTime(_patient.nextAppointment!)
-                    : 'No programada',
-              ),
-              _buildDialogInfoRow(
-                'Última sesión:',
-                _patient.lastAppointment != null
-                    ? _formatDateTime(_patient.lastAppointment!)
-                    : 'No hay registro',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cerrar',
-                style: TextStyle(color: AppConstants.primaryColor),
-              ),
+                ResponsiveSpacing(16),
+                _buildDialogInfoRow(
+                  'Total de sesiones:',
+                  '${_patient.totalSessions}',
+                ),
+                _buildDialogInfoRow(
+                  'Sesiones completadas:',
+                  '${_patient.totalSessions}',
+                ),
+                _buildDialogInfoRow(
+                  'Próxima sesión:',
+                  _patient.nextAppointment != null
+                      ? _formatDateTime(_patient.nextAppointment!)
+                      : 'No programada',
+                ),
+                _buildDialogInfoRow(
+                  'Última sesión:',
+                  _patient.lastAppointment != null
+                      ? _formatDateTime(_patient.lastAppointment!)
+                      : 'No hay registro',
+                ),
+                ResponsiveSpacing(16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: ResponsiveText(
+                          'Cerrar',
+                          baseFontSize: 14,
+                          color: AppConstants.primaryColor,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _scheduleAppointment();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.primaryColor,
+                        ),
+                        child: ResponsiveText(
+                          'Agendar Nueva',
+                          baseFontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _scheduleAppointment();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryColor,
-              ),
-              child: const Text(
-                'Agendar Nueva',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -407,46 +481,65 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.schedule, color: Colors.green),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Tiempo Activo',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDialogInfoRow('Días activo:', '$activeDays días'),
-              _buildDialogInfoRow('Equivale a:', '$weeks semanas'),
-              _buildDialogInfoRow('Aproximadamente:', '$months meses'),
-              _buildDialogInfoRow(
-                'Fecha de registro:',
-                _formatDateTime(_patient.createdAt),
-              ),
-              _buildDialogInfoRow(
-                'Última actualización:',
-                _formatDateTime(_patient.updatedAt),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cerrar', style: TextStyle(color: Colors.green)),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
             ),
-          ],
+          ),
+          child: Container(
+            padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      color: Colors.green,
+                      size: ResponsiveUtils.getIconSize(context, 24),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    Expanded(
+                      child: ResponsiveText(
+                        'Tiempo Activo',
+                        baseFontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                ResponsiveSpacing(16),
+                _buildDialogInfoRow('Días activo:', '$activeDays días'),
+                _buildDialogInfoRow('Equivale a:', '$weeks semanas'),
+                _buildDialogInfoRow('Aproximadamente:', '$months meses'),
+                _buildDialogInfoRow(
+                  'Fecha de registro:',
+                  _formatDateTime(_patient.createdAt),
+                ),
+                _buildDialogInfoRow(
+                  'Última actualización:',
+                  _formatDateTime(_patient.updatedAt),
+                ),
+                ResponsiveSpacing(16),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                    child: ResponsiveText(
+                      'Cerrar',
+                      baseFontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -467,26 +560,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   Widget _buildDialogInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(
+        vertical: ResponsiveUtils.getVerticalSpacing(context, 4),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
-            child: Text(
+            width: ResponsiveUtils.getHorizontalSpacing(context, 100),
+            child: ResponsiveText(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
-                fontFamily: 'Poppins',
-                fontSize: 12,
-              ),
+              baseFontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
             ),
           ),
           Expanded(
-            child: Text(
+            child: ResponsiveText(
               value,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
+              baseFontSize: 12,
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
             ),
@@ -496,25 +588,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  String _getProgressDescription(int progress) {
-    if (progress == 0) {
-      return 'El tratamiento está en fase inicial. Se recomienda establecer objetivos claros.';
-    } else if (progress < 30) {
-      return 'El paciente está comenzando su proceso terapéutico. Mantener seguimiento cercano.';
-    } else if (progress < 60) {
-      return 'El tratamiento muestra avance moderado. Continuar con el plan establecido.';
-    } else if (progress < 90) {
-      return 'Excelente progreso en el tratamiento. El paciente muestra mejoras significativas.';
-    } else if (progress < 100) {
-      return 'El tratamiento está cerca de completarse. Preparar plan de seguimiento.';
-    } else {
-      return 'El paciente ha completado su tratamiento exitosamente. Considerar sesiones de mantenimiento.';
-    }
-  }
-
   Widget _buildInformationTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -538,7 +614,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                 ),
             ],
           ),
-          const SizedBox(height: 24),
+          ResponsiveSpacing(24),
           _buildInfoSection(
             title: 'Estado del Tratamiento',
             icon: Icons.medical_services,
@@ -575,96 +651,103 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   Widget _buildHistoryTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          ResponsiveText(
             'Historial de Sesiones',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
+            baseFontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 16),
-
-          for (int i = 0; i < _patient.totalSessions; i++)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppConstants.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.psychology,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sesión ${i + 1}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        Text(
-                          _formatDateTime(
-                            DateTime.now().subtract(
-                              Duration(days: (i + 1) * 7),
-                            ),
-                          ),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontFamily: 'Poppins',
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey[400],
-                  ),
-                ],
-              ),
-            ),
+          ResponsiveSpacing(16),
 
           if (_patient.totalSessions == 0)
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.history, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
+                  Icon(
+                    Icons.history,
+                    size: ResponsiveUtils.getIconSize(context, 80),
+                    color: Colors.grey[400],
+                  ),
+                  ResponsiveSpacing(16),
+                  ResponsiveText(
                     'Sin sesiones registradas',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontFamily: 'Poppins',
-                    ),
+                    baseFontSize: 16,
+                    color: Colors.grey[600],
                     textAlign: TextAlign.center,
                   ),
                 ],
+              ),
+            )
+          else
+            ...List.generate(_patient.totalSessions, (index) => 
+              Container(
+                margin: EdgeInsets.only(
+                  bottom: ResponsiveUtils.getVerticalSpacing(context, 12),
+                ),
+                padding: EdgeInsets.all(
+                  ResponsiveUtils.getHorizontalPadding(context),
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(
+                    ResponsiveUtils.getBorderRadius(context, 12),
+                  ),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(
+                        ResponsiveUtils.getHorizontalSpacing(context, 8),
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppConstants.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 8),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.psychology,
+                        color: AppConstants.primaryColor,
+                        size: ResponsiveUtils.getIconSize(context, 20),
+                      ),
+                    ),
+                    ResponsiveHorizontalSpacing(12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ResponsiveText(
+                            'Sesión ${index + 1}',
+                            baseFontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          ResponsiveText(
+                            _formatDateTime(
+                              DateTime.now().subtract(
+                                Duration(days: (index + 1) * 7),
+                              ),
+                            ),
+                            baseFontSize: 14,
+                            color: Colors.grey[600],
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: ResponsiveUtils.getIconSize(context, 16),
+                      color: Colors.grey[400],
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -674,7 +757,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   Widget _buildNotesTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -682,33 +765,39 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
+                child: ResponsiveText(
                   'Notas del Paciente',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 20,
+                  fontWeight: FontWeight.bold,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
               ),
               IconButton(
                 onPressed: () => _addNote(),
-                icon: Icon(Icons.add, color: AppConstants.primaryColor),
+                icon: Icon(
+                  Icons.add,
+                  color: AppConstants.primaryColor,
+                  size: ResponsiveUtils.getIconSize(context, 24),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          ResponsiveSpacing(16),
 
           if (_patient.notes != null && _patient.notes!.isNotEmpty)
             Column(
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(
+                    ResponsiveUtils.getHorizontalPadding(context),
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveUtils.getBorderRadius(context, 12),
+                    ),
                     border: Border.all(color: Colors.grey[200]!),
                   ),
                   child: Column(
@@ -716,54 +805,60 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.note, color: AppConstants.primaryColor),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.note,
+                            color: AppConstants.primaryColor,
+                            size: ResponsiveUtils.getIconSize(context, 20),
+                          ),
+                          ResponsiveHorizontalSpacing(8),
                           Expanded(
-                            child: Text(
+                            child: ResponsiveText(
                               'Notas iniciales',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppConstants.primaryColor,
-                                fontFamily: 'Poppins',
-                              ),
+                              baseFontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppConstants.primaryColor,
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      ResponsiveSpacing(12),
                       Text(
                         _patient.notes!,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getFontSize(context, 14),
                           height: 1.5,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                ResponsiveSpacing(16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () => _viewAllNotes(),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.format_list_bulleted,
                       color: Colors.white,
+                      size: ResponsiveUtils.getIconSize(context, 20),
                     ),
-                    label: const Text(
+                    label: ResponsiveText(
                       'Ver Historial de Notas',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      baseFontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        vertical: ResponsiveUtils.getVerticalSpacing(context, 12),
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          ResponsiveUtils.getBorderRadius(context, 12),
+                        ),
                       ),
                     ),
                   ),
@@ -774,22 +869,29 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.note_add, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
+                  Icon(
+                    Icons.note_add,
+                    size: ResponsiveUtils.getIconSize(context, 80),
+                    color: Colors.grey[400],
+                  ),
+                  ResponsiveSpacing(16),
+                  ResponsiveText(
                     'Sin notas registradas',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontFamily: 'Poppins',
-                    ),
+                    baseFontSize: 16,
+                    color: Colors.grey[600],
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  ResponsiveSpacing(8),
                   ElevatedButton.icon(
                     onPressed: () => _addNote(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Agregar Primera Nota'),
+                    icon: Icon(
+                      Icons.add,
+                      size: ResponsiveUtils.getIconSize(context, 20),
+                    ),
+                    label: ResponsiveText(
+                      'Agregar Primera Nota',
+                      baseFontSize: 14,
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConstants.primaryColor,
                       foregroundColor: Colors.white,
@@ -810,10 +912,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          ResponsiveUtils.getBorderRadius(context, 12),
+        ),
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
@@ -821,24 +925,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         children: [
           Row(
             children: [
-              Icon(icon, color: AppConstants.primaryColor),
-              const SizedBox(width: 8),
+              Icon(
+                icon,
+                color: AppConstants.primaryColor,
+                size: ResponsiveUtils.getIconSize(context, 20),
+              ),
+              ResponsiveHorizontalSpacing(8),
               Expanded(
-                child: Text(
+                child: ResponsiveText(
                   title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.primaryColor,
-                    fontFamily: 'Poppins',
-                  ),
+                  baseFontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.primaryColor,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          ResponsiveSpacing(16),
           ...children,
         ],
       ),
@@ -847,25 +952,25 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(
+        bottom: ResponsiveUtils.getVerticalSpacing(context, 12),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
-            child: Text(
+            width: ResponsiveUtils.getHorizontalSpacing(context, 120),
+            child: ResponsiveText(
               '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
-                fontFamily: 'Poppins',
-              ),
+              baseFontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
             ),
           ),
           Expanded(
-            child: Text(
+            child: ResponsiveText(
               value,
-              style: const TextStyle(fontFamily: 'Poppins'),
+              baseFontSize: 14,
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
             ),
@@ -970,43 +1075,56 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     );
   }
 
-  // NUEVOS MÉTODOS PARA COMPLETAR PACIENTE
+  // MÉTODOS PARA COMPLETAR PACIENTE (se mantienen igual)
   void _showCompletePatientDialog() {
     final TextEditingController notesController = TextEditingController();
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
+            ),
           ),
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: AppConstants.primaryColor),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Completar Tratamiento',
-                  style: TextStyle(fontFamily: 'Poppins'),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '¿Estás seguro de marcar el tratamiento de ${_patient.name} como completado?',
-                  style: const TextStyle(fontFamily: 'Poppins'),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: AppConstants.primaryColor,
+                      size: ResponsiveUtils.getIconSize(context, 24),
+                    ),
+                    ResponsiveHorizontalSpacing(8),
+                    Expanded(
+                      child: ResponsiveText(
+                        'Completar Tratamiento',
+                        baseFontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                ResponsiveSpacing(16),
+                ResponsiveText(
+                  '¿Estás seguro de marcar el tratamiento de ${_patient.name} como completado?',
+                  baseFontSize: 14,
+                ),
+                ResponsiveSpacing(16),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(
+                    ResponsiveUtils.getHorizontalSpacing(context, 12),
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(
+                      ResponsiveUtils.getBorderRadius(context, 8),
+                    ),
                     border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
                   child: Column(
@@ -1016,94 +1134,94 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                         children: [
                           Icon(
                             Icons.info_outline,
-                            size: 16,
+                            size: ResponsiveUtils.getIconSize(context, 16),
                             color: Colors.blue,
                           ),
-                          const SizedBox(width: 4),
-                          const Text(
+                          ResponsiveHorizontalSpacing(4),
+                          ResponsiveText(
                             'Información',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                            ),
+                            baseFontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
+                      ResponsiveSpacing(4),
+                      ResponsiveText(
                         'Total de sesiones: ${_patient.totalSessions}',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                        ),
+                        baseFontSize: 12,
                       ),
                       if (_patient.lastAppointment != null)
-                        Text(
+                        ResponsiveText(
                           'Última sesión: ${_formatDateTime(_patient.lastAppointment!)}',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                          ),
+                          baseFontSize: 12,
                         ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text(
+                ResponsiveSpacing(16),
+                ResponsiveText(
                   'Notas finales (opcional):',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                  ),
+                  baseFontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 8),
+                ResponsiveSpacing(8),
                 TextField(
                   controller: notesController,
                   maxLines: 4,
                   decoration: InputDecoration(
                     hintText:
                         'Agrega observaciones sobre el cierre del tratamiento...',
-                    hintStyle: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
+                    hintStyle: TextStyle(
+                      fontSize: ResponsiveUtils.getFontSize(context, 12),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(
+                        ResponsiveUtils.getBorderRadius(context, 8),
+                      ),
                     ),
                     filled: true,
                     fillColor: Colors.grey[50],
                   ),
                 ),
+                ResponsiveSpacing(16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: ResponsiveText(
+                          'Cancelar',
+                          baseFontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          _completePatient(notesController.text);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveUtils.getBorderRadius(context, 8),
+                            ),
+                          ),
+                        ),
+                        child: ResponsiveText(
+                          'Confirmar',
+                          baseFontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _completePatient(notesController.text);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Confirmar',
-                style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -1177,61 +1295,70 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     }
   }
 
- void _showCompletionSuccessDialog() {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 64,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '¡Tratamiento Completado!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'El tratamiento de ${_patient.name} ha sido marcado como completado.',
-              style: const TextStyle(fontFamily: 'Poppins'),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); 
-              Navigator.of(context).pop(true); 
-            },
-            child: Text(
-              'Entendido',
-              style: TextStyle(color: AppConstants.primaryColor),
+  void _showCompletionSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              ResponsiveUtils.getBorderRadius(context, 16),
             ),
           ),
-        ],
-      );
-    },
-  );
-}
+          child: Container(
+            padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(
+                    ResponsiveUtils.getHorizontalSpacing(context, 16),
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: ResponsiveUtils.getIconSize(context, 64),
+                  ),
+                ),
+                ResponsiveSpacing(16),
+                ResponsiveText(
+                  '¡Tratamiento Completado!',
+                  baseFontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveSpacing(8),
+                ResponsiveText(
+                  'El tratamiento de ${_patient.name} ha sido marcado como completado.',
+                  baseFontSize: 14,
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveSpacing(16),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(true);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryColor,
+                    ),
+                    child: ResponsiveText(
+                      'Entendido',
+                      baseFontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

@@ -1,26 +1,25 @@
-//lib/presentation/shared/notification_panel_screen.dart
+/// lib/presentation/shared/notification_panel_screen.dart
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_event.dart';
+import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.dart';
 import 'package:ai_therapy_teteocan/data/models/notification_model.dart';
-import 'package:intl/intl.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
-import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.dart';
 import 'package:ai_therapy_teteocan/presentation/patient/views/patient_appointments_list_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/appointments_list_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/chat/views/chat_list_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_chat_list_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/patient/views/patient_home_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/views/psychologist_home_screen.dart';
-import 'package:ai_therapy_teteocan/presentation/psychologist/bloc/chat_list_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/subscription/views/subscription_screen.dart';
 import 'dart:developer';
 
 class NotificationsPanelScreen extends StatelessWidget {
   final VoidCallback? onNavigateToChat;
+  
   const NotificationsPanelScreen({super.key, this.onNavigateToChat});
 
   String formatDate(dynamic timestamp) {
@@ -102,7 +101,7 @@ class NotificationsPanelScreen extends StatelessWidget {
         'marzo': 3,
         'abril': 4,
         'mayo': 5,
-        'juno': 6,
+        'junio': 6,
         'julio': 7,
         'agosto': 8,
         'septiembre': 9,
@@ -135,257 +134,322 @@ class NotificationsPanelScreen extends StatelessWidget {
   }
 
   void _handleNotificationTap(
-  BuildContext context,
-  NotificationModel notification,
-) async {
-  final authState = context.read<AuthBloc>().state;
-  final user = FirebaseAuth.instance.currentUser;
+    BuildContext context,
+    NotificationModel notification,
+  ) async {
+    final authState = context.read<AuthBloc>().state;
+    final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) {
-    return;
-  }
+    if (user == null) {
+      return;
+    }
 
-  final userToken = await user.getIdToken();
-  final userId = user.uid;
+    final userToken = await user.getIdToken();
+    final userId = user.uid;
 
-  context.read<NotificationBloc>().add(
-    MarkNotificationAsRead(
-      notificationId: notification.id,
-      userId: userId,
-      userToken: userToken!,
-      userType: authState.isAuthenticatedPatient ? 'patient' : 'psychologist',
-    ),
-  );
-
-  bool shouldNavigateToAppointments = false;
-  bool shouldNavigateToSubscription = false;
-  final lowerCaseType = notification.type.toLowerCase();
-
-  if (lowerCaseType == 'subscription' || 
-      lowerCaseType == 'pago' || 
-      lowerCaseType == 'payment' ||
-      lowerCaseType == 'suscripción' ||
-      lowerCaseType == 'premium') {
-    shouldNavigateToSubscription = true;
-  } else if (notification.title.toLowerCase().contains('suscripción') ||
-      notification.title.toLowerCase().contains('subscription') ||
-      notification.title.toLowerCase().contains('pago') ||
-      notification.title.toLowerCase().contains('payment') ||
-      notification.title.toLowerCase().contains('premium')) {
-    shouldNavigateToSubscription = true;
-  } else if (lowerCaseType == 'cita' || lowerCaseType == 'appointment') {
-    shouldNavigateToAppointments = true;
-  } else if (notification.title.toLowerCase().contains('cita') ||
-      notification.title.toLowerCase().contains('appointment')) {
-    shouldNavigateToAppointments = true;
-  }
-  if (shouldNavigateToSubscription) {
-    // Navegacion a pantalla de suscripciones
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SubscriptionScreen(),
+    context.read<NotificationBloc>().add(
+      MarkNotificationAsRead(
+        notificationId: notification.id,
+        userId: userId,
+        userToken: userToken!,
+        userType: authState.isAuthenticatedPatient ? 'patient' : 'psychologist',
       ),
     );
-  } else if (shouldNavigateToAppointments) {
-    final appointmentId = notification.data['appointmentId'] as String?;
-    final status = notification.data['status'] as String?;
 
-    if (authState.isAuthenticatedPsychologist) {
+    bool shouldNavigateToAppointments = false;
+    bool shouldNavigateToSubscription = false;
+    final lowerCaseType = notification.type.toLowerCase();
+
+    if (lowerCaseType == 'subscription' || 
+        lowerCaseType == 'pago' || 
+        lowerCaseType == 'payment' ||
+        lowerCaseType == 'suscripción' ||
+        lowerCaseType == 'premium') {
+      shouldNavigateToSubscription = true;
+    } else if (notification.title.toLowerCase().contains('suscripción') ||
+        notification.title.toLowerCase().contains('subscription') ||
+        notification.title.toLowerCase().contains('pago') ||
+        notification.title.toLowerCase().contains('payment') ||
+        notification.title.toLowerCase().contains('premium')) {
+      shouldNavigateToSubscription = true;
+    } else if (lowerCaseType == 'cita' || lowerCaseType == 'appointment') {
+      shouldNavigateToAppointments = true;
+    } else if (notification.title.toLowerCase().contains('cita') ||
+        notification.title.toLowerCase().contains('appointment')) {
+      shouldNavigateToAppointments = true;
+    }
+    
+    if (shouldNavigateToSubscription) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) =>
-              AppointmentsListScreen(psychologistId: userId),
+          builder: (context) => const SubscriptionScreen(),
         ),
       );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => PatientAppointmentsListScreen(
-            highlightAppointmentId: appointmentId,
-            filterStatus: status,
+    } else if (shouldNavigateToAppointments) {
+      final appointmentId = notification.data['appointmentId'] as String?;
+      final status = notification.data['status'] as String?;
+
+      if (authState.isAuthenticatedPsychologist) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) =>
+                AppointmentsListScreen(psychologistId: userId),
+          ),
+        );
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PatientAppointmentsListScreen(
+              highlightAppointmentId: appointmentId,
+              filterStatus: status,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 🎯 Configuración responsive
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+    final isDesktop = screenWidth >= 900;
+    
+    final maxContentWidth = isDesktop ? 800.0 : (isTablet ? 700.0 : screenWidth);
+
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        // Añadir una minWidth para el título en caso de pantallas muy estrechas
+        title: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 0),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'Notificaciones',
+              style: TextStyle(
+                fontSize: isMobile ? 17 : (isTablet ? 19 : 20),
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
+            ),
           ),
         ),
-      );
-    }
-  } else {
-    switch (lowerCaseType) {
-      case 'chat':
-      case 'chat_message':
-        if (authState.isAuthenticatedPsychologist) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => PsychologistHomeScreen(
-                initialTabIndex: 1, 
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: theme.colorScheme.primary,
+            size: isMobile ? 22 : 24,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: isMobile ? 8 : 12),
+            child: IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                color: theme.colorScheme.primary,
+                size: isMobile ? 22 : 24,
+              ),
+              tooltip: 'Eliminar leídas',
+              onPressed: () async {
+                final authState = context.read<AuthBloc>().state;
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final userToken = await user.getIdToken();
+                  if (userToken != null) {
+                    context.read<NotificationBloc>().add(
+                      DeleteReadNotifications(
+                        userToken: userToken,
+                        userId: user.uid,
+                        userType: authState.isAuthenticatedPatient
+                            ? 'patient'
+                            : 'psychologist',
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        // 🌟 CLAVE: Envuelve el cuerpo con SingleChildScrollView
+        // Esto permite el scroll vertical en el modo de error o vacío,
+        // especialmente en orientación horizontal donde la altura es reducida.
+        child: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: BlocBuilder<NotificationBloc, NotificationState>(
+                builder: (context, state) {
+                  if (state is NotificationLoading) {
+                    // Envuelto en un contenedor para darle una altura mínima en caso de scroll
+                    return Container(
+                      height: mediaQuery.size.height - AppBar().preferredSize.height - mediaQuery.padding.top,
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  } else if (state is NotificationLoaded) {
+                    if (state.notifications.isEmpty) {
+                      return _buildEmptyState(context, isMobile, isTablet);
+                    }
+                    
+                    // Si hay notificaciones, el ListView.builder se encarga del scroll.
+                    // Se envuelve en ConstrainedBox/SizedBox para que ocupe todo el alto disponible, 
+                    // si el SingleChildScrollView está presente, es mejor permitir que se adapte.
+                    return ListView.builder(
+                      // 💡 CLAVE: Usar 'shrinkWrap' y 'physics: NeverScrollableScrollPhysics()' 
+                      // para que el ListView no intente gestionar su propio scroll y 
+                      // se integre con el SingleChildScrollView padre.
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : (isTablet ? 16 : 20),
+                        vertical: isMobile ? 8 : 12,
+                      ),
+                      itemCount: state.notifications.length,
+                      itemBuilder: (context, index) {
+                        final notification = state.notifications[index];
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
+                          child: NotificationItem(
+                            notification: notification,
+                            onTap: () => _handleNotificationTap(context, notification),
+                            isDarkMode: isDarkMode,
+                            formatDate: formatDate,
+                            isMobile: isMobile,
+                            isTablet: isTablet,
+                            isDesktop: isDesktop,
+                          ),
+                        );
+                      },
+                    );
+                  } else if (state is NotificationError) {
+                    return _buildErrorState(context, state.message, isMobile, isTablet);
+                  }
+                  return Container();
+                },
               ),
             ),
-            (route) => false,
-          );
-        } else if (authState.isAuthenticatedPatient) {
-          final psychologistId =
-              notification.data['psychologistId'] as String?;
-          final chatId = notification.data['chatId'] as String?;
+          ),
+        ),
+      ),
+    );
+  }
 
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => PatientHomeScreen(
-                initialChatPsychologistId: psychologistId,
-                initialChatId: chatId,
+  Widget _buildEmptyState(BuildContext context, bool isMobile, bool isTablet) {
+    final theme = Theme.of(context);
+    final iconSize = isMobile ? 56.0 : (isTablet ? 64.0 : 72.0);
+    
+    // Asegurar que las vistas de estado (vacío/error) también puedan expandirse
+    // si el contenido lo requiere y se usa el SingleChildScrollView.
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 24 : (isTablet ? 32 : 40)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FractionallySizedBox(
+              widthFactor: isMobile ? 0.25 : 0.2,
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Icon(
+                  Icons.notifications_none,
+                  size: iconSize,
+                  color: Colors.grey,
+                ),
               ),
             ),
-          );
-        }
-        break;
-      default:
-        // Para otros tipos de notificación, simplemente cerrar el panel
-        Navigator.of(context).pop();
-        break;
-    }
+            SizedBox(height: isMobile ? 16 : 20),
+            FittedBox(
+              child: Text(
+                'No tienes notificaciones.',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                  fontSize: isMobile ? 14 : (isTablet ? 15 : 16),
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String message, bool isMobile, bool isTablet) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 24 : (isTablet ? 32 : 40)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: isMobile ? 56 : 64, color: Colors.red),
+            SizedBox(height: isMobile ? 16 : 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Error: $message',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.red,
+                  fontSize: isMobile ? 14 : 15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: isMobile ? 16 : 20),
+            ElevatedButton(
+              onPressed: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final token = await user.getIdToken();
+                  if (token != null) {
+                    final authState = context.read<AuthBloc>().state;
+                    context.read<NotificationBloc>().add(
+                      LoadNotifications(
+                        userId: user.uid,
+                        userToken: token,
+                        userType: authState.isAuthenticatedPatient
+                            ? 'patient'
+                            : 'psychologist',
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(
+                'Reintentar',
+                style: TextStyle(fontSize: isMobile ? 14 : 15),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
- @override
-Widget build(BuildContext context) {
-  final theme = Theme.of(context);
-  final isDarkMode = theme.brightness == Brightness.dark;
-
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Notificaciones'),
-      backgroundColor: theme.scaffoldBackgroundColor,
-      elevation: 0,
-      leading: IconButton(
-        icon: Icon(Icons.arrow_back, color: theme.colorScheme.primary),
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.delete_outline, color: theme.colorScheme.primary),
-          onPressed: () async {
-            final authState = context.read<AuthBloc>().state;
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              final userToken = await user.getIdToken();
-              if (userToken != null) {
-                context.read<NotificationBloc>().add(
-                  DeleteReadNotifications(
-                    userToken: userToken,
-                    userId: user.uid,
-                    userType: authState.isAuthenticatedPatient
-                        ? 'patient'
-                        : 'psychologist',
-                  ),
-                );
-              }
-            }
-          },
-        ),
-      ],
-    ),
-    body: BlocBuilder<NotificationBloc, NotificationState>(
-      builder: (context, state) {
-        print('🔔 NotificationBloc State: ${state.runtimeType}'); // ✅ Agregar log
-        
-        if (state is NotificationLoading) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (state is NotificationLoaded) {
-          print('✅ Notifications loaded: ${state.notifications.length}'); // ✅ Agregar log
-          
-          if (state.notifications.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No tienes notificaciones.',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-          
-          // ✅ Log cada notificación
-          for (var notif in state.notifications) {
-            print('📬 Notification: ${notif.title} - ${notif.timestamp}');
-          }
-          
-          return ListView.builder(
-            itemCount: state.notifications.length,
-            itemBuilder: (context, index) {
-              final notification = state.notifications[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
-                ),
-                child: NotificationItem(
-                  notification: notification,
-                  onTap: () => _handleNotificationTap(context, notification),
-                  isDarkMode: isDarkMode,
-                  formatDate: formatDate,
-                ),
-              );
-            },
-          );
-        } else if (state is NotificationError) {
-          print('❌ NotificationError: ${state.message}'); // ✅ Agregar log
-          
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(
-                  'Error: ${state.message}',
-                  style: theme.textTheme.titleMedium?.copyWith(color: Colors.red),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user != null) {
-                      final token = await user.getIdToken();
-                      if (token != null) {
-                        final authState = context.read<AuthBloc>().state;
-                        context.read<NotificationBloc>().add(
-                          LoadNotifications(
-                            userId: user.uid,
-                            userToken: token,
-                            userType: authState.isAuthenticatedPatient
-                                ? 'patient'
-                                : 'psychologist',
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Reintentar'),
-                ),
-              ],
-            ),
-          );
-        }
-        
-        print('⚠️ Unexpected state: ${state.runtimeType}'); // ✅ Agregar log
-        return Container();
-      },
-    ),
-  );
-}
-}
-
+// WIDGET NOTIFICATION ITEM RESPONSIVE CON DATOS REALES
 class NotificationItem extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
   final bool isDarkMode;
   final String Function(dynamic) formatDate;
+  final bool isMobile;
+  final bool isTablet;
+  final bool isDesktop;
 
   const NotificationItem({
     super.key,
@@ -393,128 +457,80 @@ class NotificationItem extends StatelessWidget {
     required this.onTap,
     required this.isDarkMode,
     required this.formatDate,
+    required this.isMobile,
+    required this.isTablet,
+    required this.isDesktop,
   });
 
   IconData _getNotificationIcon(NotificationModel notification) {
-  final lowerCaseType = notification.type.toLowerCase();
-  final lowerCaseTitle = notification.title.toLowerCase();
-  final lowerCaseBody = notification.body.toLowerCase();
+    final lowerCaseType = notification.type.toLowerCase();
+    final lowerCaseTitle = notification.title.toLowerCase();
 
-  // Priorizar por tipo específico
-  switch (lowerCaseType) {
-    case 'cita':
-    case 'appointment':
-    case 'recordatorio_cita':
+    switch (lowerCaseType) {
+      case 'cita':
+      case 'appointment':
+      case 'recordatorio_cita':
+        return Icons.calendar_today;
+      case 'ejercicio':
+      case 'exercise':
+      case 'actividad':
+        return Icons.fitness_center;
+      case 'motivacion':
+      case 'motivacional':
+      case 'frase_motivadora':
+        return Icons.emoji_objects;
+      case 'chat':
+      case 'chat_message':
+      case 'mensaje':
+        return Icons.chat_bubble_outline;
+      case 'bienvenida':
+      case 'welcome':
+        return Icons.waving_hand_outlined;
+      case 'alerta':
+      case 'alert':
+      case 'importante':
+        return Icons.warning_amber_rounded;
+      case 'recordatorio':
+      case 'reminder':
+        return Icons.notifications_active;
+      case 'subscription':
+      case 'suscripción':
+      case 'pago':
+      case 'payment':
+      case 'premium':
+        return Icons.credit_card;
+    }
+
+    if (lowerCaseTitle.contains('cita') ||
+        lowerCaseTitle.contains('appointment') ||
+        lowerCaseTitle.contains('consulta')) {
       return Icons.calendar_today;
-
-    case 'ejercicio':
-    case 'exercise':
-    case 'actividad':
-      return Icons.fitness_center;
-
-    case 'motivacion':
-    case 'motivacional':
-    case 'frase_motivadora':
-      return Icons.emoji_objects;
-
-    case 'chat':
-    case 'chat_message':
-    case 'mensaje':
-      return Icons.chat_bubble_outline;
-
-    case 'bienvenida':
-    case 'welcome':
-      return Icons.waving_hand_outlined;
-
-    case 'alerta':
-    case 'alert':
-    case 'importante':
-      return Icons.warning_amber_rounded;
-
-    case 'recordatorio':
-    case 'reminder':
-      return Icons.notifications_active;
-
-    // Add subscription-related icons
-    case 'subscription':
-    case 'suscripción':
-    case 'pago':
-    case 'payment':
-    case 'premium':
+    } else if (lowerCaseTitle.contains('suscripción') ||
+        lowerCaseTitle.contains('subscription') ||
+        lowerCaseTitle.contains('pago') ||
+        lowerCaseTitle.contains('payment') ||
+        lowerCaseTitle.contains('premium')) {
       return Icons.credit_card;
-  }
+    }
 
-  // Buscar en el título
-  if (lowerCaseTitle.contains('cita') ||
-      lowerCaseTitle.contains('appointment') ||
-      lowerCaseTitle.contains('consulta')) {
-    return Icons.calendar_today;
-  } else if (lowerCaseTitle.contains('ejercicio') ||
-      lowerCaseTitle.contains('exercise') ||
-      lowerCaseTitle.contains('actividad')) {
-    return Icons.fitness_center;
-  } else if (lowerCaseTitle.contains('motivacion') ||
-      lowerCaseTitle.contains('motivacional') ||
-      lowerCaseTitle.contains('frase')) {
-    return Icons.emoji_objects;
-  } else if (lowerCaseTitle.contains('chat') ||
-      lowerCaseTitle.contains('mensaje')) {
-    return Icons.chat_bubble_outline;
-  } else if (lowerCaseTitle.contains('recordatorio')) {
-    return Icons.notifications_active;
-  } else if (lowerCaseTitle.contains('suscripción') ||
-      lowerCaseTitle.contains('subscription') ||
-      lowerCaseTitle.contains('pago') ||
-      lowerCaseTitle.contains('payment') ||
-      lowerCaseTitle.contains('premium')) {
-    return Icons.credit_card;
+    return Icons.info_outline;
   }
-
-  // Buscar en el cuerpo
-  if (lowerCaseBody.contains('cita') ||
-      lowerCaseBody.contains('appointment') ||
-      lowerCaseBody.contains('consulta')) {
-    return Icons.calendar_today;
-  } else if (lowerCaseBody.contains('ejercicio') ||
-      lowerCaseBody.contains('exercise') ||
-      lowerCaseBody.contains('actividad')) {
-    return Icons.fitness_center;
-  } else if (lowerCaseBody.contains('motivacion') ||
-      lowerCaseBody.contains('motivacional') ||
-      lowerCaseBody.contains('frase')) {
-    return Icons.emoji_objects;
-  } else if (lowerCaseBody.contains('chat') ||
-      lowerCaseBody.contains('mensaje')) {
-    return Icons.chat_bubble_outline;
-  } else if (lowerCaseBody.contains('recordatorio')) {
-    return Icons.notifications_active;
-  } else if (lowerCaseBody.contains('suscripción') ||
-      lowerCaseBody.contains('subscription') ||
-      lowerCaseBody.contains('pago') ||
-      lowerCaseBody.contains('payment') ||
-      lowerCaseBody.contains('premium')) {
-    return Icons.credit_card;
-  }
-
-  return Icons.info_outline;
-}
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
     final formattedDate = formatDate(notification.timestamp);
+    final iconSize = isMobile ? 40.0 : (isTablet ? 44.0 : 48.0);
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
       child: Container(
         decoration: BoxDecoration(
           color: notification.isRead
               ? (isDarkMode ? Colors.grey[850] : Colors.grey[100])
               : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -524,27 +540,32 @@ class NotificationItem extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(isMobile ? 12 : (isTablet ? 14 : 16)),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Ícono
               Container(
-                width: 48,
-                height: 48,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: notification.isRead
                       ? (isDarkMode ? Colors.grey[700] : Colors.grey[200])
                       : theme.colorScheme.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                 ),
                 child: Icon(
                   _getNotificationIcon(notification),
                   color: notification.isRead
                       ? (isDarkMode ? Colors.grey[500] : Colors.grey[600])
                       : theme.colorScheme.secondary,
+                  size: isMobile ? 20 : (isTablet ? 22 : 24),
                 ),
               ),
-              const SizedBox(width: 16),
+              
+              SizedBox(width: isMobile ? 12 : (isTablet ? 14 : 16)),
+              
+              // Contenido
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,41 +573,46 @@ class NotificationItem extends StatelessWidget {
                     Text(
                       notification.title,
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: notification.isRead
-                            ? FontWeight.normal
-                            : FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.body,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: notification.isRead
-                            ? Colors.grey
-                            : theme.textTheme.bodyMedium?.color,
+                        fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                        fontSize: isMobile ? 13 : (isTablet ? 14 : 15),
+                        fontFamily: 'Poppins',
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: isMobile ? 4 : 6),
+                    Text(
+                      notification.body,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: notification.isRead ? Colors.grey : theme.textTheme.bodyMedium?.color,
+                        fontSize: isMobile ? 12 : (isTablet ? 13 : 14),
+                        fontFamily: 'Poppins',
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: isMobile ? 6 : 8),
                     Row(
                       children: [
                         Icon(
                           Icons.access_time,
-                          size: 14,
+                          size: isMobile ? 12 : 14,
                           color: notification.isRead
                               ? (isDarkMode ? Colors.grey[500] : Colors.grey)
                               : theme.colorScheme.secondary,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          formattedDate,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: notification.isRead
-                                ? (isDarkMode ? Colors.grey[500] : Colors.grey)
-                                : theme.colorScheme.secondary,
+                        Flexible(
+                          child: Text(
+                            formattedDate,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: notification.isRead
+                                  ? (isDarkMode ? Colors.grey[500] : Colors.grey)
+                                  : theme.colorScheme.secondary,
+                              fontSize: isMobile ? 10 : (isTablet ? 11 : 12),
+                              fontFamily: 'Poppins',
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -594,13 +620,15 @@ class NotificationItem extends StatelessWidget {
                   ],
                 ),
               ),
+              
+              // Indicador de no leído
               if (!notification.isRead)
                 Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
+                  padding: EdgeInsets.only(left: isMobile ? 8 : 12),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 500),
-                    width: 10,
-                    height: 10,
+                    width: isMobile ? 8 : 10,
+                    height: isMobile ? 8 : 10,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.secondary,
                       shape: BoxShape.circle,

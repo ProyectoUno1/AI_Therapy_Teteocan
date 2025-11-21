@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ai_therapy_teteocan/core/constants/app_constants.dart';
+import 'package:ai_therapy_teteocan/core/utils/responsive_utils.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_bloc.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_event.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/bloc/auth_state.dart';
@@ -26,7 +27,6 @@ import 'package:ai_therapy_teteocan/presentation/payment_history/bloc/payment_hi
 import 'package:ai_therapy_teteocan/presentation/payment_history/view/payment_history_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_screen.dart';
-
 
 class ProfileScreenPatient extends StatefulWidget {
   const ProfileScreenPatient({super.key});
@@ -63,6 +63,14 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    final isTablet = ResponsiveUtils.isTablet(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final orientation = mediaQuery.orientation;
+    
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -86,434 +94,567 @@ class _ProfileScreenPatientState extends State<ProfileScreenPatient> {
             },
           ),
         ],
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 30),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, authState) {
-                  String userName = 'Cargando...';
-                  String userEmail = '';
-                  String profileImageUrl = 'https://picsum.photos/seed/768/600';
-
-                  if (authState.status == AuthStatus.authenticated &&
-                      authState.patient != null) {
-                    userName = authState.patient!.username;
-                    userEmail = authState.patient!.email;
-                  }
-
-                  return Row(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Scaffold(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: _getAdaptivePadding(screenWidth, orientation, isDesktop, isTablet),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isDesktop ? 800 : (isTablet ? 600 : double.infinity),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
-                        width: 250,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            BlocBuilder<ProfileBloc, ProfileState>(
-                              builder: (context, profileState) {
-                                String imageUrl = profileImageUrl;
-
-                                if (profileState is ProfileLoaded &&
-                                    profileState
-                                            .profileData
-                                            .profilePictureUrl !=
-                                        null) {
-                                  imageUrl = profileState
-                                      .profileData
-                                      .profilePictureUrl!;
-                                }
-
-                                return Container(
-                                  width: 56,
-                                  height: 56,
-                                  clipBehavior: Clip.antiAlias,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    image: DecorationImage(
-                                      image: NetworkImage(imageUrl),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                  12,
-                                  0,
-                                  0,
-                                  0,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      userName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Theme.of(
-                                              context,
-                                            ).textTheme.bodyLarge?.color,
-                                          ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      userEmail,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: Theme.of(context).hintColor,
-                                            fontSize: 14,
-                                          ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BlocProvider.value(
-                                value: context.read<ProfileBloc>(),
-                                child: PersonalInfoScreenPatient(),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                      _buildProfileHeader(context, screenWidth, isTablet, screenHeight),
+                      _buildSpacing(24, screenWidth, screenHeight),
+                      _buildUsageSection(context, screenWidth),
+                      _buildSpacing(24, screenWidth, screenHeight),
+                      _buildAccountSection(context, screenWidth),
+                      _buildSpacing(24, screenWidth, screenHeight),
+                      _buildSettingsSection(context, screenWidth),
+                      _buildSpacing(30, screenWidth, screenHeight),
+                      _buildLogoutButton(context, screenWidth, screenHeight),
+                      _buildSpacing(50, screenWidth, screenHeight),
                     ],
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Indicador de uso de IA
-              BlocBuilder<ProfileBloc, ProfileState>(
-                builder: (context, profileState) {
-                  int usedMessages = 0;
-                  int messageLimit = 5;
-                  bool isPremium = false;
-
-                  if (profileState is ProfileLoaded) {
-                    usedMessages = profileState.profileData.usedMessages ?? 0;
-                    isPremium = profileState.profileData.isPremium ?? false;
-                    messageLimit = isPremium ? 99999 : 5;
-                  }
-
-                  return AiUsageLimitIndicator(
-                    used: usedMessages,
-                    limit: messageLimit,
-                    isPremium: isPremium,
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Sección de Cuenta
-              Text(
-                'Cuenta',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).dividerColor.withOpacity(0.5),
                   ),
                 ),
-                child: Column(
-                  children: [
-                    ProfileListItem(
-                      icon: Icons.military_tech_outlined,
-                      text: 'Suscripción',
-                      secondaryText: 'Gestionar Suscripción',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SubscriptionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Theme.of(context).dividerColor.withOpacity(0.5),
-                    ),
-                    ProfileListItem(
-                      icon: Icons.credit_card_outlined,
-                      text: 'Pagos',
-                      secondaryText: 'Ver historial',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => BlocProvider(
-                              create: (context) => PaymentHistoryBloc(
-                                PaymentHistoryRepositoryImpl(),
-                              ),
-                              child: const PaymentHistoryScreen(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
               ),
-              const SizedBox(height: 24),
-
-              // Sección de Configuración
-              Text(
-                'Configuración y Ayuda',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Theme.of(context).dividerColor.withOpacity(0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    ProfileListItem(
-                      icon: Icons.settings_outlined,
-                      text: 'Configuración',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ThemeSettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Theme.of(context).dividerColor.withOpacity(0.5),
-                    ),
-                    ProfileListItem(
-                      icon: Icons.contact_support_outlined,
-                      text: 'Contáctanos',
-                      onTap: () {
-                         Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                SupportScreen(userType: 'patient'),
-                          ),
-                        );
-                      },
-                    ),
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: Theme.of(context).dividerColor.withOpacity(0.5),
-                    ),
-                    ProfileListItem(
-                      icon: Icons.privacy_tip_outlined,
-                      text: 'Políticas de Privacidad',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PrivacyPolicyScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Botón de Cerrar Sesión
-              BlocConsumer<AuthBloc, AuthState>(
-                listener: (context, state) {
-                  if (state.status == AuthStatus.unauthenticated &&
-                      !Navigator.of(context).canPop()) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                      (Route<dynamic> route) => false,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sesión cerrada exitosamente.'),
-                      ),
-                    );
-                  } else if (state.status == AuthStatus.error &&
-                      state.errorMessage != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.errorMessage!),
-                        backgroundColor: AppConstants.errorColor,
-                      ),
-                    );
-                  }
-                },
-                builder: (context, state) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: state.status == AuthStatus.loading
-                          ? null
-                          : () {
-                              _showLogoutConfirmationDialog(context);
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 5,
-                      ),
-                      child: state.status == AuthStatus.loading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'CERRAR SESIÓN',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 50),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNotificationToggle(
-    String title,
-    IconData icon,
-    bool isActive,
-    ValueChanged<bool> onChanged,
-  ) {
-    final Color iconColor = isActive
-        ? AppConstants.accentColor
-        : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-              Colors.grey;
-    final Color textColor = isActive
-        ? Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black
-        : Colors.grey;
+  // ✅ PADDING ADAPTATIVO MEJORADO
+  EdgeInsets _getAdaptivePadding(double screenWidth, Orientation orientation, bool isDesktop, bool isTablet) {
+    if (isDesktop) {
+      return EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.1,
+        vertical: screenWidth * 0.03,
+      );
+    } else if (isTablet) {
+      return EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.05,
+        vertical: screenWidth * 0.025,
+      );
+    } else {
+      return orientation == Orientation.portrait
+          ? EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.04,
+              vertical: screenWidth * 0.02,
+            )
+          : EdgeInsets.symmetric(
+              horizontal: screenWidth * 0.06,
+              vertical: screenWidth * 0.025,
+            );
+    }
+  }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 24),
-              const SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: textColor,
-                  fontFamily: 'Poppins',
-                ),
+  // ✅ ESPACIADO ADAPTATIVO MEJORADO
+  Widget _buildSpacing(double baseHeight, double screenWidth, double screenHeight) {
+    final multiplier = screenWidth > 1200 ? 1.3 : (screenWidth > 600 ? 1.1 : 1.0);
+    final heightRatio = screenHeight / 812; // Base en iPhone 13 height
+    return SizedBox(height: baseHeight * multiplier * heightRatio);
+  }
+
+  // ✅ ENCABEZADO DEL PERFIL MEJORADO CON AUTO-AJUSTE DE TEXTO
+  Widget _buildProfileHeader(BuildContext context, double screenWidth, bool isTablet, double screenHeight) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        String userName = 'Cargando...';
+        String userEmail = '';
+        String profileImageUrl = 'https://picsum.photos/seed/768/600';
+
+        if (authState.status == AuthStatus.authenticated && authState.patient != null) {
+          userName = authState.patient!.username;
+          userEmail = authState.patient!.email;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: isTablet 
+              ? EdgeInsets.all(screenWidth * 0.04)
+              : EdgeInsets.all(screenWidth * 0.045),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(_getResponsiveSize(screenWidth, 12, 16, 20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          Switch(
-            value: isActive,
-            onChanged: onChanged,
-            activeColor: AppConstants.accentColor,
-            inactiveThumbColor: Colors.grey,
-            inactiveTrackColor: Colors.grey.shade300,
-          ),
-        ],
-      ),
-    );
-  }
+          child: Row(
+            children: [
+              // Avatar responsivo
+              BlocBuilder<ProfileBloc, ProfileState>(
+                builder: (context, profileState) {
+                  String imageUrl = profileImageUrl;
+                  if (profileState is ProfileLoaded && profileState.profileData.profilePictureUrl != null) {
+                    imageUrl = profileState.profileData.profilePictureUrl!;
+                  }
 
-  void _showLogoutConfirmationDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text(
-            'Cerrar Sesión',
-            style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            '¿Estás seguro de que quieres cerrar tu sesión?',
-            style: TextStyle(fontFamily: 'Poppins'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(fontFamily: 'Poppins'),
+                  return Container(
+                    width: _getResponsiveSize(screenWidth, 50, 60, 70),
+                    height: _getResponsiveSize(screenWidth, 50, 60, 70),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: NetworkImage(imageUrl),
+                        fit: BoxFit.cover,
+                      ),
+                      border: Border.all(
+                        color: AppConstants.primaryColor.withOpacity(0.2),
+                        width: 2,
+                      ),
+                    ),
+                  );
+                },
               ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            TextButton(
-              child: const Text(
-                'Sí, Cerrar Sesión',
-                style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
+              
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: isTablet ? 20 : 16,
+                    right: 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Nombre con auto-ajuste de texto
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(screenWidth, 14, 16, 18),
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                            fontFamily: 'Poppins',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(height: screenHeight * 0.005),
+                      // Email con auto-ajuste de texto
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          userEmail,
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(screenWidth, 12, 14, 15),
+                            color: Theme.of(context).hintColor,
+                            fontFamily: 'Poppins',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                context.read<AuthBloc>().add(const AuthSignOutRequested());
-              },
-            ),
-          ],
+              
+              // Botón de editar responsivo
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_forward_ios,
+                  size: _getResponsiveSize(screenWidth, 16, 18, 20),
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlocProvider.value(
+                        value: context.read<ProfileBloc>(),
+                        child: PersonalInfoScreenPatient(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
   }
+
+  // ✅ SECCIÓN DE USO DE IA MEJORADA
+  Widget _buildUsageSection(BuildContext context, double screenWidth) {
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, profileState) {
+        int usedMessages = 0;
+        int messageLimit = 5;
+        bool isPremium = false;
+
+        if (profileState is ProfileLoaded) {
+          usedMessages = profileState.profileData.usedMessages ?? 0;
+          isPremium = profileState.profileData.isPremium ?? false;
+          messageLimit = isPremium ? 99999 : 5;
+        }
+
+        return AiUsageLimitIndicator(
+          used: usedMessages,
+          limit: messageLimit,
+          isPremium: isPremium,
+        );
+      },
+    );
+  }
+
+  // ✅ SECCIÓN DE CUENTA MEJORADA
+  Widget _buildAccountSection(BuildContext context, double screenWidth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Cuenta', screenWidth),
+        _buildSpacing(12, screenWidth, MediaQuery.of(context).size.height),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(_getResponsiveSize(screenWidth, 12, 16, 20)),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
+            ),
+          ),
+          child: Column(
+            children: [
+              ProfileListItem(
+                icon: Icons.military_tech_outlined,
+                text: 'Suscripción',
+                secondaryText: 'Gestionar Suscripción',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SubscriptionScreen(),
+                    ),
+                  );
+                },
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              ProfileListItem(
+                icon: Icons.credit_card_outlined,
+                text: 'Pagos',
+                secondaryText: 'Ver historial',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlocProvider(
+                        create: (context) => PaymentHistoryBloc(
+                          PaymentHistoryRepositoryImpl(),
+                        ),
+                        child: const PaymentHistoryScreen(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ SECCIÓN DE CONFIGURACIÓN MEJORADA
+  Widget _buildSettingsSection(BuildContext context, double screenWidth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Configuración y Ayuda', screenWidth),
+        _buildSpacing(12, screenWidth, MediaQuery.of(context).size.height),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(_getResponsiveSize(screenWidth, 12, 16, 20)),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
+            ),
+          ),
+          child: Column(
+            children: [
+              ProfileListItem(
+                icon: Icons.settings_outlined,
+                text: 'Configuración',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ThemeSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              ProfileListItem(
+                icon: Icons.contact_support_outlined,
+                text: 'Contáctanos',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SupportScreen(userType: 'patient'),
+                    ),
+                  );
+                },
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+              ),
+              ProfileListItem(
+                icon: Icons.privacy_tip_outlined,
+                text: 'Políticas de Privacidad',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PrivacyPolicyScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ BOTÓN DE CERRAR SESIÓN MEJORADO
+  Widget _buildLogoutButton(BuildContext context, double screenWidth, double screenHeight) {
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state.status == AuthStatus.unauthenticated && !Navigator.of(context).canPop()) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sesión cerrada exitosamente.'),
+            ),
+          );
+        } else if (state.status == AuthStatus.error && state.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: AppConstants.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return SizedBox(
+          width: double.infinity,
+          height: _getResponsiveSize(screenWidth, 45, 50, 55),
+          child: ElevatedButton(
+            onPressed: state.status == AuthStatus.loading
+                ? null
+                : () {
+                    _showLogoutConfirmationDialog(context, screenWidth, screenHeight);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accentColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(_getResponsiveSize(screenWidth, 12, 16, 20)),
+              ),
+              elevation: 5,
+            ),
+            child: state.status == AuthStatus.loading
+                ? SizedBox(
+                    width: _getResponsiveSize(screenWidth, 20, 24, 28),
+                    height: _getResponsiveSize(screenWidth, 20, 24, 28),
+                    child: const CircularProgressIndicator(color: Colors.white),
+                  )
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'CERRAR SESIÓN',
+                      style: TextStyle(
+                        fontSize: _getResponsiveFontSize(screenWidth, 14, 16, 18),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ✅ TÍTULO DE SECCIÓN MEJORADO
+  Widget _buildSectionTitle(String title, double screenWidth) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: _getResponsiveFontSize(screenWidth, 14, 16, 18),
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).textTheme.bodySmall?.color,
+          fontFamily: 'Poppins',
+        ),
+      ),
+    );
+  }
+
+  // ✅ DIÁLOGO DE CONFIRMACIÓN MEJORADO
+  void _showLogoutConfirmationDialog(BuildContext context, double screenWidth, double screenHeight) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final isTablet = ResponsiveUtils.isTablet(context);
+        
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_getResponsiveSize(screenWidth, 12, 16, 20)),
+          ),
+          child: Padding(
+            padding: isTablet 
+                ? EdgeInsets.all(screenWidth * 0.04)
+                : EdgeInsets.all(screenWidth * 0.05),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(
+                      fontSize: _getResponsiveFontSize(screenWidth, 16, 18, 20),
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.02),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '¿Estás seguro de que quieres cerrar tu sesión?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: _getResponsiveFontSize(screenWidth, 14, 15, 16),
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.03),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(screenWidth, 14, 15, 16),
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                      ),
+                    ),
+                    SizedBox(width: screenWidth * 0.03),
+                    Expanded(
+                      child: ElevatedButton(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Sí, Cerrar Sesión',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(screenWidth, 14, 15, 16),
+                              color: Colors.white,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          context.read<AuthBloc>().add(const AuthSignOutRequested());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ✅ FUNCIONES AUXILIARES PARA TAMAÑOS ADAPTATIVOS
+  double _getResponsiveSize(double screenWidth, double mobile, double tablet, double desktop) {
+    if (screenWidth > 1200) return desktop;
+    if (screenWidth > 600) return tablet;
+    return mobile;
+  }
+
+  double _getResponsiveFontSize(double screenWidth, double mobile, double tablet, double desktop) {
+    if (screenWidth > 1200) return desktop;
+    if (screenWidth > 600) return tablet;
+    return mobile;
+  }
+
+  double _getAvatarSize(double screenWidth) {
+    return _getResponsiveSize(screenWidth, 56, 64, 70);
+  }
+
+  double _getTitleFontSize(double screenWidth) {
+    return _getResponsiveFontSize(screenWidth, 16, 17, 18);
+  }
+
+  double _getSubtitleFontSize(double screenWidth) {
+    return _getResponsiveFontSize(screenWidth, 13, 14, 15);
+  }
+
+  double _getIconSize(double screenWidth) {
+    return _getResponsiveSize(screenWidth, 16, 17, 18);
+  }
+
+  double _getBorderRadius(double screenWidth) {
+    return _getResponsiveSize(screenWidth, 14, 16, 18);
+  }
+
+  double _getButtonHeight(double screenWidth) {
+    return _getResponsiveSize(screenWidth, 48, 52, 56);
+  }
+
+  double _getButtonFontSize(double screenWidth) {
+    return _getResponsiveFontSize(screenWidth, 15, 16, 17);
+  }
 }
-
-
