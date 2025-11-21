@@ -17,6 +17,12 @@ import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_chat
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/patient_metrics_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/shared/approval_status_blocker.dart';
 
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
+
 class PatientManagementScreen extends StatefulWidget {
   const PatientManagementScreen({super.key});
 
@@ -82,252 +88,263 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
 
   @override
   Widget build(BuildContext context) {
-    final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
-    final verticalPadding = ResponsiveUtils.getVerticalPadding(context);
-    final isMobile = ResponsiveUtils.isMobile(context);
-    
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        return ApprovalStatusBlocker(
-          psychologist: authState.psychologist,
-          featureName: 'pacientes',
-          child: Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: BlocListener<PatientManagementBloc, PatientManagementState>(
-              listener: (context, state) {
-                if (state.errorMessage != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.errorMessage!)),
-                  );
-                }
-              },
-              child: BlocBuilder<PatientManagementBloc, PatientManagementState>(
-                builder: (context, state) {
-                  if (state.status == PatientManagementStatus.loading) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (state.status == PatientManagementStatus.error) {
-                    return Center(
-                      child: Text(state.errorMessage ?? 'Ocurrió un error'),
-                    );
-                  } else {
-                    return NestedScrollView(
-                      controller: _scrollController,
-                      headerSliverBuilder: (context, innerBoxIsScrolled) {
-                        return [
-                          // Header con búsqueda
-                          SliverToBoxAdapter(
-                            child: Container(
-                              padding: EdgeInsets.all(horizontalPadding),
-                              color: Theme.of(context).cardColor,
-                              child: Column(
-                                children: [
-                                  // Título
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+    // ENVOLVER TODO EN MediaQuery PARA CONTROLAR EL TEXT SCALE FACTOR
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: Builder(
+        builder: (context) {
+          final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
+          final verticalPadding = ResponsiveUtils.getVerticalPadding(context);
+          final isMobile = ResponsiveUtils.isMobile(context);
+          
+          return BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              return ApprovalStatusBlocker(
+                psychologist: authState.psychologist,
+                featureName: 'pacientes',
+                child: Scaffold(
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  body: BlocListener<PatientManagementBloc, PatientManagementState>(
+                    listener: (context, state) {
+                      if (state.errorMessage != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(state.errorMessage!)),
+                        );
+                      }
+                    },
+                    child: BlocBuilder<PatientManagementBloc, PatientManagementState>(
+                      builder: (context, state) {
+                        if (state.status == PatientManagementStatus.loading) {
+                          return const Center(child: CircularProgressIndicator());
+                        } else if (state.status == PatientManagementStatus.error) {
+                          return Center(
+                            child: Text(state.errorMessage ?? 'Ocurrió un error'),
+                          );
+                        } else {
+                          return NestedScrollView(
+                            controller: _scrollController,
+                            headerSliverBuilder: (context, innerBoxIsScrolled) {
+                              return [
+                                // Header con búsqueda
+                                SliverToBoxAdapter(
+                                  child: Container(
+                                    padding: EdgeInsets.all(horizontalPadding),
+                                    color: Theme.of(context).cardColor,
+                                    child: Column(
+                                      children: [
+                                        // Título
+                                        Row(
                                           children: [
-                                            ResponsiveText(
-                                              'Mis Pacientes',
-                                              baseFontSize: isMobile ? 20 : 24,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            ResponsiveSpacing(4),
-                                            ResponsiveText(
-                                              '${state.allPatients.length} pacientes registrados',
-                                              baseFontSize: 12,
-                                              color: Colors.grey[600],
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  ResponsiveText(
+                                                    'Mis Pacientes',
+                                                    baseFontSize: isMobile ? 20 : 24,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  ResponsiveSpacing(4),
+                                                  ResponsiveText(
+                                                    '${state.allPatients.length} pacientes registrados',
+                                                    baseFontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  ResponsiveSpacing(16),
-                                  // Búsqueda
-                                  TextField(
-                                    controller: _searchController,
-                                    decoration: InputDecoration(
-                                      hintText: 'Buscar pacientes...',
-                                      hintStyle: TextStyle(
-                                        color: Theme.of(context).textTheme.bodySmall?.color,
-                                        fontFamily: 'Poppins',
-                                        fontSize: ResponsiveUtils.getFontSize(context, 14),
-                                      ),
-                                      prefixIcon: Icon(
-                                        Icons.search,
-                                        color: Theme.of(context).textTheme.bodySmall?.color,
-                                        size: ResponsiveUtils.getIconSize(context, 24),
-                                      ),
-                                      filled: true,
-                                      fillColor: Theme.of(context).brightness == Brightness.light
-                                          ? Colors.grey[100]
-                                          : Colors.grey[800],
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          ResponsiveUtils.getBorderRadius(context, 25),
-                                        ),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: horizontalPadding,
-                                        vertical: verticalPadding,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // TabBar con métricas
-                          SliverToBoxAdapter(
-                            child: Container(
-                              color: Theme.of(context).cardColor,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: horizontalPadding,
-                                      vertical: verticalPadding,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        ResponsiveText(
-                                          'Vista por Estados',
-                                          baseFontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const Spacer(),
-                                        GestureDetector(
-                                          onTap: () => _navigateToMetrics(context, null, state),
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: ResponsiveUtils.getHorizontalSpacing(context, 12),
-                                              vertical: ResponsiveUtils.getVerticalSpacing(context, 6),
+                                        ResponsiveSpacing(16),
+                                        // Búsqueda
+                                        TextField(
+                                          controller: _searchController,
+                                          decoration: InputDecoration(
+                                            hintText: 'Buscar pacientes...',
+                                            hintStyle: TextStyle(
+                                              color: Theme.of(context).textTheme.bodySmall?.color,
+                                              fontFamily: 'Poppins',
+                                              fontSize: ResponsiveUtils.getFontSize(context, 14),
                                             ),
-                                            decoration: BoxDecoration(
-                                              color: AppConstants.primaryColor.withOpacity(0.1),
+                                            prefixIcon: Icon(
+                                              Icons.search,
+                                              color: Theme.of(context).textTheme.bodySmall?.color,
+                                              size: ResponsiveUtils.getIconSize(context, 24),
+                                            ),
+                                            filled: true,
+                                            fillColor: Theme.of(context).brightness == Brightness.light
+                                                ? Colors.grey[100]
+                                                : Colors.grey[800],
+                                            border: OutlineInputBorder(
                                               borderRadius: BorderRadius.circular(
-                                                ResponsiveUtils.getBorderRadius(context, 20),
+                                                ResponsiveUtils.getBorderRadius(context, 25),
                                               ),
-                                              border: Border.all(
-                                                color: AppConstants.primaryColor.withOpacity(0.3),
-                                              ),
+                                              borderSide: BorderSide.none,
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.analytics,
-                                                  size: ResponsiveUtils.getIconSize(context, 16),
-                                                  color: AppConstants.primaryColor,
-                                                ),
-                                                ResponsiveHorizontalSpacing(4),
-                                                ResponsiveText(
-                                                  'Ver Métricas',
-                                                  baseFontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppConstants.primaryColor,
-                                                ),
-                                              ],
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: horizontalPadding,
+                                              vertical: verticalPadding,
                                             ),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  TabBar(
-                                    controller: _tabController,
-                                    labelColor: AppConstants.primaryColor,
-                                    unselectedLabelColor: Colors.grey,
-                                    indicatorColor: AppConstants.primaryColor,
-                                    isScrollable: true,
-                                    labelStyle: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: ResponsiveUtils.getFontSize(context, 13),
+                                ),
+
+                                // TabBar con métricas
+                                SliverToBoxAdapter(
+                                  child: Container(
+                                    color: Theme.of(context).cardColor,
+                                    child: Column(
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: horizontalPadding,
+                                            vertical: verticalPadding,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: ResponsiveText(
+                                                  'Vista por Estados',
+                                                  baseFontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () => _navigateToMetrics(context, null, state),
+                                                child: Container(
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: ResponsiveUtils.getHorizontalSpacing(context, 12),
+                                                    vertical: ResponsiveUtils.getVerticalSpacing(context, 6),
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppConstants.primaryColor.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(
+                                                      ResponsiveUtils.getBorderRadius(context, 20),
+                                                    ),
+                                                    border: Border.all(
+                                                      color: AppConstants.primaryColor.withOpacity(0.3),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.analytics,
+                                                        size: ResponsiveUtils.getIconSize(context, 16),
+                                                        color: AppConstants.primaryColor,
+                                                      ),
+                                                      ResponsiveHorizontalSpacing(4),
+                                                      ResponsiveText(
+                                                        'Ver Métricas',
+                                                        baseFontSize: 12,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: AppConstants.primaryColor,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        TabBar(
+                                          controller: _tabController,
+                                          labelColor: AppConstants.primaryColor,
+                                          unselectedLabelColor: Colors.grey,
+                                          indicatorColor: AppConstants.primaryColor,
+                                          isScrollable: true,
+                                          labelStyle: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: ResponsiveUtils.getFontSize(context, 13),
+                                          ),
+                                          unselectedLabelStyle: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.normal,
+                                            fontSize: ResponsiveUtils.getFontSize(context, 13),
+                                          ),
+                                          tabs: [
+                                            _buildClickableTab(
+                                              context,
+                                              'Todos',
+                                              state.filteredPatients.length,
+                                              Icons.people,
+                                              null,
+                                              state,
+                                            ),
+                                            _buildClickableTab(
+                                              context,
+                                              'Nuevos',
+                                              _getNewPatients(state.filteredPatients).length,
+                                              Icons.person_add,
+                                              null,
+                                              state,
+                                            ),
+                                            _buildClickableTab(
+                                              context,
+                                              'En tratamiento',
+                                              _getRecurrentPatients(state.filteredPatients).length,
+                                              Icons.favorite,
+                                              PatientStatus.inTreatment,
+                                              state,
+                                            ),
+                                            _buildClickableTab(
+                                              context,
+                                              'Completados',
+                                              _getPatientsByStatus(
+                                                state.filteredPatients,
+                                                PatientStatus.completed,
+                                              ).length,
+                                              Icons.check_circle,
+                                              PatientStatus.completed,
+                                              state,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    unselectedLabelStyle: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.normal,
-                                      fontSize: ResponsiveUtils.getFontSize(context, 13),
-                                    ),
-                                    tabs: [
-                                      _buildClickableTab(
-                                        context,
-                                        'Todos',
-                                        state.filteredPatients.length,
-                                        Icons.people,
-                                        null,
-                                        state,
-                                      ),
-                                      _buildClickableTab(
-                                        context,
-                                        'Nuevos',
-                                        _getNewPatients(state.filteredPatients).length,
-                                        Icons.person_add,
-                                        null,
-                                        state,
-                                      ),
-                                      _buildClickableTab(
-                                        context,
-                                        'En tratamiento',
-                                        _getRecurrentPatients(state.filteredPatients).length,
-                                        Icons.favorite,
-                                        PatientStatus.inTreatment,
-                                        state,
-                                      ),
-                                      _buildClickableTab(
-                                        context,
-                                        'Completados',
-                                        _getPatientsByStatus(
-                                          state.filteredPatients,
-                                          PatientStatus.completed,
-                                        ).length,
-                                        Icons.check_circle,
-                                        PatientStatus.completed,
-                                        state,
-                                      ),
-                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ];
+                            },
+                            body: TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildPatientsList(context, state.filteredPatients),
+                                _buildPatientsList(
+                                  context,
+                                  _getNewPatients(state.filteredPatients),
+                                ),
+                                _buildPatientsList(
+                                  context,
+                                  _getRecurrentPatients(state.filteredPatients),
+                                ),
+                                _buildPatientsList(
+                                  context,
+                                  _getPatientsByStatus(
+                                    state.filteredPatients,
+                                    PatientStatus.completed,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ];
+                          );
+                        }
                       },
-                      body: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildPatientsList(context, state.filteredPatients),
-                          _buildPatientsList(
-                            context,
-                            _getNewPatients(state.filteredPatients),
-                          ),
-                          _buildPatientsList(
-                            context,
-                            _getRecurrentPatients(state.filteredPatients),
-                          ),
-                          _buildPatientsList(
-                            context,
-                            _getPatientsByStatus(
-                              state.filteredPatients,
-                              PatientStatus.completed,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-          ),
-        );
-      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -478,9 +495,11 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
               baseFontSize: 16,
               fontWeight: FontWeight.w600,
               overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
-          if (!isMobileSmall)
+          if (!isMobileSmall) ...[
+            const SizedBox(width: 8),
             Flexible(
               child: Container(
                 padding: EdgeInsets.symmetric(
@@ -498,9 +517,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                   baseFontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: _getStatusColor(patient.status),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
+          ],
         ],
       ),
       subtitle: Column(
@@ -513,6 +535,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
               baseFontSize: 14,
               color: Theme.of(context).textTheme.bodySmall?.color,
               overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ResponsiveSpacing(4),
           Row(
@@ -523,12 +546,13 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                 color: Colors.grey[600],
               ),
               ResponsiveHorizontalSpacing(4),
-              Expanded(
+              Flexible(
                 child: ResponsiveText(
                   '${patient.totalSessions ?? 0} sesiones',
                   baseFontSize: 12,
                   color: Colors.grey[600],
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               if (patient.nextAppointment != null && !isMobileSmall) ...[
@@ -539,12 +563,13 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                   color: AppConstants.primaryColor,
                 ),
                 ResponsiveHorizontalSpacing(4),
-                Expanded(
+                Flexible(
                   child: ResponsiveText(
                     'Próxima: ${_formatDate(patient.nextAppointment!)}',
                     baseFontSize: 12,
                     color: AppConstants.primaryColor,
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -561,7 +586,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                     children: [
                       Icon(Icons.chat_bubble_outline, size: iconSize),
                       ResponsiveHorizontalSpacing(8),
-                      const Text('Chat'),
+                      const Flexible(
+                        child: Text(
+                          'Chat',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   onTap: () {
@@ -582,7 +612,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                     children: [
                       Icon(Icons.calendar_today, size: iconSize),
                       ResponsiveHorizontalSpacing(8),
-                      const Text('Citas'),
+                      const Flexible(
+                        child: Text(
+                          'Citas',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   onTap: () {
@@ -604,7 +639,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                     children: [
                       Icon(Icons.arrow_forward, size: iconSize),
                       ResponsiveHorizontalSpacing(8),
-                      const Text('Detalles'),
+                      const Flexible(
+                        child: Text(
+                          'Detalles',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   onTap: () async {
@@ -761,7 +801,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ResponsiveText(title, baseFontSize: 12),
+                  ResponsiveText(
+                    title,
+                    baseFontSize: 12,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: ResponsiveUtils.getHorizontalSpacing(context, 6),
@@ -782,6 +827,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen>
                       color: status != null
                           ? _getStatusColor(status)
                           : AppConstants.primaryColor,
+                      maxLines: 1,
                     ),
                   ),
                 ],

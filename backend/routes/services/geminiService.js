@@ -1,4 +1,4 @@
-// backend/routes/services/geminiService.js (CORREGIDO)
+// backend/routes/services/geminiService.js (CORREGIDO - ERROR 500 RESUELTO)
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const GEMINI_MODEL = "gemini-2.5-flash"; 
+const GEMINI_MODEL = "gemini-2.0-flash-exp"; 
 
 /**
  * Genera una respuesta de chat usando Gemini AI
@@ -20,6 +20,8 @@ async function getGeminiChatResponse(messages) {
         const conversationHistory = messages.slice(1, -1); 
         const currentUserMessage = messages[messages.length - 1]; 
 
+        console.log(`📊 Procesando ${conversationHistory.length} mensajes de historial`);
+
         // Configurar el modelo
         const model = genAI.getGenerativeModel({ 
             model: GEMINI_MODEL,
@@ -28,11 +30,13 @@ async function getGeminiChatResponse(messages) {
 
         // ✅ Convertir y limpiar historial
         let geminiHistory = conversationHistory
-            .filter(msg => !msg.isWelcomeMessage)
+            .filter(msg => !msg.isWelcomeMessage) // Eliminar mensaje de bienvenida
             .map(msg => ({
                 role: msg.isAI ? 'model' : 'user',
                 parts: [{ text: msg.content }],
             }));
+
+        console.log(`📋 Historial inicial: ${geminiHistory.length} mensajes`);
 
         // ✅ CRÍTICO: Asegurar que comienza con 'user'
         while (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
@@ -50,9 +54,16 @@ async function getGeminiChatResponse(messages) {
             return true;
         });
 
-        console.log(`📊 Historial preparado: ${geminiHistory.length} mensajes`);
+        // ✅ Si el historial termina con 'model', eliminar el último
+        if (geminiHistory.length > 0 && geminiHistory[geminiHistory.length - 1].role === 'model') {
+            console.warn('⚠️ Eliminando último mensaje "model" del historial');
+            geminiHistory.pop();
+        }
 
-        // Iniciar chat
+        console.log(`✅ Historial limpio: ${geminiHistory.length} mensajes`);
+        console.log(`📝 Mensaje actual: "${currentUserMessage.content.substring(0, 50)}..."`);
+
+        // Iniciar chat con historial limpio
         const chat = model.startChat({
             history: geminiHistory,
             generationConfig: {
@@ -63,9 +74,14 @@ async function getGeminiChatResponse(messages) {
             },
         });
 
+        // Enviar mensaje del usuario
         const result = await chat.sendMessage(currentUserMessage.content);
         const response = result.response;
 
+        // ✅ FIX: Declarar la variable aiText
+        let aiText = '';
+
+        // Extraer texto de la respuesta
         if (typeof response.text === 'function') {
             aiText = response.text();
         } 
@@ -84,7 +100,7 @@ async function getGeminiChatResponse(messages) {
         // Validar que la respuesta no esté vacía
         if (!aiText || aiText.trim() === '') {
             if (response.promptFeedback) {
-                console.error('Feedback del prompt:', response.promptFeedback);
+                console.error('⚠️ Feedback del prompt:', response.promptFeedback);
                 
                 if (response.promptFeedback.blockReason) {
                     return 'Disculpa, no puedo responder a ese mensaje debido a restricciones de contenido. ¿Podrías reformularlo de otra manera?';
@@ -94,10 +110,11 @@ async function getGeminiChatResponse(messages) {
             return 'Disculpa, tuve un problema al procesar tu mensaje. ¿Podrías intentar de nuevo?';
         }
 
+        console.log(`✅ Respuesta generada: "${aiText.substring(0, 50)}..."`);
         return aiText.trim();
 
     } catch (error) {
-        console.error("\n❌ ERROR CRÍTICO:", error.message);
+        console.error("\n❌ ERROR CRÍTICO EN GEMINI:", error.message);
         console.error("Stack trace:", error.stack);
         
         // Errores específicos de la API
@@ -105,12 +122,17 @@ async function getGeminiChatResponse(messages) {
             throw new Error('Error de configuración: API key inválida o no configurada');
         }
         
-        if (error.message.includes('quota')) {
+        if (error.message.includes('quota') || error.message.includes('rate limit')) {
             throw new Error('Servicio temporalmente no disponible. Intenta más tarde.');
         }
         
         if (error.message.includes('SAFETY')) {
             return 'Lo siento, no puedo responder a ese tipo de contenido. ¿Hay algo más en lo que pueda ayudarte?';
+        }
+
+        if (error.message.includes('500')) {
+            console.error('❌ Error 500: Problema con el historial o estructura del mensaje');
+            throw new Error('Error al procesar la conversación. Por favor, intenta de nuevo.');
         }
 
         // Error genérico
@@ -131,10 +153,11 @@ function validateGeminiConfig() {
         return false;
     }
     
-    console.log('✅ Configuración validada correctamente');
+    console.log('✅ Configuración de Gemini validada correctamente');
     return true;
 }
 
+// Validar configuración al iniciar
 validateGeminiConfig();
 
 export {

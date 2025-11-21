@@ -18,6 +18,12 @@ import 'package:ai_therapy_teteocan/presentation/theme/views/theme_settings_scre
 import 'package:ai_therapy_teteocan/presentation/shared/support_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/bank_info_screen.dart';
 
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
+
 class ProfileScreenPsychologist extends StatefulWidget {
   const ProfileScreenPsychologist({super.key});
   
@@ -29,152 +35,152 @@ class ProfileScreenPsychologist extends StatefulWidget {
 class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: ResponsiveUtils.getContentMargin(context),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ResponsiveSpacing(30),
-          
-          // Header con información del psicólogo
-          _buildProfileHeader(),
-          
-          ResponsiveSpacing(24),
-          
-          // Sección Perfil Profesional
-          _buildSection(
-            title: 'Perfil Profesional',
-            children: [
-              ProfileListItem(
-                icon: Icons.work_outline,
-                text: 'Información profesional',
-                secondaryText: 'Editar perfil',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const ProfessionalInfoSetupScreen(),
-                    ),
-                  );
-                },
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-              ProfileListItem(
-                icon: Icons.star_outline,
-                text: 'Reseñas',
-                secondaryText: 'Ver calificaciones',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const PsychologistReviewsScreenPsychologist(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          
-          ResponsiveSpacing(24),
-          
-          // Sección Cuenta
-          _buildSection(
-            title: 'Cuenta',
-            children: [
-              ProfileListItem(
-                icon: Icons.account_balance_wallet_outlined,
-                text: 'Información de pagos',
-                secondaryText: 'Gestionar cobros',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BankInfoScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          
-          ResponsiveSpacing(24),
-          
-          // Sección Configuración
-          _buildSection(
-            title: 'Configuración',
-            children: [
-              ProfileListItem(
-                icon: Icons.palette_outlined,
-                text: 'Apariencia',
-                secondaryText: 'Tema y colores',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ThemeSettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-              
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-              ProfileListItem(
-                icon: Icons.help_outline,
-                text: 'Soporte',
-                secondaryText: 'Ayuda y contacto',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SupportScreen(userType: 'psychologist'),
-                    ),
-                  );
-                },
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
-              ),
-              ProfileListItem(
-                icon: Icons.policy_outlined,
-                text: 'Política de privacidad',
-                secondaryText: 'Términos y condiciones',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PrivacyPolicyScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          
-          ResponsiveSpacing(32),
-          
-          // Botón de cerrar sesión mejorado
-          _buildLogoutButton(),
-          
-          ResponsiveSpacing(50),
-        ],
+    // ENVOLVER TODO EN MediaQuery PARA CONTROLAR EL TEXT SCALE FACTOR
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: SingleChildScrollView(
+        padding: ResponsiveUtils.getContentMargin(context),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ResponsiveSpacing(30),
+            
+            // Header con información del psicólogo
+            _buildProfileHeader(),
+            
+            ResponsiveSpacing(24),
+            
+            // Sección Perfil Profesional
+            _buildSection(
+              title: 'Perfil Profesional',
+              children: [
+                ProfileListItem(
+                  icon: Icons.work_outline,
+                  text: 'Información profesional',
+                  secondaryText: 'Editar perfil',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const ProfessionalInfoSetupScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.star_outline,
+                  text: 'Reseñas',
+                  secondaryText: 'Ver calificaciones',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const PsychologistReviewsScreenPsychologist(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            
+            ResponsiveSpacing(24),
+            
+            // Sección Cuenta
+            _buildSection(
+              title: 'Cuenta',
+              children: [
+                ProfileListItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  text: 'Información de pagos',
+                  secondaryText: 'Gestionar cobros',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BankInfoScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            
+            ResponsiveSpacing(24),
+            
+            // Sección Configuración
+            _buildSection(
+              title: 'Configuración',
+              children: [
+                ProfileListItem(
+                  icon: Icons.palette_outlined,
+                  text: 'Apariencia',
+                  secondaryText: 'Tema y colores',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ThemeSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.help_outline,
+                  text: 'Soporte',
+                  secondaryText: 'Ayuda y contacto',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SupportScreen(userType: 'psychologist'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                ),
+                ProfileListItem(
+                  icon: Icons.policy_outlined,
+                  text: 'Política de privacidad',
+                  secondaryText: 'Términos y condiciones',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            
+            ResponsiveSpacing(32),
+            
+            // Botón de cerrar sesión mejorado
+            _buildLogoutButton(),
+            
+            ResponsiveSpacing(50),
+          ],
+        ),
       ),
     );
   }
@@ -460,100 +466,105 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              ResponsiveUtils.getBorderRadius(context, 20),
-            ),
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: _getConstrainedTextScaleFactor(context),
           ),
-          child: Container(
-            width: dialogWidth,
-            padding: ResponsiveUtils.getCardPadding(context),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(
-                    ResponsiveUtils.getIconSize(context, 12),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                ResponsiveUtils.getBorderRadius(context, 20),
+              ),
+            ),
+            child: Container(
+              width: dialogWidth,
+              padding: ResponsiveUtils.getCardPadding(context),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(
+                      ResponsiveUtils.getIconSize(context, 12),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.logout,
+                      color: Colors.red,
+                      size: ResponsiveUtils.getIconSize(context, 32),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
+                  ResponsiveSpacing(16),
+                  ResponsiveText(
+                    'Cerrar Sesión',
+                    baseFontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    textAlign: TextAlign.center,
                   ),
-                  child: Icon(
-                    Icons.logout,
-                    color: Colors.red,
-                    size: ResponsiveUtils.getIconSize(context, 32),
+                  ResponsiveSpacing(8),
+                  ResponsiveText(
+                    '¿Estás seguro de que deseas cerrar sesión?',
+                    baseFontSize: 14,
+                    color: Colors.grey[600],
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                ResponsiveSpacing(16),
-                ResponsiveText(
-                  'Cerrar Sesión',
-                  baseFontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  textAlign: TextAlign.center,
-                ),
-                ResponsiveSpacing(8),
-                ResponsiveText(
-                  '¿Estás seguro de que deseas cerrar sesión?',
-                  baseFontSize: 14,
-                  color: Colors.grey[600],
-                  textAlign: TextAlign.center,
-                ),
-                ResponsiveSpacing(24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: ResponsiveUtils.getButtonHeight(context),
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey[300]!),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                ResponsiveUtils.getBorderRadius(context, 10),
+                  ResponsiveSpacing(24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: ResponsiveUtils.getButtonHeight(context),
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.grey[300]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  ResponsiveUtils.getBorderRadius(context, 10),
+                                ),
                               ),
                             ),
-                          ),
-                          child: ResponsiveText(
-                            'Cancelar',
-                            baseFontSize: 14,
-                            color: Colors.grey[600],
+                            child: ResponsiveText(
+                              'Cancelar',
+                              baseFontSize: 14,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    ResponsiveHorizontalSpacing(12),
-                    Expanded(
-                      child: SizedBox(
-                        height: ResponsiveUtils.getButtonHeight(context),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop();
-                            context.read<AuthBloc>().add(
-                              const AuthSignOutRequested(),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                ResponsiveUtils.getBorderRadius(context, 10),
+                      ResponsiveHorizontalSpacing(12),
+                      Expanded(
+                        child: SizedBox(
+                          height: ResponsiveUtils.getButtonHeight(context),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              context.read<AuthBloc>().add(
+                                const AuthSignOutRequested(),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  ResponsiveUtils.getBorderRadius(context, 10),
+                                ),
                               ),
                             ),
-                          ),
-                          child: ResponsiveText(
-                            'Cerrar Sesión',
-                            baseFontSize: 14,
-                            color: Colors.white,
+                            child: ResponsiveText(
+                              'Cerrar Sesión',
+                              baseFontSize: 14,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -561,8 +572,8 @@ class _ProfileScreenPsychologistState extends State<ProfileScreenPsychologist> {
     );
   }
 }
-// Añadir esta clase al final de profile_screen_psychologist.dart
 
+// Pantalla de información personal
 class PersonalInfoScreenPsychologist extends StatelessWidget {
   final Color primaryColor = AppConstants.primaryColor;
   final Color accentColor = AppConstants.accentColor;
@@ -572,205 +583,210 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: ResponsiveText(
-          'Información Personal',
-          baseFontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        backgroundColor: accentColor,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-            size: ResponsiveUtils.getIconSize(context, 20),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        elevation: 0,
+    // ENVOLVER TODO EN MediaQuery PARA CONTROLAR EL TEXT SCALE FACTOR
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
       ),
-      body: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, authState) {
-          String fullName = 'Cargando...';
-          String email = '';
-          String phoneNumber = '';
-          String dateOfBirth = '00/00/0000';
-          String? profileImageUrl;
+      child: Scaffold(
+        appBar: AppBar(
+          title: ResponsiveText(
+            'Información Personal',
+            baseFontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+          backgroundColor: accentColor,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios,
+              color: Colors.white,
+              size: ResponsiveUtils.getIconSize(context, 20),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+        ),
+        body: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, authState) {
+            String fullName = 'Cargando...';
+            String email = '';
+            String phoneNumber = '';
+            String dateOfBirth = '00/00/0000';
+            String? profileImageUrl;
 
-          if (authState.status == AuthStatus.authenticated &&
-              authState.psychologist != null) {
-            final psychologist = authState.psychologist!;
-            
-            fullName = psychologist.fullName ?? psychologist.username;
-            email = psychologist.email;
-            phoneNumber = psychologist.phoneNumber ?? 'No registrado';
-            profileImageUrl = psychologist.profilePictureUrl;
+            if (authState.status == AuthStatus.authenticated &&
+                authState.psychologist != null) {
+              final psychologist = authState.psychologist!;
+              
+              fullName = psychologist.fullName ?? psychologist.username;
+              email = psychologist.email;
+              phoneNumber = psychologist.phoneNumber ?? 'No registrado';
+              profileImageUrl = psychologist.profilePictureUrl;
 
-            if (psychologist.dateOfBirth != null) {
-              try {
-                final date = psychologist.dateOfBirth is Timestamp
-                    ? (psychologist.dateOfBirth as Timestamp).toDate()
-                    : DateTime.parse(psychologist.dateOfBirth.toString());
-                dateOfBirth = DateFormat('dd/MM/yyyy').format(date);
-              } catch (e) {
-                dateOfBirth = 'No registrado';
+              if (psychologist.dateOfBirth != null) {
+                try {
+                  final date = psychologist.dateOfBirth is Timestamp
+                      ? (psychologist.dateOfBirth as Timestamp).toDate()
+                      : DateTime.parse(psychologist.dateOfBirth.toString());
+                  dateOfBirth = DateFormat('dd/MM/yyyy').format(date);
+                } catch (e) {
+                  dateOfBirth = 'No registrado';
+                }
               }
             }
-          }
 
-          return SingleChildScrollView(
-            padding: ResponsiveUtils.getContentMargin(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ResponsiveSpacing(24),
-                
-                // Profile image section
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: ResponsiveUtils.getIconSize(context, 100),
-                        height: ResponsiveUtils.getIconSize(context, 100),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: lightAccentColor,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                            ? ClipOval(
-                                child: Image.network(
-                                  profileImageUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(
-                                      Icons.person,
-                                      size: ResponsiveUtils.getIconSize(context, 60),
-                                      color: Colors.white,
-                                    );
-                                  },
-                                ),
-                              )
-                            : Icon(
-                                Icons.person,
-                                size: ResponsiveUtils.getIconSize(context, 60),
-                                color: Colors.white,
+            return SingleChildScrollView(
+              padding: ResponsiveUtils.getContentMargin(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ResponsiveSpacing(24),
+                  
+                  // Profile image section
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: ResponsiveUtils.getIconSize(context, 100),
+                          height: ResponsiveUtils.getIconSize(context, 100),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: lightAccentColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                      ),
-                      ResponsiveSpacing(10),
-                      ResponsiveText(
-                        'Foto de perfil',
-                        baseFontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                ResponsiveSpacing(30),
-                
-                ResponsiveText(
-                  'INFORMACIÓN PERSONAL',
-                  baseFontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-                
-                ResponsiveSpacing(10),
-                
-                _buildInfoField(
-                  context,
-                  'Nombre completo',
-                  fullName,
-                  isEditable: false,
-                ),
-                _buildInfoField(
-                  context,
-                  'Correo electrónico',
-                  email,
-                  isEditable: false,
-                ),
-                _buildInfoField(
-                  context,
-                  'Número de teléfono',
-                  phoneNumber,
-                  isEditable: true,
-                ),
-                _buildInfoField(
-                  context,
-                  'Fecha de nacimiento',
-                  dateOfBirth,
-                  isEditable: false,
-                ),
-                
-                ResponsiveSpacing(40),
-                
-                Center(
-                  child: SizedBox(
-                    width: ResponsiveUtils.isMobile(context) 
-                        ? double.infinity 
-                        : 300,
-                    height: ResponsiveUtils.getButtonHeight(context),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                Icon(
-                                  Icons.info,
+                            ],
+                          ),
+                          child: profileImageUrl != null && profileImageUrl.isNotEmpty
+                              ? ClipOval(
+                                  child: Image.network(
+                                    profileImageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.person,
+                                        size: ResponsiveUtils.getIconSize(context, 60),
+                                        color: Colors.white,
+                                      );
+                                    },
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.person,
+                                  size: ResponsiveUtils.getIconSize(context, 60),
                                   color: Colors.white,
-                                  size: ResponsiveUtils.getIconSize(context, 20),
                                 ),
-                                ResponsiveHorizontalSpacing(8),
-                                const Expanded(
-                                  child: Text('Funcionalidad en desarrollo'),
-                                ),
-                              ],
+                        ),
+                        ResponsiveSpacing(10),
+                        ResponsiveText(
+                          'Foto de perfil',
+                          baseFontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  ResponsiveSpacing(30),
+                  
+                  ResponsiveText(
+                    'INFORMACIÓN PERSONAL',
+                    baseFontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                  
+                  ResponsiveSpacing(10),
+                  
+                  _buildInfoField(
+                    context,
+                    'Nombre completo',
+                    fullName,
+                    isEditable: false,
+                  ),
+                  _buildInfoField(
+                    context,
+                    'Correo electrónico',
+                    email,
+                    isEditable: false,
+                  ),
+                  _buildInfoField(
+                    context,
+                    'Número de teléfono',
+                    phoneNumber,
+                    isEditable: true,
+                  ),
+                  _buildInfoField(
+                    context,
+                    'Fecha de nacimiento',
+                    dateOfBirth,
+                    isEditable: false,
+                  ),
+                  
+                  ResponsiveSpacing(40),
+                  
+                  Center(
+                    child: SizedBox(
+                      width: ResponsiveUtils.isMobile(context) 
+                          ? double.infinity 
+                          : 300,
+                      height: ResponsiveUtils.getButtonHeight(context),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(
+                                    Icons.info,
+                                    color: Colors.white,
+                                    size: ResponsiveUtils.getIconSize(context, 20),
+                                  ),
+                                  ResponsiveHorizontalSpacing(8),
+                                  const Expanded(
+                                    child: Text('Funcionalidad en desarrollo'),
+                                  ),
+                                ],
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              ResponsiveUtils.getBorderRadius(context, 8),
                             ),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            ResponsiveUtils.getBorderRadius(context, 8),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveUtils.getHorizontalSpacing(context, 40),
+                            vertical: ResponsiveUtils.getVerticalSpacing(context, 15),
                           ),
                         ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ResponsiveUtils.getHorizontalSpacing(context, 40),
-                          vertical: ResponsiveUtils.getVerticalSpacing(context, 15),
+                        child: ResponsiveText(
+                          'Guardar Cambios',
+                          baseFontSize: 16,
+                          color: Colors.white,
                         ),
-                      ),
-                      child: ResponsiveText(
-                        'Guardar Cambios',
-                        baseFontSize: 16,
-                        color: Colors.white,
                       ),
                     ),
                   ),
-                ),
-                ResponsiveSpacing(24),
-              ],
-            ),
-          );
-        },
+                  ResponsiveSpacing(24),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-      
     );
   }
 
@@ -822,83 +838,6 @@ class PersonalInfoScreenPsychologist extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
- 
-
-  void _showHelpDialog(BuildContext context, String section, String message) {
-    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              ResponsiveUtils.getBorderRadius(context, 15),
-            ),
-          ),
-          child: Container(
-            width: dialogWidth,
-            padding: ResponsiveUtils.getCardPadding(context),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(
-                    ResponsiveUtils.getIconSize(context, 12),
-                  ),
-                  decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.help_outline,
-                    color: accentColor,
-                    size: ResponsiveUtils.getIconSize(context, 32),
-                  ),
-                ),
-                ResponsiveSpacing(16),
-                ResponsiveText(
-                  'Duda Sección $section',
-                  baseFontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  textAlign: TextAlign.center,
-                ),
-                ResponsiveSpacing(12),
-                ResponsiveText(
-                  message,
-                  baseFontSize: 14,
-                  color: Colors.grey[600],
-                  textAlign: TextAlign.center,
-                ),
-                ResponsiveSpacing(24),
-                SizedBox(
-                  width: double.infinity,
-                  height: ResponsiveUtils.getButtonHeight(context),
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          ResponsiveUtils.getBorderRadius(context, 10),
-                        ),
-                      ),
-                    ),
-                    child: ResponsiveText(
-                      'Entendido',
-                      baseFontSize: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

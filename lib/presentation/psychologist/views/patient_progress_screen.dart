@@ -65,7 +65,7 @@ class _PatientProgressScreenState extends State<PatientProgressScreen> {
         ),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${await _getAuthToken()}', // ✅ Necesitas obtener el token
+          'Authorization': 'Bearer ${await _getAuthToken()}',
         },
       );
 
@@ -185,6 +185,8 @@ Future<String> _getAuthToken() async {
                 fontFamily: 'Poppins',
                 fontSize: 18,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               widget.patientName,
@@ -193,6 +195,8 @@ Future<String> _getAuthToken() async {
                 fontSize: 12,
                 fontFamily: 'Poppins',
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -266,6 +270,8 @@ Future<String> _getAuthToken() async {
               fontFamily: 'Poppins',
               fontSize: 13,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -277,38 +283,73 @@ Future<String> _getAuthToken() async {
     final emotionDays = _emotions.length;
     final exerciseDays = _exercises.length;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildSummaryCard(
-            'Emociones',
-            '$emotionDays',
-            'registros',
-            Icons.favorite,
-            Colors.pink,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildSummaryCard(
-            'Ejercicios',
-            '$exerciseDays',
-            'completados',
-            Icons.fitness_center,
-            Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildSummaryCard(
-            'Intensidad',
-            avgIntensity.toStringAsFixed(1),
-            'promedio',
-            Icons.trending_up,
-            Colors.orange,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Si el ancho es muy pequeño, usar Column en lugar de Row
+        if (constraints.maxWidth < 400) {
+          return Column(
+            children: [
+              _buildSummaryCard(
+                'Emociones',
+                '$emotionDays',
+                'registros',
+                Icons.favorite,
+                Colors.pink,
+              ),
+              const SizedBox(height: 12),
+              _buildSummaryCard(
+                'Ejercicios',
+                '$exerciseDays',
+                'completados',
+                Icons.fitness_center,
+                Colors.blue,
+              ),
+              const SizedBox(height: 12),
+              _buildSummaryCard(
+                'Intensidad',
+                avgIntensity.toStringAsFixed(1),
+                'promedio',
+                Icons.trending_up,
+                Colors.orange,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Emociones',
+                '$emotionDays',
+                'registros',
+                Icons.favorite,
+                Colors.pink,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryCard(
+                'Ejercicios',
+                '$exerciseDays',
+                'completados',
+                Icons.fitness_center,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryCard(
+                'Intensidad',
+                avgIntensity.toStringAsFixed(1),
+                'promedio',
+                Icons.trending_up,
+                Colors.orange,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -338,6 +379,8 @@ Future<String> _getAuthToken() async {
               color: color,
               fontFamily: 'Poppins',
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             subtitle,
@@ -347,6 +390,8 @@ Future<String> _getAuthToken() async {
               fontFamily: 'Poppins',
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
@@ -358,6 +403,8 @@ Future<String> _getAuthToken() async {
               fontFamily: 'Poppins',
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -631,20 +678,31 @@ Future<String> _getAuthToken() async {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _getEmotionLabel(entry.key),
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        _getEmotionLabel(entry.key),
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text(
-                      '${entry.value} ($percentage%)',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.grey[600],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      flex: 1,
+                      child: Text(
+                        '${entry.value} ($percentage%)',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.end,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -665,6 +723,7 @@ Future<String> _getAuthToken() async {
     );
   }
 
+  // 🔥 ESTE ES EL MÉTODO CRÍTICO QUE CAUSABA EL OVERFLOW (línea 684)
   Widget _buildChartContainer({
     required String title,
     required IconData icon,
@@ -681,17 +740,22 @@ Future<String> _getAuthToken() async {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ SOLUCIÓN: Usar Row con Expanded para evitar overflow
           Row(
             children: [
-              Icon(icon, color: color),
+              Icon(icon, color: color, size: 20),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                  fontFamily: 'Poppins',
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    fontFamily: 'Poppins',
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -722,6 +786,9 @@ Future<String> _getAuthToken() async {
                 color: Colors.grey[600],
                 fontFamily: 'Poppins',
               ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

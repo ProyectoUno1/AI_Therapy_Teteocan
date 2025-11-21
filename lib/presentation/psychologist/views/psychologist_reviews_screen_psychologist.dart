@@ -26,15 +26,38 @@ class _PsychologistReviewsScreenPsychologistState
   String? _error;
   int _selectedFilter = 0;
   String? _psychologistId;
+  
+  // Para controlar el scroll y ocultar el header
+  final ScrollController _scrollController = ScrollController();
+  bool _showHeader = true;
 
   @override
   void initState() {
     super.initState();
     timeago.setLocaleMessages('es', timeago.EsMessages());
 
+    // Listener para ocultar/mostrar header al hacer scroll
+    _scrollController.addListener(_onScroll);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadReviews();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Ocultar header cuando se hace scroll hacia abajo
+    if (_scrollController.offset > 50 && _showHeader) {
+      setState(() => _showHeader = false);
+    } else if (_scrollController.offset <= 50 && !_showHeader) {
+      setState(() => _showHeader = true);
+    }
   }
 
   Future<void> _loadReviews() async {
@@ -109,6 +132,8 @@ class _PsychologistReviewsScreenPsychologistState
           baseFontSize: 18,
           fontWeight: FontWeight.w600,
           color: Colors.black,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           if (!_isLoading)
@@ -141,6 +166,8 @@ class _PsychologistReviewsScreenPsychologistState
               'Cargando reseñas...',
               baseFontSize: 14,
               color: Colors.grey,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -155,11 +182,35 @@ class _PsychologistReviewsScreenPsychologistState
       return _buildEmptyState();
     }
 
-    return Column(
-      children: [
-        _buildStatsHeader(),
-        _buildFilterChips(),
-        Expanded(child: _buildReviewsList()),
+    // ✅ CustomScrollView para mejor control del scroll
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        // Header con estadísticas (se oculta al hacer scroll)
+        SliverToBoxAdapter(
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 200),
+            height: _showHeader ? null : 0,
+            child: AnimatedOpacity(
+              duration: Duration(milliseconds: 200),
+              opacity: _showHeader ? 1.0 : 0.0,
+              child: _showHeader ? _buildStatsHeader() : SizedBox.shrink(),
+            ),
+          ),
+        ),
+        
+        // Filter chips (siempre visible)
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _FilterHeaderDelegate(
+            child: _buildFilterChips(),
+            minHeight: 70,
+            maxHeight: 70,
+          ),
+        ),
+        
+        // Lista de reseñas
+        _buildReviewsSliverList(),
       ],
     );
   }
@@ -179,12 +230,15 @@ class _PsychologistReviewsScreenPsychologistState
           isMobileSmall
               ? Column(
                   children: [
+                    // Rating principal
                     Column(
                       children: [
                         ResponsiveText(
                           averageRating.toStringAsFixed(1),
                           baseFontSize: 48,
                           fontWeight: FontWeight.bold,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         StarRatingDisplay(
                           rating: averageRating,
@@ -198,10 +252,13 @@ class _PsychologistReviewsScreenPsychologistState
                           '$totalRatings reseñas',
                           baseFontSize: 14,
                           color: Colors.grey[600],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                     ResponsiveSpacing(24),
+                    // Distribución de ratings
                     Column(
                       children: [
                         for (int i = 5; i >= 1; i--)
@@ -215,6 +272,7 @@ class _PsychologistReviewsScreenPsychologistState
                   ],
                 )
               : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -223,6 +281,8 @@ class _PsychologistReviewsScreenPsychologistState
                             averageRating.toStringAsFixed(1),
                             baseFontSize: 48,
                             fontWeight: FontWeight.bold,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           StarRatingDisplay(
                             rating: averageRating,
@@ -236,6 +296,8 @@ class _PsychologistReviewsScreenPsychologistState
                             '$totalRatings reseñas',
                             baseFontSize: 14,
                             color: Colors.grey[600],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -270,10 +332,15 @@ class _PsychologistReviewsScreenPsychologistState
       ),
       child: Row(
         children: [
-          ResponsiveText(
-            '$stars',
-            baseFontSize: 12,
-            fontWeight: FontWeight.w500,
+          SizedBox(
+            width: 15,
+            child: ResponsiveText(
+              '$stars',
+              baseFontSize: 12,
+              fontWeight: FontWeight.w500,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+            ),
           ),
           ResponsiveHorizontalSpacing(4),
           Icon(
@@ -303,6 +370,8 @@ class _PsychologistReviewsScreenPsychologistState
               baseFontSize: 12,
               color: Colors.grey[600],
               textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -313,78 +382,105 @@ class _PsychologistReviewsScreenPsychologistState
   Widget _buildFilterChips() {
     return Container(
       color: Colors.white,
-      height: 60,
       padding: EdgeInsets.symmetric(
         horizontal: ResponsiveUtils.getHorizontalPadding(context),
-        vertical: ResponsiveUtils.getVerticalPadding(context),
+        vertical: 8,
       ),
-      child: ListView(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        children: [
-          _buildFilterChip('Todas', 0),
-          for (int i = 5; i >= 1; i--) _buildFilterChip('$i ⭐', i),
-        ],
+        child: Row(
+          children: [
+            _buildFilterChip('Todas', 0),
+            SizedBox(width: 8),
+            _buildFilterChip('5 ⭐', 5),
+            SizedBox(width: 8),
+            _buildFilterChip('4 ⭐', 4),
+            SizedBox(width: 8),
+            _buildFilterChip('3 ⭐', 3),
+            SizedBox(width: 8),
+            _buildFilterChip('2 ⭐', 2),
+            SizedBox(width: 8),
+            _buildFilterChip('1 ⭐', 1),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFilterChip(String label, int value) {
     final isSelected = _selectedFilter == value;
-    return Padding(
-      padding: EdgeInsets.only(
-        right: ResponsiveUtils.getHorizontalSpacing(context, 8),
-      ),
-      child: FilterChip(
-        label: ResponsiveText(
-          label,
-          baseFontSize: 12,
-          color: isSelected ? Colors.white : AppConstants.lightAccentColor,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedFilter = value;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppConstants.lightAccentColor 
+              : AppConstants.lightAccentColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppConstants.lightAccentColor,
+            width: 1,
+          ),
         ),
-        selected: isSelected,
-        selectedColor: AppConstants.lightAccentColor,
-        backgroundColor: AppConstants.lightAccentColor.withOpacity(0.1),
-        onSelected: (selected) {
-          setState(() {
-            _selectedFilter = value;
-          });
-        },
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: isSelected ? Colors.white : AppConstants.lightAccentColor,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildReviewsList() {
+  Widget _buildReviewsSliverList() {
     final filteredReviews = _filteredReviews;
     final horizontalPadding = ResponsiveUtils.getHorizontalPadding(context);
 
     if (filteredReviews.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.filter_list_off,
-              size: ResponsiveUtils.getIconSize(context, 64),
-              color: Colors.grey[400],
-            ),
-            ResponsiveSpacing(16),
-            ResponsiveText(
-              'No hay reseñas con este filtro',
-              baseFontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ],
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.filter_list_off,
+                size: ResponsiveUtils.getIconSize(context, 64),
+                color: Colors.grey[400],
+              ),
+              ResponsiveSpacing(16),
+              ResponsiveText(
+                'No hay reseñas con este filtro',
+                baseFontSize: 16,
+                color: Colors.grey[600],
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
+    return SliverPadding(
       padding: EdgeInsets.all(horizontalPadding),
-      itemCount: filteredReviews.length,
-      itemBuilder: (context, index) {
-        final review = filteredReviews[index];
-        return _ReviewCard(review: review, showAnonymous: true);
-      },
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final review = filteredReviews[index];
+            return _ReviewCard(review: review, showAnonymous: true);
+          },
+          childCount: filteredReviews.length,
+        ),
+      ),
     );
   }
 
@@ -408,6 +504,8 @@ class _PsychologistReviewsScreenPsychologistState
               baseFontSize: 18,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(8),
             ResponsiveText(
@@ -415,6 +513,8 @@ class _PsychologistReviewsScreenPsychologistState
               baseFontSize: 14,
               color: Colors.grey[500],
               textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -442,6 +542,8 @@ class _PsychologistReviewsScreenPsychologistState
               baseFontSize: 18,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(8),
             ResponsiveText(
@@ -449,6 +551,8 @@ class _PsychologistReviewsScreenPsychologistState
               baseFontSize: 14,
               color: Colors.grey[500],
               textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(16),
             ElevatedButton.icon(
@@ -471,6 +575,37 @@ class _PsychologistReviewsScreenPsychologistState
         ),
       ),
     );
+  }
+}
+
+// ✅ Delegate para mantener el filtro fijo al hacer scroll
+class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double minHeight;
+  final double maxHeight;
+
+  _FilterHeaderDelegate({
+    required this.child,
+    required this.minHeight,
+    required this.maxHeight,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_FilterHeaderDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }
 
@@ -555,11 +690,15 @@ class _ReviewCard extends StatelessWidget {
                         displayName,
                         baseFontSize: 14,
                         fontWeight: FontWeight.w600,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       ResponsiveText(
                         timeago.format(review.ratedAt, locale: 'es'),
                         baseFontSize: 12,
                         color: Colors.grey[600],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -579,6 +718,8 @@ class _ReviewCard extends StatelessWidget {
                 review.comment!,
                 baseFontSize: 14,
                 color: Colors.grey[800],
+                maxLines: 10,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ],

@@ -1,12 +1,12 @@
 // backend/services/chatService.js
-// ✅ VERSIÓN CORREGIDA: Sin encriptación + manejo robusto de errores
+// ✅ VERSIÓN CORREGIDA: Incluye historial completo + límite de mensajes
 
 import { db } from '../../firebase-admin.js';
 import admin from 'firebase-admin';
 import { getGeminiChatResponse } from './geminiService.js';
 
 const FREE_MESSAGE_LIMIT = 5;
-const MAX_HISTORY_MESSAGES = 20;
+const MAX_HISTORY_MESSAGES = 20; // Limitar historial para evitar errores
 
 // ==================== VALIDAR LÍMITE DE MENSAJES ====================
 const validateMessageLimit = async (userId) => {
@@ -57,7 +57,7 @@ async function getOrCreateAIChatId(userId) {
         }
 
         if (!doc.exists) {
-            console.log('📝 Creando nuevo chat de IA...');
+            console.log('🆕 Creando nuevo chat de IA...');
             
             const welcomeMessageContent = `¡Hola ${userName}! 👋 Soy Aurora, tu asistente de terapia.\n\nEstoy aquí para escucharte y apoyarte en lo que necesites. Este es un espacio seguro donde puedes expresar tus pensamientos y emociones libremente.\n\n¿Cómo te sientes hoy? ✨`;
             
@@ -67,7 +67,7 @@ async function getOrCreateAIChatId(userId) {
                 chatType: 'ai_chat',
                 status: 'active',
                 lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
-                lastMessage: welcomeMessageContent, // ✅ TEXTO PLANO
+                lastMessage: welcomeMessageContent,
                 lastSenderId: 'aurora',
             });
 
@@ -75,7 +75,7 @@ async function getOrCreateAIChatId(userId) {
             
             const welcomeMessage = {
                 senderId: 'aurora',
-                content: welcomeMessageContent, // ✅ TEXTO PLANO
+                content: welcomeMessageContent,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isAI: true,
                 type: 'text',
@@ -99,13 +99,56 @@ async function getOrCreateAIChatId(userId) {
     }
 }
 
+// ==================== CARGAR HISTORIAL DE MENSAJES ====================
+async function loadChatHistory(chatId, maxMessages = MAX_HISTORY_MESSAGES) {
+    try {
+        console.log(`📚 Cargando historial del chat: ${chatId} (máx: ${maxMessages} mensajes)`);
+        
+        const messagesCollection = db
+            .collection('ai_chats')
+            .doc(chatId)
+            .collection('messages');
+
+        // Obtener últimos N mensajes ordenados por timestamp
+        const snapshot = await messagesCollection
+            .orderBy('timestamp', 'desc')
+            .limit(maxMessages)
+            .get();
+
+        console.log(`📊 ${snapshot.size} mensajes encontrados en historial`);
+
+        // Convertir a array y revertir orden (más antiguo primero)
+        const messages = snapshot.docs
+            .map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    senderId: data.senderId,
+                    content: data.content,
+                    timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+                    isAI: data.isAI || false,
+                    isWelcomeMessage: data.isWelcomeMessage || false,
+                };
+            })
+            .reverse(); // Del más antiguo al más reciente
+
+        return messages;
+
+    } catch (error) {
+        console.error('❌ Error cargando historial:', error);
+        return []; // Devolver array vacío en caso de error
+    }
+}
+
 // ==================== PROCESAR MENSAJE DE USUARIO ====================
 async function processUserMessage(userId, plainMessage) { 
     const startTime = Date.now();
     
     try {
+        console.log(`\n${'='.repeat(60)}`);
         console.log(`📨 Procesando mensaje de usuario ${userId}`);
         console.log(`💬 Mensaje: "${plainMessage.substring(0, 50)}..."`);
+        console.log(`${'='.repeat(60)}\n`);
         
         // 1. Validar límite
         const isLimitReached = await validateMessageLimit(userId);
@@ -118,11 +161,11 @@ async function processUserMessage(userId, plainMessage) {
         const chatRef = db.collection('ai_chats').doc(chatId);
         const messagesCollection = chatRef.collection('messages');
         
-        // 3. Guardar mensaje del usuario (texto plano)
+        // 3. Guardar mensaje del usuario
         console.log('💾 Guardando mensaje del usuario...');
         const userMessageData = {
             senderId: userId,
-            content: plainMessage, // ✅ TEXTO PLANO
+            content: plainMessage,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: false,
             type: 'text',
@@ -130,9 +173,9 @@ async function processUserMessage(userId, plainMessage) {
         await messagesCollection.add(userMessageData);
         console.log('✅ Mensaje del usuario guardado');
         
-        // 4. Actualizar documento principal (usar SET con merge por si no existe)
+        // 4. Actualizar documento principal
         await chatRef.set({
-            lastMessage: plainMessage, // ✅ TEXTO PLANO
+            lastMessage: plainMessage,
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: userId,
             patientId: userId,
@@ -140,18 +183,41 @@ async function processUserMessage(userId, plainMessage) {
             status: 'active',
         }, { merge: true });
 
-        // 5. Obtener respuesta de Gemini
-        console.log('🤖 Solicitando respuesta de Gemini...');
+        // 5. 🔥 CARGAR HISTORIAL COMPLETO
+        console.log('📚 Cargando historial de conversación...');
+        const chatHistory = await loadChatHistory(chatId, MAX_HISTORY_MESSAGES);
+        
+        console.log(`📊 Historial cargado: ${chatHistory.length} mensajes`);
+        for (let i = 0; i < Math.min(chatHistory.length, 5); i++) {
+            const msg = chatHistory[i];
+            console.log(`   ${msg.isAI ? '🤖' : '👤'} ${msg.content.substring(0, 40)}...`);
+        }
+
+        // 6. 🔥 CONSTRUIR MENSAJES PARA GEMINI (incluye historial)
         const systemInstruction = {
             isAI: false,
             content: getAuroraSystemPrompt(),
         };
 
+        // Convertir historial a formato Gemini
+        const historyMessages = chatHistory
+            .filter(msg => !msg.isWelcomeMessage) // Excluir mensaje de bienvenida
+            .map(msg => ({
+                isAI: msg.isAI,
+                content: msg.content,
+            }));
+
+        // Agregar mensaje actual del usuario
         const messagesForGemini = [
             systemInstruction,
+            ...historyMessages,
             { isAI: false, content: plainMessage }
         ];
 
+        console.log(`📤 Enviando a Gemini: ${messagesForGemini.length} mensajes (1 system + ${historyMessages.length} historial + 1 actual)`);
+
+        // 7. Obtener respuesta de Gemini
+        console.log('🤖 Solicitando respuesta de Gemini...');
         const aiResponseContent = await getGeminiChatResponse(messagesForGemini);
 
         if (!aiResponseContent || aiResponseContent.trim() === '') {
@@ -161,10 +227,10 @@ async function processUserMessage(userId, plainMessage) {
 
         console.log(`✅ Respuesta de IA recibida: "${aiResponseContent.substring(0, 50)}..."`);
 
-        // 6. Guardar respuesta de IA (texto plano)
+        // 8. Guardar respuesta de IA
         const aiMessageData = {
             senderId: 'aurora',
-            content: aiResponseContent, // ✅ TEXTO PLANO
+            content: aiResponseContent,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             isAI: true,
             type: 'text',
@@ -172,14 +238,14 @@ async function processUserMessage(userId, plainMessage) {
         await messagesCollection.add(aiMessageData);
         console.log('✅ Respuesta de IA guardada');
         
-        // 7. Actualizar documento principal con respuesta de IA
+        // 9. Actualizar documento principal con respuesta de IA
         await chatRef.update({
-            lastMessage: aiResponseContent, // ✅ TEXTO PLANO
+            lastMessage: aiResponseContent,
             lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
             lastSenderId: 'aurora',
         });
 
-        // 8. Actualizar contador de mensajes
+        // 10. Actualizar contador de mensajes
         const userRef = db.collection('patients').doc(userId);
         await userRef.update({
             messageCount: admin.firestore.FieldValue.increment(1),
@@ -187,13 +253,13 @@ async function processUserMessage(userId, plainMessage) {
         });
 
         const processingTime = Date.now() - startTime;
-        console.log(`✅ Mensaje procesado exitosamente en ${processingTime}ms`);
+        console.log(`\n✅ Mensaje procesado exitosamente en ${processingTime}ms\n`);
 
         return aiResponseContent;
 
     } catch (error) {
         const processingTime = Date.now() - startTime;
-        console.error(`❌ Error después de ${processingTime}ms:`, error.message);
+        console.error(`\n❌ Error después de ${processingTime}ms:`, error.message);
         console.error('Stack trace:', error.stack);
 
         if (error.message === 'LIMIT_REACHED') {
@@ -204,10 +270,10 @@ async function processUserMessage(userId, plainMessage) {
     }
 }
 
-// ==================== CARGAR MENSAJES ====================
+// ==================== CARGAR MENSAJES (PARA CLIENTE) ====================
 async function loadChatMessages(chatId) {
     try {
-        console.log(`📥 Cargando mensajes del chat: ${chatId}`);
+        console.log(`📥 Cargando mensajes del chat para cliente: ${chatId}`);
         
         const messagesCollection = db
             .collection('ai_chats')
@@ -220,14 +286,13 @@ async function loadChatMessages(chatId) {
 
         console.log(`✅ ${snapshot.size} mensajes encontrados`);
 
-        // ✅ Devolver mensajes en texto plano
         const messages = snapshot.docs.map(doc => {
             const data = doc.data();
 
             return {
                 id: doc.id,
                 senderId: data.senderId,
-                content: data.content, // ✅ YA ES TEXTO PLANO
+                content: data.content,
                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
                 isAI: data.isAI || false,
                 type: data.type || 'text',
@@ -241,6 +306,8 @@ async function loadChatMessages(chatId) {
         throw error;
     }
 }
+
+// ==================== SYSTEM PROMPT ====================
 function getAuroraSystemPrompt() {
     return `# AURORA - Asistente Terapéutica de IA Especializada
 
@@ -469,5 +536,6 @@ export {
     getOrCreateAIChatId,
     processUserMessage,
     loadChatMessages,
+    loadChatHistory, // Exportar para uso interno
     validateMessageLimit,
 };

@@ -102,52 +102,32 @@ class PatientMetricsScreen extends StatelessWidget {
                     baseFontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppConstants.primaryColor,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
             ResponsiveSpacing(20),
-            ResponsiveUtils.isMobileSmall(context)
-                ? Column(
-                    children: [
-                      _buildOverviewItem(
-                        context, 'Total Pacientes', totalPatients.toString(),
-                        Icons.people, AppConstants.primaryColor,
-                      ),
-                      ResponsiveSpacing(16),
-                      _buildOverviewItem(
-                        context, 'Activos', activePatients.toString(),
-                        Icons.trending_up, Colors.green,
-                      ),
-                      ResponsiveSpacing(16),
-                      _buildOverviewItem(
-                        context, 'Prom. Sesiones', averageSessions.toStringAsFixed(1),
-                        Icons.analytics, Colors.blue,
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: _buildOverviewItem(
-                          context, 'Total Pacientes', totalPatients.toString(),
-                          Icons.people, AppConstants.primaryColor,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildOverviewItem(
-                          context, 'Activos', activePatients.toString(),
-                          Icons.trending_up, Colors.green,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildOverviewItem(
-                          context, 'Prom. Sesiones', averageSessions.toStringAsFixed(1),
-                          Icons.analytics, Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
+            // Siempre usar Column para mejor adaptabilidad
+            Column(
+              children: [
+                _buildOverviewItem(
+                  context, 'Total Pacientes', totalPatients.toString(),
+                  Icons.people, AppConstants.primaryColor,
+                ),
+                ResponsiveSpacing(16),
+                _buildOverviewItem(
+                  context, 'Activos', activePatients.toString(),
+                  Icons.trending_up, Colors.green,
+                ),
+                ResponsiveSpacing(16),
+                _buildOverviewItem(
+                  context, 'Prom. Sesiones', averageSessions.toStringAsFixed(1),
+                  Icons.analytics, Colors.blue,
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -183,11 +163,15 @@ class PatientMetricsScreen extends StatelessWidget {
           baseFontSize: 24,
           fontWeight: FontWeight.bold,
           color: color,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         ResponsiveText(
           label,
           baseFontSize: 12,
           textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -209,6 +193,8 @@ class PatientMetricsScreen extends StatelessWidget {
               'Distribución por Estado',
               baseFontSize: 18,
               fontWeight: FontWeight.w600,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(16),
             ...PatientStatus.values.map((status) => 
@@ -241,6 +227,7 @@ class PatientMetricsScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Indicador de color
           Container(
             width: 12,
             height: 12,
@@ -250,7 +237,9 @@ class PatientMetricsScreen extends StatelessWidget {
             ),
           ),
           ResponsiveHorizontalSpacing(12),
+          // Información flexible
           Expanded(
+            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -258,20 +247,31 @@ class PatientMetricsScreen extends StatelessWidget {
                   status.displayName,
                   baseFontSize: 14,
                   fontWeight: FontWeight.w600,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 ResponsiveText(
                   '$count pacientes (${percentage.toStringAsFixed(1)}%)',
                   baseFontSize: 12,
                   color: Colors.grey[600],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          ResponsiveText(
-            count.toString(),
-            baseFontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
+          // Contador con ancho flexible
+          Flexible(
+            flex: 1,
+            child: ResponsiveText(
+              count.toString(),
+              baseFontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -292,7 +292,6 @@ class PatientMetricsScreen extends StatelessWidget {
 
     final borderRadius = ResponsiveUtils.getBorderRadius(context, 16);
     final cardPadding = ResponsiveUtils.getCardPadding(context);
-    final isMobileSmall = ResponsiveUtils.isMobileSmall(context);
 
     return Card(
       elevation: 2,
@@ -306,50 +305,27 @@ class PatientMetricsScreen extends StatelessWidget {
               'Métricas de Actividad',
               baseFontSize: 18,
               fontWeight: FontWeight.w600,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(16),
-            if (isMobileSmall)
-              Column(
-                children: [
-                  _buildActivityItem(context, 'Citas Próximas',
-                    patientsWithUpcomingAppointments.toString(), Icons.schedule, Colors.orange),
-                  ResponsiveSpacing(16),
-                  _buildActivityItem(context, 'Total Sesiones',
-                    totalSessions.toString(), Icons.event_note, Colors.purple),
-                  ResponsiveSpacing(16),
-                  _buildActivityItem(context, 'Con Email',
-                    patientsWithEmail.toString(), Icons.email, Colors.teal),
-                  ResponsiveSpacing(16),
-                  _buildActivityItem(context, 'Completados',
-                    patients.where((p) => p.status == PatientStatus.completed).length.toString(),
-                    Icons.check_circle, Colors.green),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: _buildActivityItem(context, 'Citas Próximas',
-                        patientsWithUpcomingAppointments.toString(), Icons.schedule, Colors.orange)),
-                      ResponsiveHorizontalSpacing(8),
-                      Expanded(child: _buildActivityItem(context, 'Total Sesiones',
-                        totalSessions.toString(), Icons.event_note, Colors.purple)),
-                    ],
-                  ),
-                  ResponsiveSpacing(16),
-                  Row(
-                    children: [
-                      Expanded(child: _buildActivityItem(context, 'Con Email',
-                        patientsWithEmail.toString(), Icons.email, Colors.teal)),
-                      ResponsiveHorizontalSpacing(8),
-                      Expanded(child: _buildActivityItem(context, 'Completados',
-                        patients.where((p) => p.status == PatientStatus.completed).length.toString(),
-                        Icons.check_circle, Colors.green)),
-                    ],
-                  ),
-                ],
-              ),
+            // Siempre usar Column para evitar overflows
+            Column(
+              children: [
+                _buildActivityItem(context, 'Citas Próximas',
+                  patientsWithUpcomingAppointments.toString(), Icons.schedule, Colors.orange),
+                ResponsiveSpacing(16),
+                _buildActivityItem(context, 'Total Sesiones',
+                  totalSessions.toString(), Icons.event_note, Colors.purple),
+                ResponsiveSpacing(16),
+                _buildActivityItem(context, 'Con Email',
+                  patientsWithEmail.toString(), Icons.email, Colors.teal),
+                ResponsiveSpacing(16),
+                _buildActivityItem(context, 'Completados',
+                  patients.where((p) => p.status == PatientStatus.completed).length.toString(),
+                  Icons.check_circle, Colors.green),
+              ],
+            ),
           ],
         ),
       ),
@@ -386,11 +362,15 @@ class PatientMetricsScreen extends StatelessWidget {
             baseFontSize: 24,
             fontWeight: FontWeight.bold,
             color: color,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           ResponsiveText(
             label,
             baseFontSize: 12,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -413,6 +393,8 @@ class PatientMetricsScreen extends StatelessWidget {
               'Insights y Recomendaciones',
               baseFontSize: 18,
               fontWeight: FontWeight.w600,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             ResponsiveSpacing(16),
             ..._generateInsights(context),
@@ -486,13 +468,16 @@ class PatientMetricsScreen extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Ícono con tamaño fijo
           Icon(
             icon,
             color: color,
             size: ResponsiveUtils.getIconSize(context, 24),
           ),
           ResponsiveHorizontalSpacing(12),
+          // Contenido flexible
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,11 +487,15 @@ class PatientMetricsScreen extends StatelessWidget {
                   baseFontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: color,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 ResponsiveSpacing(4),
                 ResponsiveText(
                   description,
                   baseFontSize: 12,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

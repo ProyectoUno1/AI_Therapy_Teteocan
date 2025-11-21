@@ -20,6 +20,33 @@ import 'package:ai_therapy_teteocan/presentation/shared/bloc/notification_state.
 import 'package:ai_therapy_teteocan/presentation/psychologist/views/professional_info_setup_screen.dart';
 import 'package:ai_therapy_teteocan/presentation/auth/views/terms_and_conditions_screen.dart';
 
+// HELPER FUNCTION PARA LIMITAR EL TEXT SCALE FACTOR
+double _getConstrainedTextScaleFactor(BuildContext context, {double maxScale = 1.3}) {
+  final textScaleFactor = MediaQuery.textScaleFactorOf(context);
+  return textScaleFactor.clamp(1.0, maxScale);
+}
+
+// FUNCIÓN PARA OBTENER TAMAÑO DE FUENTE RESPONSIVO
+double _getResponsiveFontSize(BuildContext context, double baseSize) {
+  final width = MediaQuery.of(context).size.width;
+  final height = MediaQuery.of(context).size.height;
+  final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+  final textScaleFactor = _getConstrainedTextScaleFactor(context);
+  
+  // Ajustar por orientación y tamaño de pantalla
+  double scale = isLandscape ? (width / 800) : (width / 375);
+  
+  // Limitar el escalado para texto grande
+  scale = scale.clamp(0.85, 1.2);
+  
+  // Reducir más en landscape con texto grande
+  if (isLandscape && textScaleFactor > 1.2) {
+    scale *= 0.85;
+  }
+  
+  return (baseSize * scale).clamp(baseSize * 0.75, baseSize * 1.15);
+}
+
 class PsychologistHomeScreen extends StatefulWidget {
   final int? initialTabIndex;
   final bool showProfessionalSetupDialog;
@@ -135,130 +162,173 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaleFactor: _getConstrainedTextScaleFactor(context),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF82c4c3).withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.workspace_premium,
-                color: Color(0xFF82c4c3),
-                size: 30,
-              ),
+        child: Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                '¡Bienvenido!',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(_getResponsiveFontSize(context, 16)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(_getResponsiveFontSize(context, 8)),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF82c4c3).withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.workspace_premium,
+                            color: const Color(0xFF82c4c3),
+                            size: _getResponsiveFontSize(context, 30),
+                          ),
+                        ),
+                        SizedBox(width: _getResponsiveFontSize(context, 12)),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '¡Bienvenido!',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.bold,
+                                fontSize: _getResponsiveFontSize(context, 18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: _getResponsiveFontSize(context, 16)),
+                    Flexible(
+                      child: Text(
+                        'Para comenzar a atender pacientes, necesitas completar tu perfil profesional.',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: _getResponsiveFontSize(context, 14),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: _getResponsiveFontSize(context, 16)),
+                    Container(
+                      padding: EdgeInsets.all(_getResponsiveFontSize(context, 12)),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDialogItem(context, Icons.school, 'Educación y certificaciones'),
+                          SizedBox(height: _getResponsiveFontSize(context, 8)),
+                          _buildDialogItem(context, Icons.category, 'Especialidades'),
+                          SizedBox(height: _getResponsiveFontSize(context, 8)),
+                          _buildDialogItem(context, Icons.access_time, 'Horarios de atención'),
+                          SizedBox(height: _getResponsiveFontSize(context, 8)),
+                          _buildDialogItem(context, Icons.attach_money, 'Tarifa de consulta'),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: _getResponsiveFontSize(context, 16)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Más tarde',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontFamily: 'Poppins',
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: _getResponsiveFontSize(context, 8)),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ProfessionalInfoSetupScreen(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF82c4c3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: _getResponsiveFontSize(context, 24),
+                                vertical: _getResponsiveFontSize(context, 12),
+                              ),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Completar ahora',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Para comenzar a atender pacientes, necesitas completar tu perfil profesional.',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDialogItem(Icons.school, 'Educación y certificaciones'),
-                  const SizedBox(height: 8),
-                  _buildDialogItem(Icons.category, 'Especialidades'),
-                  const SizedBox(height: 8),
-                  _buildDialogItem(Icons.access_time, 'Horarios de atención'),
-                  const SizedBox(height: 8),
-                  _buildDialogItem(Icons.attach_money, 'Tarifa de consulta'),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text(
-              'Más tarde',
-              style: TextStyle(
-                color: Colors.grey,
-                fontFamily: 'Poppins',
-              ),
-            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ProfessionalInfoSetupScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF82c4c3),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-            ),
-            child: const Text(
-              'Completar ahora',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildDialogItem(IconData icon, String text) {
+  Widget _buildDialogItem(BuildContext context, IconData icon, String text) {
     return Row(
       children: [
         Icon(
           icon,
-          size: 18,
+          size: _getResponsiveFontSize(context, 18),
           color: const Color(0xFF82c4c3),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: _getResponsiveFontSize(context, 8)),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 13,
-              fontFamily: 'Poppins',
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: _getResponsiveFontSize(context, 13),
+                fontFamily: 'Poppins',
+              ),
             ),
           ),
         ),
@@ -300,62 +370,60 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     final psychologistId = authState.psychologist?.username ?? '';
     final widgetOptions = _getWidgetOptions(psychologistId);
     
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: Theme.of(context).appBarTheme.elevation ?? 0,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Hola, $userName',
-              style: TextStyle(
-                color: Theme.of(context).appBarTheme.titleTextStyle?.color,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('👋', style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        actions: [
-          BlocBuilder<NotificationBloc, NotificationState>(
-            builder: (context, state) {
-              int unreadCount = 0;
-              if (state is NotificationLoaded) {
-                unreadCount = state.notifications.where((n) => !n.isRead).length;
-              }
-              
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.notifications_none,
-                      color: Theme.of(context).appBarTheme.iconTheme?.color,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _getConstrainedTextScaleFactor(context),
+      ),
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+          elevation: Theme.of(context).appBarTheme.elevation ?? 0,
+          centerTitle: true,
+          title: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    'Hola, $userName',
+                    style: TextStyle(
+                      color: Theme.of(context).appBarTheme.titleTextStyle?.color,
+                      fontSize: _getResponsiveFontSize(context, 18),
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
                     ),
-                    onPressed: () async {
-                      final user = _auth.currentUser;
-                      if (user != null) {
-                        final token = await user.getIdToken();
-                        if (token != null) {
-                          context.read<NotificationBloc>().add(
-                            LoadNotifications(
-                              userId: user.uid,
-                              userToken: token,
-                              userType: 'psychologist',
-                            ),
-                          );
-                          
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationsPanelScreen(),
-                            ),
-                          ).then((_) {
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: _getResponsiveFontSize(context, 8)),
+                const Text('👋', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+          ),
+          actions: [
+            BlocBuilder<NotificationBloc, NotificationState>(
+              builder: (context, state) {
+                int unreadCount = 0;
+                if (state is NotificationLoaded) {
+                  unreadCount = state.notifications.where((n) => !n.isRead).length;
+                }
+                
+                return Stack(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.notifications_none,
+                        color: Theme.of(context).appBarTheme.iconTheme?.color,
+                        size: _getResponsiveFontSize(context, 24),
+                      ),
+                      onPressed: () async {
+                        final user = _auth.currentUser;
+                        if (user != null) {
+                          final token = await user.getIdToken();
+                          if (token != null) {
                             context.read<NotificationBloc>().add(
                               LoadNotifications(
                                 userId: user.uid,
@@ -363,65 +431,100 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
                                 userType: 'psychologist',
                               ),
                             );
-                          });
+                            
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationsPanelScreen(),
+                              ),
+                            ).then((_) {
+                              context.read<NotificationBloc>().add(
+                                LoadNotifications(
+                                  userId: user.uid,
+                                  userToken: token,
+                                  userType: 'psychologist',
+                                ),
+                              );
+                            });
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Usuario no autenticado')),
+                          );
                         }
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Usuario no autenticado')),
-                        );
-                      }
-                    },
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 11,
-                      top: 11,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B716F),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                        child: Text(
-                          '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
+                      },
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 11,
+                        top: 11,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B716F),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          textAlign: TextAlign.center,
+                          constraints: BoxConstraints(
+                            minWidth: _getResponsiveFontSize(context, 12),
+                            minHeight: _getResponsiveFontSize(context, 12),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              unreadCount > 9 ? '9+' : '$unreadCount',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: _getResponsiveFontSize(context, 8),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
+            SizedBox(width: _getResponsiveFontSize(context, 10)),
+          ],
+        ),
+        body: widgetOptions[_selectedIndex],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
-        ],
-      ),
-      body: widgetOptions[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-        selectedLabelStyle: Theme.of(context).bottomNavigationBarTheme.selectedLabelStyle ??
-            const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
-        unselectedLabelStyle: Theme.of(context).bottomNavigationBarTheme.unselectedLabelStyle ??
-            const TextStyle(fontWeight: FontWeight.normal, fontFamily: 'Poppins'),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Citas'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-        ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+            selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+            unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+            selectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              fontSize: _getResponsiveFontSize(context, 12),
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.normal,
+              fontFamily: 'Poppins',
+              fontSize: _getResponsiveFontSize(context, 12),
+            ),
+            iconSize: _getResponsiveFontSize(context, 24),
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
+              BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Citas'),
+              BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pacientes'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+            ],
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+          ),
+        ),
       ),
     );
   }
